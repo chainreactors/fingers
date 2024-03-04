@@ -409,5 +409,5 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 
 // GetFingerprints returns the fingerprint string from wappalyzer
 func GetFingerprints() string {
-	return string(fingerprints)
+	return string(WappalyzerData)
 }

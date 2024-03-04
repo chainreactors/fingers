@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-var fingerprinthubdata []byte
-
 type FingerPrintHub struct {
 	Name        string            `json:"name"`
 	FaviconHash []string          `json:"favicon_hash,omitempty"`
@@ -83,7 +81,7 @@ func (f FingerPrintHubs) Match(header http.Header, body string) common.Framework
 
 func NewFingerPrintHubEngine() (FingerPrintHubs, error) {
 	var engine FingerPrintHubs
-	err := json.Unmarshal(fingerprinthubdata, &engine)
+	err := json.Unmarshal(Fingerprinthubdata, &engine)
 	if err != nil {
 		return nil, err
 	}

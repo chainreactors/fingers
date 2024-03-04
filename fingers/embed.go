@@ -1,16 +1,9 @@
-//go:build !noembed
-// +build !noembed
+//go:build !noembed && go1.16
+// +build !noembed,go1.16
 
 package fingers
 
-import (
-	"io/ioutil"
-)
+import _ "embed"
 
-func init() {
-	var err error
-	FingerData, err = ioutil.ReadFile("fingers.json")
-	if err != nil {
-		panic(err)
-	}
-}
+//go:embed fingers.json
+var FingerData []byte

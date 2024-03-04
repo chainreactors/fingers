@@ -1,6 +1,6 @@
 module github.com/chainreactors/fingers
 
-go 1.10
+go 1.16
 
 require (
 	github.com/chainreactors/logs v0.0.0-20240207121836-c946f072f81f

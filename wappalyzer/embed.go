@@ -1,14 +1,9 @@
-//go:build !noembed
-// +build !noembed
+//go:build !noembed && go1.16
+// +build !noembed,go1.16
 
 package wappalyzer
 
-import "io/ioutil"
+import _ "embed"
 
-func init() {
-	var err error
-	fingerprints, err = ioutil.ReadFile("fingerprints_data.json")
-	if err != nil {
-		panic(err)
-	}
-}
+//go:embed fingerprints_data.json
+var WappalyzerData []byte

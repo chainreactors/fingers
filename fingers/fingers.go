@@ -13,9 +13,8 @@ import (
 )
 
 var (
-	FingerData []byte
-	OPSEC      = false
-	FingerLog  = logs.Log
+	OPSEC     = false
+	FingerLog = logs.Log
 )
 
 type Finger struct {
