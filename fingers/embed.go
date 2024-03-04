@@ -5,5 +5,8 @@ package fingers
 
 import _ "embed"
 
-//go:embed fingers.json
-var FingerData []byte
+//go:embed http.json
+var HTTPFingerData []byte
+
+//go:embed socket.json
+var SocketFingerData []byte

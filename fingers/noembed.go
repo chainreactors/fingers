@@ -4,3 +4,4 @@
 package fingers
 
 var FingerData []byte
+var SocketFingerData []byte

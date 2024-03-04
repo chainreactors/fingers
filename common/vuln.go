@@ -44,6 +44,15 @@ type Vuln struct {
 	SeverityLevel int                    `json:"severity"`
 }
 
+func (v *Vuln) HasTag(tag string) bool {
+	for _, t := range v.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
 func (v *Vuln) GetPayload() string {
 	return iutils.MapToString(v.Payload)
 }
@@ -69,8 +78,8 @@ func (v *Vuln) String() string {
 
 type Vulns map[string]*Vuln
 
-func (fs Vulns) Add(other *Vuln) {
-	fs[other.Name] = other
+func (vs Vulns) Add(other *Vuln) {
+	vs[other.Name] = other
 }
 
 func (vs Vulns) String() string {
@@ -80,4 +89,30 @@ func (vs Vulns) String() string {
 		s += fmt.Sprintf("[ %s: %s ] ", SeverityMap[vuln.SeverityLevel], vuln.String())
 	}
 	return s
+}
+
+func (vs Vulns) Merge(other Vulns) {
+	// name, tag 统一小写, 减少指纹库之间的差异
+	for _, v := range other {
+		v.Name = strings.ToLower(v.Name)
+		if frame, ok := vs[v.Name]; ok {
+			if len(v.Tags) > 0 {
+				for i, tag := range v.Tags {
+					v.Tags[i] = strings.ToLower(tag)
+				}
+				frame.Tags = iutils.StringsUnique(append(frame.Tags, v.Tags...))
+			}
+		} else {
+			vs[v.Name] = v
+		}
+	}
+}
+
+func (vs Vulns) HasTag(tag string) bool {
+	for _, f := range vs {
+		if f.HasTag(tag) {
+			return true
+		}
+	}
+	return false
 }

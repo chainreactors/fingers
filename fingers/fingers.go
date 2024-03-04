@@ -87,18 +87,72 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, res string, index int) (f
 	return frame, vuln
 }
 
-func (finger *Finger) Match(content map[string]interface{}, level int, sender func([]byte) ([]byte, bool)) (*common.Framework, *common.Vuln, bool) {
+func (finger *Finger) Match(content map[string]interface{}, level int, sender Sender) (*common.Framework, *common.Vuln, bool) {
 	// sender用来处理需要主动发包的场景, 因为不通工具中的传入指不相同, 因此采用闭包的方式自定义result进行处理, 并允许添加更多的功能.
 	// 例如在spray中, sender可以用来配置header等, 也可以进行特定的path拼接
 	// 如果sender留空只进行被动的指纹判断, 将无视rules中的senddata字段
 
 	for i, rule := range finger.Rules {
 		var ishttp bool
-		//var isactive bool
+		var isactive bool
 		if finger.Protocol == "http" {
 			ishttp = true
 		}
-		//var c []byte
+		var c []byte
+		var ok bool
+		// 主动发包获取指纹
+		if level >= rule.Level && rule.SendData != nil && sender != nil {
+			if OPSEC == true && finger.Opsec == true {
+				FingerLog.Debugf("(opsec!!!) skip active finger %s scan", finger.Name)
+			} else {
+				c, ok = sender(rule.SendData)
+				if ok {
+					isactive = true
+					content["content"] = bytes.ToLower(c)
+				}
+			}
+		}
+		hasFrame, hasVuln, res := RuleMatcher(rule, content, ishttp)
+		if hasFrame {
+			frame, vuln := finger.ToResult(hasFrame, hasVuln, res, i)
+			if finger.Focus {
+				frame.IsFocus = true
+			}
+			//if vuln == nil && isactive {
+			//	vuln = &parsers.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
+			//}
+			if isactive && hasFrame && ishttp {
+				frame.Data = c
+			}
+
+			// 某些情况下指纹无法使用正则匹配, 但可以通过特征指定版本号
+			if frame.Version == "" && rule.Regexps.CompiledVersionRegexp != nil {
+				for _, reg := range rule.Regexps.CompiledVersionRegexp {
+					res, _ := compiledMatch(reg, content["content"].([]byte))
+					if res != "" {
+						FingerLog.Debugf("%s version hit, regexp: %s", finger.Name, reg.String())
+						frame.Version = res
+						break
+					}
+				}
+			}
+			if isactive {
+				frame.From = ACTIVE
+			}
+			frame.Tags = finger.Tags
+			return frame, vuln, true
+		}
+	}
+	return nil, nil, false
+}
+
+func (finger *Finger) PassiveMatch(content map[string]interface{}) (*common.Framework, *common.Vuln, bool) {
+	for i, rule := range finger.Rules {
+		var ishttp bool
+		if finger.Protocol == "http" {
+			ishttp = true
+		}
+
 		hasFrame, hasVuln, res := RuleMatcher(rule, content, ishttp)
 		if hasFrame {
 			frame, vuln := finger.ToResult(hasFrame, hasVuln, res, i)
@@ -107,9 +161,6 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender fu
 			}
 			//if vuln == nil && isactive {
 			//	vuln = &common.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
-			//}
-			//if isactive && hasFrame && ishttp {
-			//	frame.Data = c
 			//}
 
 			// 某些情况下指纹无法使用正则匹配, 但可以通过特征指定版本号
@@ -123,9 +174,7 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender fu
 					}
 				}
 			}
-			//if isactive {
-			//	frame.From = ACTIVE
-			//}
+
 			frame.Tags = finger.Tags
 			return frame, vuln, true
 		}
