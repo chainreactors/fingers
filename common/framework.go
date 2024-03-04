@@ -1,6 +1,7 @@
 package common
 
 import (
+	"github.com/chainreactors/utils/iutils"
 	"strings"
 )
 
@@ -119,11 +120,21 @@ func (fs Frameworks) Add(other *Framework) {
 }
 
 func (fs Frameworks) Merge(other Frameworks) {
+	// name, tag 统一小写, 减少指纹库之间的差异
 	for name, f := range other {
-		if frame, ok := fs[name]; ok {
+		if frame, ok := fs[strings.ToLower(name)]; ok {
+			if frame.Version == "" && f.Version != "" {
+				frame.Version = f.Version
+			}
+			if len(f.Tags) > 0 {
+				for i, tag := range f.Tags {
+					f.Tags[i] = strings.ToLower(tag)
+				}
+				frame.Tags = iutils.StringsUnique(append(frame.Tags, f.Tags...))
+			}
 			frame.Froms[FrameFromFingerprintHub] = true
 		} else {
-			fs[name] = f
+			fs[strings.ToLower(name)] = f
 		}
 	}
 }
