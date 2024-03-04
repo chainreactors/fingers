@@ -111,6 +111,7 @@ func (f *Framework) HasTag(tag string) bool {
 type Frameworks map[string]*Framework
 
 func (fs Frameworks) Add(other *Framework) {
+	other.Name = strings.ToLower(other.Name)
 	if frame, ok := fs[other.Name]; ok {
 		frame.Froms[other.From] = true
 	} else {
@@ -121,8 +122,9 @@ func (fs Frameworks) Add(other *Framework) {
 
 func (fs Frameworks) Merge(other Frameworks) {
 	// name, tag 统一小写, 减少指纹库之间的差异
-	for name, f := range other {
-		if frame, ok := fs[strings.ToLower(name)]; ok {
+	for _, f := range other {
+		f.Name = strings.ToLower(f.Name)
+		if frame, ok := fs[f.Name]; ok {
 			if frame.Version == "" && f.Version != "" {
 				frame.Version = f.Version
 			}
@@ -134,7 +136,7 @@ func (fs Frameworks) Merge(other Frameworks) {
 			}
 			frame.Froms[FrameFromFingerprintHub] = true
 		} else {
-			fs[strings.ToLower(name)] = f
+			fs[f.Name] = f
 		}
 	}
 }
