@@ -7,7 +7,7 @@ import (
 )
 
 func NewEngine() (*Engine, error) {
-	var engine *Engine
+	engine := &Engine{}
 	fingersEngine, err := fingers.NewFingersEngine(fingers.FingerData)
 	if err != nil {
 		return nil, err
