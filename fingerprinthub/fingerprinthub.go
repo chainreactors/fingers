@@ -16,7 +16,7 @@ type FingerPrintHub struct {
 }
 
 func (f *FingerPrintHub) Match(header http.Header, body string) *common.Framework {
-	if f.Keyword == nil && f.Headers == nil {
+	if len(f.Keyword) == 0 && len(f.Headers) == 0 {
 		return nil
 	}
 	status := false
