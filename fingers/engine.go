@@ -95,7 +95,7 @@ func (engine *FingersRules) ActiveMatch(sender Sender) (common.Frameworks, commo
 	return frames, vulns
 }
 
-func NewEngine(data []byte) (*FingersRules, error) {
+func NewFingersEngine(data []byte) (*FingersRules, error) {
 	fs, err := LoadFingers(data)
 	if err != nil {
 		return nil, err

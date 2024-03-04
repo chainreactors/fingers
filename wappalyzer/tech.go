@@ -15,7 +15,7 @@ type Wappalyze struct {
 }
 
 // New creates a new tech detection instance
-func New() (*Wappalyze, error) {
+func NewWappalyzeEngine() (*Wappalyze, error) {
 	wappalyze := &Wappalyze{
 		fingerprints: &CompiledFingerprints{
 			Apps: make(map[string]*CompiledFingerprint),
