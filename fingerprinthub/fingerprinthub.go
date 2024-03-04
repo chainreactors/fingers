@@ -81,8 +81,8 @@ func (f FingerPrintHubs) Match(header http.Header, body string) common.Framework
 	return frames
 }
 
-func NewFingerPrintHubEngine() (*FingerPrintHubs, error) {
-	var engine *FingerPrintHubs
+func NewFingerPrintHubEngine() (FingerPrintHubs, error) {
+	var engine FingerPrintHubs
 	err := json.Unmarshal(fingerprinthubdata, &engine)
 	if err != nil {
 		return nil, err
