@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var fingerprints []byte
+
 // Wappalyze is a client for working with tech detection
 type Wappalyze struct {
 	fingerprints *CompiledFingerprints
@@ -30,7 +32,7 @@ func New() (*Wappalyze, error) {
 // loadFingerprints loads the fingerprints and compiles them
 func (s *Wappalyze) loadFingerprints() error {
 	var fingerprintsStruct Fingerprints
-	err := json.Unmarshal([]byte(fingerprints), &fingerprintsStruct)
+	err := json.Unmarshal(fingerprints, &fingerprintsStruct)
 	if err != nil {
 		return err
 	}

@@ -13,10 +13,9 @@ import (
 )
 
 var (
-	Md5Rules  map[string]string
-	Mmh3Rules map[string]string
-	OPSEC     = false
-	FingerLog = logs.Log
+	FingerData []byte
+	OPSEC      = false
+	FingerLog  = logs.Log
 )
 
 type Finger struct {

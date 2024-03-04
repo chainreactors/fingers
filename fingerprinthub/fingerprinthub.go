@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var fingerprinthubdata []byte
+
 type FingerPrintHub struct {
 	Name        string            `json:"name"`
 	FaviconHash []string          `json:"favicon_hash,omitempty"`

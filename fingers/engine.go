@@ -34,12 +34,12 @@ type HashRules struct {
 
 func (engine *HashRules) FaviconMatch(md5, mmh3 string) *common.Framework {
 	var frame *common.Framework
-	if Md5Rules[md5] != "" {
+	if engine.Md5Fingers[md5] != "" {
 		frame = &common.Framework{Name: engine.Md5Fingers[md5], From: common.FrameFromICO}
 		return frame
 	}
 
-	if Mmh3Rules[mmh3] != "" {
+	if engine.Mmh3Fingers[mmh3] != "" {
 		frame = &common.Framework{Name: engine.Mmh3Fingers[mmh3], From: common.FrameFromICO}
 		return frame
 	}

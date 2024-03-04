@@ -1,6 +1,14 @@
+//go:build !noembed
+// +build !noembed
+
 package fingerprinthub
 
-import _ "embed"
+import "io/ioutil"
 
-//go:embed web_fingerprint_v3.json
-var fingerprinthubdata []byte
+func init() {
+	var err error
+	fingerprinthubdata, err = ioutil.ReadFile("web_fingerprint_v3.json")
+	if err != nil {
+		panic(err)
+	}
+}

@@ -1,8 +1,14 @@
+//go:build !noembed
+// +build !noembed
+
 package wappalyzer
 
-import (
-	_ "embed"
-)
+import "io/ioutil"
 
-//go:embed fingerprints_data.json
-var fingerprints string
+func init() {
+	var err error
+	fingerprints, err = ioutil.ReadFile("fingerprints_data.json")
+	if err != nil {
+		panic(err)
+	}
+}

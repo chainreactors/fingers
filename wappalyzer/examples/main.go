@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	wappalyzer "github.com/projectdiscovery/wappalyzergo"
+	"github.com/chainreactors/fingers/wappalyzer"
 )
 
 func main() {
