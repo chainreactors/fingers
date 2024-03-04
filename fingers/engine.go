@@ -1,16 +1,11 @@
 package fingers
 
 import (
+	"errors"
 	"github.com/chainreactors/fingers/common"
-	"github.com/chainreactors/logs"
 )
 
 type Sender func([]byte) ([]byte, bool)
-
-var HashEngine = &HashRules{
-	Md5Fingers:  make(map[string]string),
-	Mmh3Fingers: make(map[string]string),
-}
 
 func (engine *HashRules) Load(fingers Fingers) {
 	for _, finger := range fingers {
@@ -46,31 +41,22 @@ func (engine *HashRules) FaviconMatch(md5, mmh3 string) *common.Framework {
 	return nil
 }
 
-var FingersEngine = &FingersRules{
-	Fingers:   Fingers{},
-	FingerLog: logs.Log,
-	HashRules: HashEngine,
-}
-
 type FingersRules struct {
 	Fingers       Fingers
 	ActiveFingers Fingers
-	FingerLog     *logs.Logger
 	*HashRules
 }
 
-func (engine *FingersRules) Load(content []byte) error {
-	fingers, err := LoadFingers(content)
-	if err != nil {
-		return err
+func (engine *FingersRules) Load() error {
+	if engine.Fingers == nil {
+		return errors.New("fingers is nil")
 	}
-	engine.Fingers = fingers
-	for _, finger := range fingers {
+	for _, finger := range engine.Fingers {
 		if finger.IsActive {
 			engine.ActiveFingers = append(engine.ActiveFingers, finger)
 		}
 	}
-	engine.HashRules.Load(fingers)
+	engine.HashRules.Load(engine.Fingers)
 	return nil
 }
 
@@ -107,4 +93,24 @@ func (engine *FingersRules) ActiveMatch(sender Sender) (common.Frameworks, commo
 		}
 	}
 	return frames, vulns
+}
+
+func NewEngine(data []byte) (*FingersRules, error) {
+	fs, err := LoadFingers(data)
+	if err != nil {
+		return nil, err
+	}
+
+	engine := &FingersRules{
+		Fingers: fs,
+		HashRules: &HashRules{
+			Md5Fingers:  make(map[string]string),
+			Mmh3Fingers: make(map[string]string),
+		},
+	}
+	err = engine.Load()
+	if err != nil {
+		return nil, err
+	}
+	return engine, nil
 }
