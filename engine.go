@@ -3,7 +3,7 @@ package fingers
 import (
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
-	wappalyzer "github.com/chainreactors/fingers/wappalyzergo"
+	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 )
 
 type Engine struct {
