@@ -16,6 +16,9 @@ type FingerPrintHub struct {
 }
 
 func (f *FingerPrintHub) Match(header http.Header, body string) *common.Framework {
+	if f.Keyword == nil && f.Headers == nil {
+		return nil
+	}
 	status := false
 	if f.MatchHeader(header) && f.MatchBody(body) { // fingerprinthub 指纹库规则为且
 		status = true
