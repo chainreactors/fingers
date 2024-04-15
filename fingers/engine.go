@@ -62,8 +62,8 @@ func (engine *FingersRules) SocketMatch(content []byte, port string, level int, 
 	// socket service only match one fingerprint
 	var alreadyFrameworks = make(map[string]bool)
 	input := map[string]interface{}{"content": content}
-	fs, vs, ok := engine.SocketGroupped[port].Match(input, level, sender, true)
-	if ok {
+	fs, vs := engine.SocketGroupped[port].Match(input, level, sender, true)
+	if len(fs) > 0 {
 		return fs.One(), vs.One()
 	}
 	for _, fs := range engine.SocketGroupped[port] {

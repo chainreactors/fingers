@@ -86,10 +86,9 @@ func (fs Fingers) ActiveMatch(level int, sender Sender, stopAtFirst bool) (commo
 	return frames, vulns
 }
 
-func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, stopAtFirst bool) (common.Frameworks, common.Vulns, bool) {
+func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, stopAtFirst bool) (common.Frameworks, common.Vulns) {
 	frames := make(common.Frameworks)
 	vulns := make(common.Vulns)
-	var ok bool
 	for _, finger := range fs {
 		frame, vuln, ok := finger.Match(input, level, sender)
 		if ok {
@@ -103,5 +102,5 @@ func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, 
 			}
 		}
 	}
-	return frames, vulns, ok
+	return frames, vulns
 }
