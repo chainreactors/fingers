@@ -117,6 +117,14 @@ func (fs Frameworks) One() *Framework {
 	return nil
 }
 
+func (fs Frameworks) List() []*Framework {
+	var frameworks []*Framework
+	for _, f := range fs {
+		frameworks = append(frameworks, f)
+	}
+	return frameworks
+}
+
 func (fs Frameworks) Add(other *Framework) {
 	other.Name = strings.ToLower(other.Name)
 	if frame, ok := fs[other.Name]; ok {

@@ -85,6 +85,14 @@ func (vs Vulns) One() *Vuln {
 	return nil
 }
 
+func (vs Vulns) List() []*Vuln {
+	var vulns []*Vuln
+	for _, v := range vs {
+		vulns = append(vulns, v)
+	}
+	return vulns
+}
+
 func (vs Vulns) Add(other *Vuln) {
 	vs[other.Name] = other
 }
