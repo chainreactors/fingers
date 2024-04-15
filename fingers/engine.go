@@ -78,8 +78,8 @@ func (engine *FingersRules) SocketMatch(content []byte, port string, level int, 
 				alreadyFrameworks[finger.Name] = true
 			}
 
-			frame, vuln := finger.Match(input, level, sender)
-			if frame != nil {
+			frame, vuln, ok := finger.Match(input, level, sender)
+			if ok {
 				return frame, vuln
 			}
 		}
@@ -92,11 +92,11 @@ func (engine *FingersRules) HTTPMatch(content []byte, cert string) (common.Frame
 	// content: []byte
 	// cert: string
 
-	return engine.HTTPFingers.PassiveMatch(map[string]interface{}{"content": content, "cert": cert})
+	return engine.HTTPFingers.PassiveMatch(map[string]interface{}{"content": content, "cert": cert}, false)
 }
 
 func (engine *FingersRules) HTTPActiveMatch(level int, sender Sender) (common.Frameworks, common.Vulns) {
-	return engine.HTTPFingersActiveFingers.ActiveMatch(level, sender)
+	return engine.HTTPFingersActiveFingers.ActiveMatch(level, sender, false)
 }
 
 type FaviconRules struct {

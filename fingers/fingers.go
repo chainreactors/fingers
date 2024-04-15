@@ -85,7 +85,7 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, res string, index int) (f
 	return frame, vuln
 }
 
-func (finger *Finger) Match(content map[string]interface{}, level int, sender Sender) (*common.Framework, *common.Vuln) {
+func (finger *Finger) Match(content map[string]interface{}, level int, sender Sender) (*common.Framework, *common.Vuln, bool) {
 	// sender用来处理需要主动发包的场景, 因为不通工具中的传入指不相同, 因此采用闭包的方式自定义result进行处理, 并允许添加更多的功能.
 	// 例如在spray中, sender可以用来配置header等, 也可以进行特定的path拼接
 	// 如果sender留空只进行被动的指纹判断, 将无视rules中的senddata字段
@@ -138,10 +138,10 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender Se
 				frame.From = ACTIVE
 			}
 			frame.Tags = finger.Tags
-			return frame, vuln
+			return frame, vuln, true
 		}
 	}
-	return nil, nil
+	return nil, nil, false
 }
 
 func (finger *Finger) PassiveMatch(content map[string]interface{}) (*common.Framework, *common.Vuln, bool) {
