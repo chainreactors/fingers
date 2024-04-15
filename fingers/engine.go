@@ -66,6 +66,9 @@ func (engine *FingersRules) SocketMatch(content []byte, port string, level int, 
 	if ok {
 		return fs.One(), vs.One()
 	}
+	for _, fs := range engine.SocketGroupped[port] {
+		alreadyFrameworks[fs.Name] = true
+	}
 
 	for _, fs := range engine.SocketGroupped {
 		for _, finger := range fs {
@@ -75,7 +78,7 @@ func (engine *FingersRules) SocketMatch(content []byte, port string, level int, 
 				alreadyFrameworks[finger.Name] = true
 			}
 
-			frame, vuln := finger.Match(map[string]interface{}{"content": content}, level, sender)
+			frame, vuln := finger.Match(input, level, sender)
 			if frame != nil {
 				return frame, vuln
 			}
