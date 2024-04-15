@@ -2,14 +2,12 @@ package fingers
 
 import (
 	"bytes"
-	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/utils/encode"
 	"regexp"
 	"strings"
 
 	"github.com/chainreactors/logs"
-	"github.com/chainreactors/utils"
 )
 
 var (
@@ -87,7 +85,7 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, res string, index int) (f
 	return frame, vuln
 }
 
-func (finger *Finger) Match(content map[string]interface{}, level int, sender Sender) (*common.Framework, *common.Vuln, bool) {
+func (finger *Finger) Match(content map[string]interface{}, level int, sender Sender) (*common.Framework, *common.Vuln) {
 	// sender用来处理需要主动发包的场景, 因为不通工具中的传入指不相同, 因此采用闭包的方式自定义result进行处理, 并允许添加更多的功能.
 	// 例如在spray中, sender可以用来配置header等, 也可以进行特定的path拼接
 	// 如果sender留空只进行被动的指纹判断, 将无视rules中的senddata字段
@@ -140,10 +138,10 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender Se
 				frame.From = ACTIVE
 			}
 			frame.Tags = finger.Tags
-			return frame, vuln, true
+			return frame, vuln
 		}
 	}
-	return nil, nil, false
+	return nil, nil
 }
 
 func (finger *Finger) PassiveMatch(content map[string]interface{}) (*common.Framework, *common.Vuln, bool) {
@@ -332,6 +330,8 @@ func (r *Rule) Compile(name string) error {
 	return nil
 }
 
+type Rules []*Rule
+
 func (rs Rules) Compile(name string) error {
 	for _, r := range rs {
 		err := r.Compile(name)
@@ -416,58 +416,4 @@ func (r *Rule) MatchCert(content string) bool {
 		}
 	}
 	return false
-}
-
-type Rules []*Rule
-
-type senddata []byte
-
-func (d senddata) IsNull() bool {
-	if len(d) == 0 {
-		return true
-	}
-	return false
-}
-
-type FingerMapper map[string][]*Finger
-
-type Fingers []*Finger
-
-func (fs Fingers) GroupByPort() FingerMapper {
-	fingermap := make(FingerMapper)
-	for _, f := range fs {
-		for _, port := range f.DefaultPort {
-			fingermap[port] = append(fingermap[port], f)
-		}
-	}
-	return fingermap
-}
-
-func (fs Fingers) GroupByMod() (Fingers, Fingers) {
-	var active, passive Fingers
-	for _, f := range fs {
-		if f.IsActive {
-			active = append(active, f)
-		} else {
-			passive = append(passive, f)
-		}
-	}
-	return active, passive
-}
-
-// LoadFingers 加载指纹 迁移到fingers包从, 允许其他服务调用
-func LoadFingers(content []byte) (fingers Fingers, err error) {
-	err = json.Unmarshal(content, &fingers)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, finger := range fingers {
-		err := finger.Compile(utils.ParsePorts)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return fingers, nil
 }

@@ -3,42 +3,34 @@ package fingers
 import (
 	"errors"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/utils/encode"
 )
 
-type Sender func([]byte) ([]byte, bool)
+func NewFingersEngine(httpdata, socketdata []byte) (*FingersRules, error) {
+	// httpdata must be not nil
+	// socketdata can be nil
 
-func (engine *FaviconRules) Load(fingers Fingers) {
-	for _, finger := range fingers {
-		for _, rule := range finger.Rules {
-			if rule.Favicon != nil {
-				for _, mmh3 := range rule.Favicon.Mmh3 {
-					engine.Mmh3Fingers[mmh3] = finger.Name
-				}
-				for _, md5 := range rule.Favicon.Md5 {
-					engine.Md5Fingers[md5] = finger.Name
-				}
-			}
-		}
-	}
-}
-
-type FaviconRules struct {
-	Md5Fingers  map[string]string
-	Mmh3Fingers map[string]string
-}
-
-func (engine *FaviconRules) FaviconMatch(md5, mmh3 string) *common.Framework {
-	var frame *common.Framework
-	if engine.Md5Fingers[md5] != "" {
-		frame = &common.Framework{Name: engine.Md5Fingers[md5], From: common.FrameFromICO}
-		return frame
+	httpfs, err := LoadFingers(httpdata)
+	if err != nil {
+		return nil, err
 	}
 
-	if engine.Mmh3Fingers[mmh3] != "" {
-		frame = &common.Framework{Name: engine.Mmh3Fingers[mmh3], From: common.FrameFromICO}
-		return frame
+	engine := &FingersRules{
+		HTTPFingers: httpfs,
+		FaviconRules: &FaviconRules{
+			Md5Fingers:  make(map[string]string),
+			Mmh3Fingers: make(map[string]string),
+		},
 	}
-	return nil
+	if socketdata != nil {
+		engine.SocketFingers, err = LoadFingers(socketdata)
+	}
+
+	err = engine.Load()
+	if err != nil {
+		return nil, err
+	}
+	return engine, nil
 }
 
 type FingersRules struct {
@@ -69,11 +61,10 @@ func (engine *FingersRules) Load() error {
 func (engine *FingersRules) SocketMatch(content []byte, port string, level int, sender Sender) (*common.Framework, *common.Vuln) {
 	// socket service only match one fingerprint
 	var alreadyFrameworks = make(map[string]bool)
-	for _, finger := range engine.SocketGroupped[port] {
-		frame, vuln, ok := finger.Match(map[string]interface{}{"content": content}, level, sender)
-		if ok {
-			return frame, vuln
-		}
+	input := map[string]interface{}{"content": content}
+	fs, vs, ok := engine.SocketGroupped[port].Match(input, level, sender, true)
+	if ok {
+		return fs.One(), vs.One()
 	}
 
 	for _, fs := range engine.SocketGroupped {
@@ -84,8 +75,8 @@ func (engine *FingersRules) SocketMatch(content []byte, port string, level int, 
 				alreadyFrameworks[finger.Name] = true
 			}
 
-			frame, vuln, ok := finger.Match(map[string]interface{}{"content": content}, level, sender)
-			if ok {
+			frame, vuln := finger.Match(map[string]interface{}{"content": content}, level, sender)
+			if frame != nil {
 				return frame, vuln
 			}
 		}
@@ -98,59 +89,49 @@ func (engine *FingersRules) HTTPMatch(content []byte, cert string) (common.Frame
 	// content: []byte
 	// cert: string
 
-	frames := make(common.Frameworks)
-	vulns := make(common.Vulns)
-	for _, finger := range engine.HTTPFingers {
-		// sender置空, 所有的发包交给spray的pool
-		frame, vuln, ok := finger.PassiveMatch(map[string]interface{}{"content": content, "cert": cert})
-		if ok {
-			frames.Add(frame)
-			if vuln != nil {
-				vulns[vuln.Name] = vuln
-			}
-		}
-	}
-	return frames, vulns
+	return engine.HTTPFingers.PassiveMatch(map[string]interface{}{"content": content, "cert": cert})
 }
 
 func (engine *FingersRules) HTTPActiveMatch(level int, sender Sender) (common.Frameworks, common.Vulns) {
-	frames := make(common.Frameworks)
-	vulns := make(common.Vulns)
-	for _, finger := range engine.HTTPFingersActiveFingers {
-		frame, vuln, ok := finger.ActiveMatch(level, sender)
-		if ok {
-			frames.Add(frame)
-			if vuln != nil {
-				vulns[vuln.Name] = vuln
+	return engine.HTTPFingersActiveFingers.ActiveMatch(level, sender)
+}
+
+type FaviconRules struct {
+	Md5Fingers  map[string]string
+	Mmh3Fingers map[string]string
+}
+
+func (engine *FaviconRules) Load(fingers Fingers) {
+	for _, finger := range fingers {
+		for _, rule := range finger.Rules {
+			if rule.Favicon != nil {
+				for _, mmh3 := range rule.Favicon.Mmh3 {
+					engine.Mmh3Fingers[mmh3] = finger.Name
+				}
+				for _, md5 := range rule.Favicon.Md5 {
+					engine.Md5Fingers[md5] = finger.Name
+				}
 			}
 		}
 	}
-	return frames, vulns
 }
 
-func NewFingersEngine(httpdata, socketdata []byte) (*FingersRules, error) {
-	// httpdata must be not nil
-	// socketdata can be nil
-
-	httpfs, err := LoadFingers(httpdata)
-	if err != nil {
-		return nil, err
+func (engine *FaviconRules) HashMatch(md5, mmh3 string) *common.Framework {
+	var frame *common.Framework
+	if engine.Md5Fingers[md5] != "" {
+		frame = &common.Framework{Name: engine.Md5Fingers[md5], From: common.FrameFromICO}
+		return frame
 	}
 
-	engine := &FingersRules{
-		HTTPFingers: httpfs,
-		FaviconRules: &FaviconRules{
-			Md5Fingers:  make(map[string]string),
-			Mmh3Fingers: make(map[string]string),
-		},
+	if engine.Mmh3Fingers[mmh3] != "" {
+		frame = &common.Framework{Name: engine.Mmh3Fingers[mmh3], From: common.FrameFromICO}
+		return frame
 	}
-	if socketdata != nil {
-		engine.SocketFingers, err = LoadFingers(socketdata)
-	}
+	return nil
+}
 
-	err = engine.Load()
-	if err != nil {
-		return nil, err
-	}
-	return engine, nil
+func (engine *FaviconRules) ContentMatch(content []byte) *common.Framework {
+	md5h := encode.Md5Hash(content)
+	mmh3h := encode.Mmh3Hash32(content)
+	return engine.HashMatch(md5h, mmh3h)
 }

@@ -78,6 +78,13 @@ func (v *Vuln) String() string {
 
 type Vulns map[string]*Vuln
 
+func (vs Vulns) One() *Vuln {
+	for _, v := range vs {
+		return v
+	}
+	return nil
+}
+
 func (vs Vulns) Add(other *Vuln) {
 	vs[other.Name] = other
 }

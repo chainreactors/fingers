@@ -110,6 +110,13 @@ func (f *Framework) HasTag(tag string) bool {
 
 type Frameworks map[string]*Framework
 
+func (fs Frameworks) One() *Framework {
+	for _, f := range fs {
+		return f
+	}
+	return nil
+}
+
 func (fs Frameworks) Add(other *Framework) {
 	other.Name = strings.ToLower(other.Name)
 	if frame, ok := fs[other.Name]; ok {
