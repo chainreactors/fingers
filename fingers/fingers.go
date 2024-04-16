@@ -365,7 +365,7 @@ func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
 	// body匹配
 	for _, bodyReg := range r.Regexps.Body {
 		if strings.Contains(body, bodyReg) {
-			FingerLog.Debugf("%s finger hit, body: %s", r.FingerName, bodyReg)
+			FingerLog.Debugf("%s finger hit, body: %q", r.FingerName, bodyReg)
 			return true, false, ""
 		}
 	}
@@ -374,7 +374,7 @@ func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
 	for _, reg := range r.Regexps.CompliedRegexp {
 		res, ok := compiledMatch(reg, content)
 		if ok {
-			FingerLog.Debugf("%s finger hit, regexp: %s", r.FingerName, reg.String())
+			FingerLog.Debugf("%s finger hit, regexp: %q", r.FingerName, reg.String())
 			return true, false, res
 		}
 	}

@@ -72,9 +72,11 @@ func (f *Framework) String() string {
 
 	if len(f.Froms) > 1 {
 		s.WriteString(":(")
+		var froms []string
 		for from, _ := range f.Froms {
-			s.WriteString(frameFromMap[from] + " ")
+			froms = append(froms, frameFromMap[from])
 		}
+		s.WriteString(strings.Join(froms, " "))
 		s.WriteString(")")
 	} else {
 		for from, _ := range f.Froms {
@@ -125,18 +127,21 @@ func (fs Frameworks) List() []*Framework {
 	return frameworks
 }
 
-func (fs Frameworks) Add(other *Framework) {
+func (fs Frameworks) Add(other *Framework) bool {
 	other.Name = strings.ToLower(other.Name)
 	if frame, ok := fs[other.Name]; ok {
 		frame.Froms[other.From] = true
+		return false
 	} else {
 		other.Froms = map[int]bool{other.From: true}
 		fs[other.Name] = other
+		return true
 	}
 }
 
-func (fs Frameworks) Merge(other Frameworks) {
+func (fs Frameworks) Merge(other Frameworks) int {
 	// name, tag 统一小写, 减少指纹库之间的差异
+	var n int
 	for _, f := range other {
 		f.Name = strings.ToLower(f.Name)
 		if frame, ok := fs[f.Name]; ok {
@@ -149,11 +154,12 @@ func (fs Frameworks) Merge(other Frameworks) {
 				}
 				frame.Tags = iutils.StringsUnique(append(frame.Tags, f.Tags...))
 			}
-			frame.Froms[FrameFromFingerprintHub] = true
 		} else {
 			fs[f.Name] = f
+			n += 1
 		}
 	}
+	return n
 }
 
 func (fs Frameworks) String() string {

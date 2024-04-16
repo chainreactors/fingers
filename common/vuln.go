@@ -68,10 +68,10 @@ func (v *Vuln) GetDetail() string {
 func (v *Vuln) String() string {
 	s := v.Name
 	if payload := v.GetPayload(); payload != "" {
-		s += fmt.Sprintf(" payloads:%s", payload)
+		s += fmt.Sprintf(" payloads:%s", iutils.AsciiEncode(payload))
 	}
 	if detail := v.GetDetail(); detail != "" {
-		s += fmt.Sprintf(" payloads:%s", detail)
+		s += fmt.Sprintf(" payloads:%s", iutils.AsciiEncode(detail))
 	}
 	return s
 }
@@ -93,8 +93,12 @@ func (vs Vulns) List() []*Vuln {
 	return vulns
 }
 
-func (vs Vulns) Add(other *Vuln) {
-	vs[other.Name] = other
+func (vs Vulns) Add(other *Vuln) bool {
+	if _, ok := vs[other.Name]; !ok {
+		vs[other.Name] = other
+		return true
+	}
+	return false
 }
 
 func (vs Vulns) String() string {
@@ -106,8 +110,9 @@ func (vs Vulns) String() string {
 	return s
 }
 
-func (vs Vulns) Merge(other Vulns) {
+func (vs Vulns) Merge(other Vulns) int {
 	// name, tag 统一小写, 减少指纹库之间的差异
+	var n int
 	for _, v := range other {
 		v.Name = strings.ToLower(v.Name)
 		if frame, ok := vs[v.Name]; ok {
@@ -119,8 +124,10 @@ func (vs Vulns) Merge(other Vulns) {
 			}
 		} else {
 			vs[v.Name] = v
+			n += n
 		}
 	}
+	return n
 }
 
 func (vs Vulns) HasTag(tag string) bool {
