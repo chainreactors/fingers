@@ -215,9 +215,9 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 			//if vuln == nil && isactive {
 			//	vuln = &common.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
 			//}
-			if hasFrame && ishttp { // re-analysis
-				frame.Data = c
-			}
+			//if hasFrame && ishttp { // re-analysis
+			//	frame.Data = c
+			//}
 
 			// 某些情况下指纹无法使用正则匹配, 但可以通过特征指定版本号
 			if frame.Version == "" && rule.Regexps.CompiledVersionRegexp != nil {

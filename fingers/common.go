@@ -73,13 +73,13 @@ func (fs Fingers) ActiveMatch(level int, sender Sender, callback Callback, stopA
 	vulns := make(common.Vulns)
 	for _, finger := range fs {
 		frame, vuln, ok := finger.ActiveMatch(level, sender)
+		if callback != nil {
+			callback(frame, vuln)
+		}
 		if ok {
 			frames.Add(frame)
 			if vuln != nil {
 				vulns[vuln.Name] = vuln
-			}
-			if callback != nil {
-				callback(frame, vuln)
 			}
 			if stopAtFirst {
 				break
@@ -94,14 +94,14 @@ func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, 
 	vulns := make(common.Vulns)
 	for _, finger := range fs {
 		frame, vuln, ok := finger.Match(input, level, sender)
+		if callback != nil {
+			callback(frame, vuln)
+		}
 		if ok {
 			ok = true
 			frames.Add(frame)
 			if vuln != nil {
 				vulns.Add(vuln)
-			}
-			if callback != nil {
-				callback(frame, vuln)
 			}
 			if stopAtFirst {
 				break
