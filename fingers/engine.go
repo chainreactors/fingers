@@ -58,11 +58,11 @@ func (engine *FingersRules) Load() error {
 	return nil
 }
 
-func (engine *FingersRules) SocketMatch(content []byte, port string, level int, sender Sender) (*common.Framework, *common.Vuln) {
+func (engine *FingersRules) SocketMatch(content []byte, port string, level int, sender Sender, callback Callback) (*common.Framework, *common.Vuln) {
 	// socket service only match one fingerprint
 	var alreadyFrameworks = make(map[string]bool)
 	input := map[string]interface{}{"content": content}
-	fs, vs := engine.SocketGroupped[port].Match(input, level, sender, true)
+	fs, vs := engine.SocketGroupped[port].Match(input, level, sender, callback, true)
 	if len(fs) > 0 {
 		return fs.One(), vs.One()
 	}
@@ -95,8 +95,8 @@ func (engine *FingersRules) HTTPMatch(content []byte, cert string) (common.Frame
 	return engine.HTTPFingers.PassiveMatch(map[string]interface{}{"content": content, "cert": cert}, false)
 }
 
-func (engine *FingersRules) HTTPActiveMatch(level int, sender Sender) (common.Frameworks, common.Vulns) {
-	return engine.HTTPFingersActiveFingers.ActiveMatch(level, sender, false)
+func (engine *FingersRules) HTTPActiveMatch(level int, sender Sender, callback Callback) (common.Frameworks, common.Vulns) {
+	return engine.HTTPFingersActiveFingers.ActiveMatch(level, sender, callback, false)
 }
 
 type FaviconRules struct {
