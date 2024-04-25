@@ -68,7 +68,7 @@ func (fs Fingers) PassiveMatch(input map[string]interface{}, stopAtFirst bool) (
 	return frames, vulns
 }
 
-func (fs Fingers) ActiveMatch(level int, sender Sender, stopAtFirst bool) (common.Frameworks, common.Vulns) {
+func (fs Fingers) ActiveMatch(level int, sender Sender, callback Callback, stopAtFirst bool) (common.Frameworks, common.Vulns) {
 	frames := make(common.Frameworks)
 	vulns := make(common.Vulns)
 	for _, finger := range fs {
@@ -78,6 +78,7 @@ func (fs Fingers) ActiveMatch(level int, sender Sender, stopAtFirst bool) (commo
 			if vuln != nil {
 				vulns[vuln.Name] = vuln
 			}
+			callback(frame, vuln)
 			if stopAtFirst {
 				break
 			}
@@ -86,7 +87,7 @@ func (fs Fingers) ActiveMatch(level int, sender Sender, stopAtFirst bool) (commo
 	return frames, vulns
 }
 
-func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, stopAtFirst bool) (common.Frameworks, common.Vulns) {
+func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, callback Callback, stopAtFirst bool) (common.Frameworks, common.Vulns) {
 	frames := make(common.Frameworks)
 	vulns := make(common.Vulns)
 	for _, finger := range fs {
@@ -97,6 +98,7 @@ func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, 
 			if vuln != nil {
 				vulns.Add(vuln)
 			}
+			callback(frame, vuln)
 			if stopAtFirst {
 				break
 			}

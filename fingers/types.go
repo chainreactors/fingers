@@ -1,5 +1,7 @@
 package fingers
 
+import "github.com/chainreactors/fingers/common"
+
 const (
 	None = iota
 	ACTIVE
@@ -16,7 +18,7 @@ const (
 )
 
 type Sender func([]byte) ([]byte, bool)
-
+type Callback func(*common.Framework, *common.Vuln)
 type senddata []byte
 
 func (d senddata) IsNull() bool {
