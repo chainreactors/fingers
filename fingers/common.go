@@ -78,7 +78,9 @@ func (fs Fingers) ActiveMatch(level int, sender Sender, callback Callback, stopA
 			if vuln != nil {
 				vulns[vuln.Name] = vuln
 			}
-			callback(frame, vuln)
+			if callback != nil {
+				callback(frame, vuln)
+			}
 			if stopAtFirst {
 				break
 			}
@@ -98,7 +100,9 @@ func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, 
 			if vuln != nil {
 				vulns.Add(vuln)
 			}
-			callback(frame, vuln)
+			if callback != nil {
+				callback(frame, vuln)
+			}
 			if stopAtFirst {
 				break
 			}

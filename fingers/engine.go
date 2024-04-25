@@ -80,6 +80,9 @@ func (engine *FingersRules) SocketMatch(content []byte, port string, level int, 
 
 			frame, vuln, ok := finger.Match(input, level, sender)
 			if ok {
+				if callback != nil {
+					callback(frame, vuln)
+				}
 				return frame, vuln
 			}
 		}
