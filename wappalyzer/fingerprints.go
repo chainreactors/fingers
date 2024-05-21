@@ -225,8 +225,7 @@ func compileFingerprint(fingerprint *Fingerprint) *CompiledFingerprint {
 // matchString matches a string for the fingerprints
 func (f *CompiledFingerprints) matchString(data string, part part) common.Frameworks {
 	var matched bool
-	var technologies common.Frameworks
-
+	technologies := make(common.Frameworks)
 	for app, fingerprint := range f.Apps {
 		var version string
 
@@ -252,6 +251,8 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 					version = versionString
 				}
 			}
+		default:
+			continue
 		}
 
 		// If no match, continue with the next fingerprint
