@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/utils/encode"
+	"github.com/chainreactors/utils/iutils"
 	"regexp"
 	"strings"
 
@@ -54,14 +55,14 @@ func (finger *Finger) Compile(portHandler func([]string) []string) error {
 	return nil
 }
 
-func (finger *Finger) ToResult(hasFrame, hasVuln bool, res string, index int) (frame *common.Framework, vuln *common.Vuln) {
+func (finger *Finger) ToResult(hasFrame, hasVuln bool, ver string, index int) (frame *common.Framework, vuln *common.Vuln) {
 	if index >= len(finger.Rules) {
 		return nil, nil
 	}
 
 	if hasFrame {
-		if res != "" {
-			frame = &common.Framework{Name: finger.Name, Version: res}
+		if ver != "" {
+			frame = &common.Framework{Name: finger.Name, Version: ver}
 		} else if finger.Rules[index].Version != "_" {
 			frame = &common.Framework{Name: finger.Name, Version: finger.Rules[index].Version}
 		} else {
@@ -110,9 +111,9 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender Se
 				}
 			}
 		}
-		hasFrame, hasVuln, res := RuleMatcher(rule, content, ishttp)
+		hasFrame, hasVuln, ver := RuleMatcher(rule, content, ishttp)
 		if hasFrame {
-			frame, vuln := finger.ToResult(hasFrame, hasVuln, res, i)
+			frame, vuln := finger.ToResult(hasFrame, hasVuln, ver, i)
 			if finger.Focus {
 				frame.IsFocus = true
 			}
@@ -123,17 +124,6 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender Se
 				frame.Data = c
 			}
 
-			// 某些情况下指纹无法使用正则匹配, 但可以通过特征指定版本号
-			if frame.Version == "" && rule.Regexps.CompiledVersionRegexp != nil {
-				for _, reg := range rule.Regexps.CompiledVersionRegexp {
-					res, _ := compiledMatch(reg, content["content"].([]byte))
-					if res != "" {
-						FingerLog.Debugf("%s version hit, regexp: %s", finger.Name, reg.String())
-						frame.Version = res
-						break
-					}
-				}
-			}
 			if isactive {
 				frame.From = ACTIVE
 			}
@@ -151,27 +141,15 @@ func (finger *Finger) PassiveMatch(content map[string]interface{}) (*common.Fram
 			ishttp = true
 		}
 
-		hasFrame, hasVuln, res := RuleMatcher(rule, content, ishttp)
+		hasFrame, hasVuln, ver := RuleMatcher(rule, content, ishttp)
 		if hasFrame {
-			frame, vuln := finger.ToResult(hasFrame, hasVuln, res, i)
+			frame, vuln := finger.ToResult(hasFrame, hasVuln, ver, i)
 			if finger.Focus {
 				frame.IsFocus = true
 			}
 			//if vuln == nil && isactive {
 			//	vuln = &common.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
 			//}
-
-			// 某些情况下指纹无法使用正则匹配, 但可以通过特征指定版本号
-			if frame.Version == "" && rule.Regexps.CompiledVersionRegexp != nil {
-				for _, reg := range rule.Regexps.CompiledVersionRegexp {
-					res, _ := compiledMatch(reg, content["content"].([]byte))
-					if res != "" {
-						FingerLog.Debugf("%s version hit, regexp: %s", finger.Name, reg.String())
-						frame.Version = res
-						break
-					}
-				}
-			}
 
 			frame.Tags = finger.Tags
 			return frame, vuln, true
@@ -206,9 +184,9 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 			return nil, nil, false
 		}
 
-		hasFrame, hasVuln, res := RuleMatcher(rule, content, ishttp)
+		hasFrame, hasVuln, ver := RuleMatcher(rule, content, ishttp)
 		if hasFrame {
-			frame, vuln := finger.ToResult(hasFrame, hasVuln, res, i)
+			frame, vuln := finger.ToResult(hasFrame, hasVuln, ver, i)
 			if finger.Focus {
 				frame.IsFocus = true
 			}
@@ -218,18 +196,6 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 			//if hasFrame && ishttp { // re-analysis
 			//	frame.Data = c
 			//}
-
-			// 某些情况下指纹无法使用正则匹配, 但可以通过特征指定版本号
-			if frame.Version == "" && rule.Regexps.CompiledVersionRegexp != nil {
-				for _, reg := range rule.Regexps.CompiledVersionRegexp {
-					res, _ := compiledMatch(reg, content["content"].([]byte))
-					if res != "" {
-						FingerLog.Debugf("%s version hit, regexp: %s", finger.Name, reg.String())
-						frame.Version = res
-						break
-					}
-				}
-			}
 			frame.From = ACTIVE
 			frame.Tags = finger.Tags
 			return frame, vuln, true
@@ -357,7 +323,7 @@ func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
 	}
 
 	for _, reg := range r.Regexps.CompiledVulnRegexp {
-		res, ok := compiledMatch(reg, content)
+		res, ok := compiledMatch(reg, iutils.UTF8ConvertBytes(content))
 		if ok {
 			return true, true, res
 		}
@@ -373,7 +339,7 @@ func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
 
 	// 正则匹配
 	for _, reg := range r.Regexps.CompliedRegexp {
-		res, ok := compiledMatch(reg, content)
+		res, ok := compiledMatch(reg, iutils.UTF8ConvertBytes(content))
 		if ok {
 			FingerLog.Debugf("%s finger hit, regexp: %q", r.FingerName, reg.String())
 			return true, false, res

@@ -1,6 +1,7 @@
 package fingers
 
 import (
+	"github.com/chainreactors/utils/iutils"
 	"regexp"
 	"strings"
 )
@@ -49,5 +50,10 @@ func RuleMatcher(rule *Rule, content map[string]interface{}, ishttp bool) (bool,
 		hasFrame = rule.MatchCert(content["cert"].(string))
 	}
 
+	if version == "" && rule.Regexps.CompiledVersionRegexp != nil {
+		for _, reg := range rule.Regexps.CompiledVersionRegexp {
+			version, _ = compiledMatch(reg, iutils.UTF8ConvertBytes(content["content"].([]byte)))
+		}
+	}
 	return hasFrame, hasVuln, version
 }
