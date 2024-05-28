@@ -67,9 +67,23 @@ func (engine *FingersRules) SocketMatch(content []byte, port string, level int, 
 	input := map[string]interface{}{"content": content}
 	fs, vs := engine.SocketGroupped[port].Match(input, level, sender, callback, true)
 	if len(fs) > 0 {
+		if callback != nil {
+			callback(fs.One(), vs.One())
+		}
 		return fs.One(), vs.One()
 	}
 	for _, fs := range engine.SocketGroupped[port] {
+		alreadyFrameworks[fs.Name] = true
+	}
+
+	fs, vs = engine.SocketGroupped["0"].Match(input, level, sender, callback, true)
+	if len(fs) > 0 {
+		if callback != nil {
+			callback(fs.One(), vs.One())
+		}
+		return fs.One(), vs.One()
+	}
+	for _, fs := range engine.SocketGroupped["0"] {
 		alreadyFrameworks[fs.Name] = true
 	}
 
