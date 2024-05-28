@@ -106,7 +106,7 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender Se
 				c, ok = sender(rule.SendData)
 				if ok {
 					isactive = true
-					content["content"] = bytes.ToLower(c)
+					content["content"] = c
 				}
 			}
 		}
@@ -201,7 +201,7 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 
 		c, ok := sender(rule.SendData)
 		if ok {
-			content["content"] = bytes.ToLower(c)
+			content["content"] = c
 		} else {
 			return nil, nil, false
 		}
@@ -344,15 +344,9 @@ func (rs Rules) Compile(name string) error {
 
 func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
 	// 漏洞匹配优先
-	for _, reg := range r.Regexps.CompiledVulnRegexp {
-		res, ok := compiledMatch(reg, content)
-		if ok {
-			return true, true, res
-		}
-	}
-
 	var body, header string
 	if ishttp {
+		content = bytes.ToLower(content)
 		cs := bytes.Index(content, []byte("\r\n\r\n"))
 		if cs != -1 {
 			body = string(content[cs+4:])
@@ -360,6 +354,13 @@ func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
 		}
 	} else {
 		body = string(content)
+	}
+
+	for _, reg := range r.Regexps.CompiledVulnRegexp {
+		res, ok := compiledMatch(reg, content)
+		if ok {
+			return true, true, res
+		}
 	}
 
 	// body匹配
