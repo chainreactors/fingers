@@ -24,6 +24,9 @@ func NewFingersEngine(httpdata, socketdata []byte) (*FingersRules, error) {
 	}
 	if socketdata != nil {
 		engine.SocketFingers, err = LoadFingers(socketdata)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = engine.Load()

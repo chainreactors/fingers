@@ -30,8 +30,12 @@ type Fingers []*Finger
 func (fs Fingers) GroupByPort() FingerMapper {
 	fingermap := make(FingerMapper)
 	for _, f := range fs {
-		for _, port := range f.DefaultPort {
-			fingermap[port] = append(fingermap[port], f)
+		if f.DefaultPort == nil {
+			for _, port := range f.DefaultPort {
+				fingermap[port] = append(fingermap[port], f)
+			}
+		} else {
+			fingermap["0"] = append(fingermap["0"], f)
 		}
 	}
 	return fingermap
