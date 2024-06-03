@@ -10,10 +10,8 @@ import (
 
 // checkBody checks for fingerprints in the HTML body
 func (s *Wappalyze) checkBody(body []byte) common.Frameworks {
-	var technologies common.Frameworks
-
+	technologies := make(common.Frameworks)
 	bodyString := unsafeToString(body)
-
 	technologies.Merge(s.fingerprints.matchString(bodyString, htmlPart))
 
 	// Tokenize the HTML document and check for fingerprints as required
