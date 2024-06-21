@@ -1,7 +1,6 @@
 package fingers
 
 import (
-	"github.com/chainreactors/utils/iutils"
 	"regexp"
 	"strings"
 )
@@ -34,25 +33,25 @@ func compiledAllMatch(reg *regexp.Regexp, s string) ([]string, bool) {
 	return matchedes, true
 }
 
-func RuleMatcher(rule *Rule, content map[string]interface{}, ishttp bool) (bool, bool, string) {
+func RuleMatcher(rule *Rule, content *Content, ishttp bool) (bool, bool, string) {
 	var hasFrame, hasVuln bool
 	var version string
 	if rule.Regexps == nil {
 		return false, false, ""
 	}
 
-	hasFrame, hasVuln, version = rule.Match(content["content"].([]byte), ishttp)
+	hasFrame, hasVuln, version = rule.Match(content.Content, content.Header, content.Body)
 	if hasFrame || !ishttp {
 		return hasFrame, hasVuln, version
 	}
 
-	if content["cert"] != nil {
-		hasFrame = rule.MatchCert(content["cert"].(string))
+	if content.Cert != "" {
+		hasFrame = rule.MatchCert(content.Cert)
 	}
 
 	if version == "" && rule.Regexps.CompiledVersionRegexp != nil {
 		for _, reg := range rule.Regexps.CompiledVersionRegexp {
-			version, _ = compiledMatch(reg, iutils.UTF8ConvertBytes(content["content"].([]byte)))
+			version, _ = compiledMatch(reg, content.Content)
 		}
 	}
 	return hasFrame, hasVuln, version

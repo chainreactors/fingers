@@ -1,10 +1,40 @@
 package fingers
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/utils"
+	"github.com/chainreactors/utils/iutils"
 )
+
+func NewContent(c []byte, cert string, ishttp bool) *Content {
+	content := &Content{
+		Cert: cert,
+	}
+	if ishttp {
+		content.UpdateContent(c)
+	} else {
+		content.Content = c
+	}
+	return content
+}
+
+type Content struct {
+	Content []byte `json:"content"`
+	Header  []byte `json:"header"`
+	Body    []byte `json:"body"`
+	Cert    string `json:"cert"`
+}
+
+func (c *Content) UpdateContent(content []byte) {
+	c.Content = bytes.ToLower(iutils.UTF8ConvertBytes(content))
+	cs := bytes.Index(content, []byte("\r\n\r\n"))
+	if cs != -1 {
+		c.Body = content[cs+4:]
+		c.Header = content[:cs]
+	}
+}
 
 // LoadFingers 加载指纹 迁移到fingers包从, 允许其他服务调用
 func LoadFingers(content []byte) (fingers Fingers, err error) {
@@ -53,7 +83,7 @@ func (fs Fingers) GroupByMod() (Fingers, Fingers) {
 	return active, passive
 }
 
-func (fs Fingers) PassiveMatch(input map[string]interface{}, stopAtFirst bool) (common.Frameworks, common.Vulns) {
+func (fs Fingers) PassiveMatch(input *Content, stopAtFirst bool) (common.Frameworks, common.Vulns) {
 	frames := make(common.Frameworks)
 	vulns := make(common.Vulns)
 	for _, finger := range fs {
@@ -93,7 +123,7 @@ func (fs Fingers) ActiveMatch(level int, sender Sender, callback Callback, stopA
 	return frames, vulns
 }
 
-func (fs Fingers) Match(input map[string]interface{}, level int, sender Sender, callback Callback, stopAtFirst bool) (common.Frameworks, common.Vulns) {
+func (fs Fingers) Match(input *Content, level int, sender Sender, callback Callback, stopAtFirst bool) (common.Frameworks, common.Vulns) {
 	frames := make(common.Frameworks)
 	vulns := make(common.Vulns)
 	for _, finger := range fs {

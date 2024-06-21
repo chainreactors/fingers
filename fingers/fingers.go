@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/utils/encode"
-	"github.com/chainreactors/utils/iutils"
 	"regexp"
 	"strings"
 
@@ -86,7 +85,7 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, ver string, index int) (f
 	return frame, vuln
 }
 
-func (finger *Finger) Match(content map[string]interface{}, level int, sender Sender) (*common.Framework, *common.Vuln, bool) {
+func (finger *Finger) Match(content *Content, level int, sender Sender) (*common.Framework, *common.Vuln, bool) {
 	// sender用来处理需要主动发包的场景, 因为不通工具中的传入指不相同, 因此采用闭包的方式自定义result进行处理, 并允许添加更多的功能.
 	// 例如在spray中, sender可以用来配置header等, 也可以进行特定的path拼接
 	// 如果sender留空只进行被动的指纹判断, 将无视rules中的senddata字段
@@ -107,7 +106,11 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender Se
 				c, ok = sender(rule.SendData)
 				if ok {
 					isactive = true
-					content["content"] = c
+					if ishttp {
+						content.UpdateContent(c)
+					} else {
+						content.Content = c
+					}
 				}
 			}
 		}
@@ -134,7 +137,7 @@ func (finger *Finger) Match(content map[string]interface{}, level int, sender Se
 	return nil, nil, false
 }
 
-func (finger *Finger) PassiveMatch(content map[string]interface{}) (*common.Framework, *common.Vuln, bool) {
+func (finger *Finger) PassiveMatch(content *Content) (*common.Framework, *common.Vuln, bool) {
 	for i, rule := range finger.Rules {
 		var ishttp bool
 		if finger.Protocol == "http" {
@@ -162,7 +165,7 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 	if sender == nil {
 		return nil, nil, false
 	}
-	content := map[string]interface{}{}
+
 	for i, rule := range finger.Rules {
 		var ishttp bool
 		if finger.Protocol == "http" {
@@ -176,10 +179,14 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 			FingerLog.Debugf("(opsec!!!) skip active finger %s scan", finger.Name)
 			return nil, nil, false
 		}
-
+		content := &Content{}
 		c, ok := sender(rule.SendData)
 		if ok {
-			content["content"] = c
+			if ishttp {
+				content.UpdateContent(c)
+			} else {
+				content.Content = c
+			}
 		} else {
 			return nil, nil, false
 		}
@@ -308,47 +315,39 @@ func (rs Rules) Compile(name string) error {
 	return nil
 }
 
-func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
+func (r *Rule) Match(content, header, body []byte) (bool, bool, string) {
 	// 漏洞匹配优先
-	var body, header string
-	if ishttp {
-		content = bytes.ToLower(content)
-		cs := bytes.Index(content, []byte("\r\n\r\n"))
-		if cs != -1 {
-			body = string(content[cs+4:])
-			header = string(content[:cs])
-		}
-	} else {
-		body = string(content)
-	}
-
 	for _, reg := range r.Regexps.CompiledVulnRegexp {
-		res, ok := compiledMatch(reg, iutils.UTF8ConvertBytes(content))
+		res, ok := compiledMatch(reg, content)
 		if ok {
 			return true, true, res
 		}
 	}
 
-	// body匹配
-	for _, bodyReg := range r.Regexps.Body {
-		if strings.Contains(body, bodyReg) {
-			FingerLog.Debugf("%s finger hit, body: %q", r.FingerName, bodyReg)
-			return true, false, ""
-		}
-	}
-
 	// 正则匹配
 	for _, reg := range r.Regexps.CompliedRegexp {
-		res, ok := compiledMatch(reg, iutils.UTF8ConvertBytes(content))
+		res, ok := compiledMatch(reg, content)
 		if ok {
 			FingerLog.Debugf("%s finger hit, regexp: %q", r.FingerName, reg.String())
 			return true, false, res
 		}
 	}
 
+	if len(body) == 0 {
+		return false, false, ""
+	}
+
+	// body匹配
+	for _, bodyReg := range r.Regexps.Body {
+		if bytes.Contains(body, []byte(bodyReg)) {
+			FingerLog.Debugf("%s finger hit, body: %q", r.FingerName, bodyReg)
+			return true, false, ""
+		}
+	}
+
 	// MD5 匹配
 	for _, md5s := range r.Regexps.MD5 {
-		if md5s == encode.Md5Hash([]byte(body)) {
+		if md5s == encode.Md5Hash(body) {
 			FingerLog.Debugf("%s finger hit, md5: %s", r.FingerName, md5s)
 			return true, false, ""
 		}
@@ -356,19 +355,16 @@ func (r *Rule) Match(content []byte, ishttp bool) (bool, bool, string) {
 
 	// mmh3 匹配
 	for _, mmh3s := range r.Regexps.MMH3 {
-		if mmh3s == encode.Mmh3Hash32([]byte(body)) {
+		if mmh3s == encode.Mmh3Hash32(body) {
 			FingerLog.Debugf("%s finger hit, mmh3: %s", r.FingerName, mmh3s)
 			return true, false, ""
 		}
 	}
 
 	// http头匹配, http协议特有的匹配
-	if !ishttp {
-		return false, false, ""
-	}
 
 	for _, headerStr := range r.Regexps.Header {
-		if strings.Contains(header, headerStr) {
+		if bytes.Contains(header, []byte(headerStr)) {
 			FingerLog.Debugf("%s finger hit, header: %s", r.FingerName, headerStr)
 			return true, false, ""
 		}

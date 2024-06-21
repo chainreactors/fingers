@@ -64,7 +64,7 @@ func (engine *FingersRules) Load() error {
 func (engine *FingersRules) SocketMatch(content []byte, port string, level int, sender Sender, callback Callback) (*common.Framework, *common.Vuln) {
 	// socket service only match one fingerprint
 	var alreadyFrameworks = make(map[string]bool)
-	input := map[string]interface{}{"content": content}
+	input := NewContent(content, "", false)
 	fs, vs := engine.SocketGroupped[port].Match(input, level, sender, callback, true)
 	if len(fs) > 0 {
 		return fs.One(), vs.One()
@@ -106,7 +106,7 @@ func (engine *FingersRules) HTTPMatch(content []byte, cert string) (common.Frame
 	// content: []byte
 	// cert: string
 
-	return engine.HTTPFingers.PassiveMatch(map[string]interface{}{"content": content, "cert": cert}, false)
+	return engine.HTTPFingers.PassiveMatch(NewContent(content, cert, true), false)
 }
 
 func (engine *FingersRules) HTTPActiveMatch(level int, sender Sender, callback Callback) (common.Frameworks, common.Vulns) {
