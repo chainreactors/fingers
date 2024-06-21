@@ -12,6 +12,7 @@ func NewContent(c []byte, cert string, ishttp bool) *Content {
 	content := &Content{
 		Cert: cert,
 	}
+	c = iutils.UTF8ConvertBytes(c)
 	if ishttp {
 		content.UpdateContent(c)
 	} else {
@@ -28,7 +29,7 @@ type Content struct {
 }
 
 func (c *Content) UpdateContent(content []byte) {
-	c.Content = bytes.ToLower(iutils.UTF8ConvertBytes(content))
+	c.Content = bytes.ToLower(content)
 	cs := bytes.Index(content, []byte("\r\n\r\n"))
 	if cs != -1 {
 		c.Body = content[cs+4:]
