@@ -183,9 +183,13 @@ func (fs Frameworks) Add(other *Framework) bool {
 	other.Name = strings.ToLower(other.Name)
 	if frame, ok := fs[other.Name]; ok {
 		frame.Froms[other.From] = true
+		frame.Tags = iutils.StringsUnique(append(frame.Tags, other.Tags...))
+		if other.Version != "" && frame.Version == "" {
+			frame.Version = other.Version
+			frame.WFNAttributes.Version = other.Version
+		}
 		return false
 	} else {
-		other.Froms = map[int]bool{other.From: true}
 		fs[other.Name] = other
 		return true
 	}
@@ -196,18 +200,7 @@ func (fs Frameworks) Merge(other Frameworks) int {
 	var n int
 	for _, f := range other {
 		f.Name = strings.ToLower(f.Name)
-		if frame, ok := fs[f.Name]; ok {
-			if frame.Version == "" && f.Version != "" {
-				frame.Version = f.Version
-			}
-			if len(f.Tags) > 0 {
-				for i, tag := range f.Tags {
-					f.Tags[i] = strings.ToLower(tag)
-				}
-				frame.Tags = iutils.StringsUnique(append(frame.Tags, f.Tags...))
-			}
-		} else {
-			fs[f.Name] = f
+		if fs.Add(f) {
 			n += 1
 		}
 	}
