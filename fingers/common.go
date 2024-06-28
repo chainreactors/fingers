@@ -30,10 +30,10 @@ type Content struct {
 
 func (c *Content) UpdateContent(content []byte) {
 	c.Content = bytes.ToLower(content)
-	cs := bytes.Index(content, []byte("\r\n\r\n"))
+	cs := bytes.Index(c.Content, []byte("\r\n\r\n"))
 	if cs != -1 {
-		c.Body = content[cs+4:]
-		c.Header = content[:cs]
+		c.Body = c.Content[cs+4:]
+		c.Header = c.Content[:cs]
 	}
 }
 
