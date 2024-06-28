@@ -19,12 +19,19 @@ func NewWappalyzeEngine() (*Wappalyze, error) {
 			Apps: make(map[string]*CompiledFingerprint),
 		},
 	}
-
-	err := wappalyze.loadFingerprints()
+	err := wappalyze.Compile()
 	if err != nil {
 		return nil, err
 	}
 	return wappalyze, nil
+}
+
+func (s *Wappalyze) Compile() error {
+	err := s.loadFingerprints()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // loadFingerprints loads the fingerprints and compiles them

@@ -7,6 +7,48 @@ import (
 	"strings"
 )
 
+func NewFingerPrintHubEngine() (*FingerPrintHubsEngine, error) {
+	var fingerprints []*FingerPrintHub
+	err := json.Unmarshal(Fingerprinthubdata, &fingerprints)
+	if err != nil {
+		return nil, err
+	}
+	engine := &FingerPrintHubsEngine{FingerPrints: fingerprints}
+	err = engine.Compile()
+	if err != nil {
+		return nil, err
+	}
+	return engine, nil
+}
+
+type FingerPrintHubsEngine struct {
+	FingerPrints []*FingerPrintHub `json:"fingerprints"`
+	FaviconMap   map[string]string `json:"favicon_map,omitempty"`
+}
+
+func (f *FingerPrintHubsEngine) Compile() error {
+	f.FaviconMap = make(map[string]string)
+	for _, finger := range f.FingerPrints {
+		if len(finger.FaviconHash) > 0 {
+			for _, hash := range finger.FaviconHash {
+				f.FaviconMap[hash] = finger.Name
+			}
+		}
+	}
+	return nil
+}
+
+func (f *FingerPrintHubsEngine) Match(header http.Header, body string) common.Frameworks {
+	frames := make(common.Frameworks)
+	for _, finger := range f.FingerPrints {
+		frame := finger.Match(header, body)
+		if frame != nil {
+			frames.Add(frame)
+		}
+	}
+	return frames
+}
+
 type FingerPrintHub struct {
 	Name        string            `json:"name"`
 	FaviconHash []string          `json:"favicon_hash,omitempty"`
@@ -67,26 +109,4 @@ func (f *FingerPrintHub) MatchBody(body string) bool {
 		}
 	}
 	return status
-}
-
-type FingerPrintHubs []*FingerPrintHub
-
-func (f FingerPrintHubs) Match(header http.Header, body string) common.Frameworks {
-	frames := make(common.Frameworks)
-	for _, finger := range f {
-		frame := finger.Match(header, body)
-		if frame != nil {
-			frames.Add(frame)
-		}
-	}
-	return frames
-}
-
-func NewFingerPrintHubEngine() (FingerPrintHubs, error) {
-	var engine FingerPrintHubs
-	err := json.Unmarshal(Fingerprinthubdata, &engine)
-	if err != nil {
-		return nil, err
-	}
-	return engine, nil
 }
