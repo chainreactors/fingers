@@ -14,6 +14,7 @@ const (
 	FrameFromRedirect
 	FrameFromFingerprintHub
 	FrameFromWappalyzer
+	FrameFromEhole
 )
 
 var NoGuess bool
