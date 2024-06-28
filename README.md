@@ -5,6 +5,11 @@
 
 不用再挑选指纹识别的工具, AllInOne一站式实现
 
+使用了fingers的工具: 
+
+* [spray](https://github.com/chainreactors/spray), 集合了目录爆破, 指纹识别, 信息收集等等功能的超强性能的http fuzz工具
+* [gogo](https://github.com/chainreactors/gogo), 只使用了fingers原生指纹库, 红队向的自动化扫描引擎
+
 ## Features
 
 * 支持多指纹库聚合识别
@@ -21,11 +26,6 @@
 ## QuickStart
 
 `go get github.com/chainreactors/fingers@master`
-
-使用了fingers的工具: 
-
-* [spray](https://github.com/chainreactors/spray), 集合了目录爆破, 指纹识别, 信息收集等等功能的超强性能的http fuzz工具
-* [gogo](https://github.com/chainreactors/gogo), 只使用了fingers原生指纹库, 红队向的自动化扫描引擎
 
 ### Example
 
