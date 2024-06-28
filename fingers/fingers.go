@@ -61,19 +61,20 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, ver string, index int) (f
 
 	if hasFrame {
 		if ver != "" {
-			frame = &common.Framework{Name: finger.Name, Version: ver}
+			frame = common.NewFrameworkWithVersion(finger.Name, common.FrameFromDefault, ver)
 		} else if finger.Rules[index].Version != "_" {
-			frame = &common.Framework{Name: finger.Name, Version: finger.Rules[index].Version}
+			frame = common.NewFrameworkWithVersion(finger.Name, common.FrameFromDefault, finger.Rules[index].Version)
 		} else {
-			frame = &common.Framework{Name: finger.Name}
+			frame = common.NewFramework(finger.Name, common.FrameFromDefault)
+			//frame = &common.Framework{Name: finger.Name}
 		}
 	}
 
 	if hasVuln {
 		if finger.Rules[index].Vuln != "" {
-			vuln = &common.Vuln{Name: finger.Rules[index].Vuln, SeverityLevel: HIGH}
+			vuln = &common.Vuln{Name: finger.Rules[index].Vuln, SeverityLevel: HIGH, Framework: frame}
 		} else if finger.Rules[index].Info != "" {
-			vuln = &common.Vuln{Name: finger.Rules[index].Info, SeverityLevel: INFO}
+			vuln = &common.Vuln{Name: finger.Rules[index].Info, SeverityLevel: INFO, Framework: frame}
 		} else {
 			vuln = &common.Vuln{Name: finger.Name, SeverityLevel: INFO}
 		}

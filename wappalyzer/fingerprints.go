@@ -260,12 +260,11 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 			continue
 		}
 
-		technologies.Add(&common.Framework{
-			Name:    app,
-			Version: version,
-			From:    common.FrameFromWappalyzer,
-			Tags:    fingerprint.implies,
-		})
+		frame := common.NewFrameworkWithVersion(app, common.FrameFromWappalyzer, version)
+		for _, tag := range fingerprint.implies {
+			frame.AddTag(tag)
+		}
+		technologies.Add(frame)
 		matched = false
 	}
 	return technologies
@@ -324,13 +323,11 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 		if !matched {
 			continue
 		}
-
-		technologies.Add(&common.Framework{
-			Name:    app,
-			Version: version,
-			From:    common.FrameFromWappalyzer,
-			Tags:    fingerprint.implies,
-		})
+		frame := common.NewFrameworkWithVersion(app, common.FrameFromWappalyzer, version)
+		for _, tag := range fingerprint.implies {
+			frame.AddTag(tag)
+		}
+		technologies.Add(frame)
 		matched = false
 	}
 	return technologies
@@ -397,12 +394,11 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 
 		// Append the technologies as well as implied ones
 
-		technologies.Add(&common.Framework{
-			Name:    app,
-			Version: version,
-			From:    common.FrameFromWappalyzer,
-			Tags:    fingerprint.implies,
-		})
+		frame := common.NewFrameworkWithVersion(app, common.FrameFromWappalyzer, version)
+		for _, tag := range fingerprint.implies {
+			frame.AddTag(tag)
+		}
+		technologies.Add(frame)
 		matched = false
 	}
 	return technologies

@@ -15,15 +15,12 @@ type Favicons struct {
 }
 
 func (engine *Favicons) HashMatch(md5, mmh3 string) *Framework {
-	var frame *Framework
 	if engine.Md5Fingers[md5] != "" {
-		frame = &Framework{Name: engine.Md5Fingers[md5], From: FrameFromICO}
-		return frame
+		return NewFramework(engine.Md5Fingers[md5], FrameFromICO)
 	}
 
 	if engine.Mmh3Fingers[mmh3] != "" {
-		frame = &Framework{Name: engine.Mmh3Fingers[mmh3], From: FrameFromICO}
-		return frame
+		return NewFramework(engine.Mmh3Fingers[mmh3], FrameFromICO)
 	}
 	return nil
 }

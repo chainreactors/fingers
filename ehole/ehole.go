@@ -75,28 +75,19 @@ type Fingerprint struct {
 }
 
 func (finger *Fingerprint) Match(header, body string) *common.Framework {
-	var frame *common.Framework
 	switch finger.Location {
 	case BodyLocation, TitleLocation:
 		if finger.MatchMethod(body) {
-			frame = &common.Framework{
-				Name: finger.Cms,
-				From: common.FrameFromEhole,
-				Tags: []string{"ehole"},
-			}
+			return common.NewFramework(finger.Cms, common.FrameFromEhole)
 		}
 	case HeaderLocation:
 		if finger.MatchMethod(header) {
-			frame = &common.Framework{
-				Name: finger.Cms,
-				From: common.FrameFromEhole,
-				Tags: []string{"ehole"},
-			}
+			return common.NewFramework(finger.Cms, common.FrameFromEhole)
 		}
 	default:
-
+		return nil
 	}
-	return frame
+	return nil
 }
 
 func (finger *Fingerprint) MatchMethod(content string) bool {

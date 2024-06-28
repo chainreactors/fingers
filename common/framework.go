@@ -2,6 +2,7 @@ package common
 
 import (
 	"github.com/chainreactors/utils/iutils"
+	"github.com/facebookincubator/nvdtools/wfn"
 	"strings"
 )
 
@@ -58,14 +59,38 @@ func GetFrameFrom(s string) int {
 	}
 }
 
+func NewFramework(name string, from int) *Framework {
+	frame := &Framework{
+		Name:          name,
+		From:          from,
+		Froms:         map[int]bool{from: true},
+		Tags:          make([]string, 0),
+		WFNAttributes: wfn.NewAttributesWithAny(),
+	}
+	frame.WFNAttributes.Product = name
+	frame.WFNAttributes.Part = "a"
+	if from >= FrameFromFingerprintHub {
+		frame.AddTag(frameFromMap[from])
+	}
+	return frame
+}
+
+func NewFrameworkWithVersion(name string, from int, version string) *Framework {
+	frame := NewFramework(name, from)
+	frame.WFNAttributes.Version = version
+	frame.Version = version
+	return frame
+}
+
 type Framework struct {
-	Name    string       `json:"name"`
-	Version string       `json:"version,omitempty"`
-	From    int          `json:"-"` // 指纹可能会有多个来源, 指纹合并时会将多个来源记录到froms中
-	Froms   map[int]bool `json:"froms,omitempty"`
-	Tags    []string     `json:"tags,omitempty"`
-	IsFocus bool         `json:"is_focus,omitempty"`
-	Data    []byte       `json:"-"`
+	Name          string          `json:"name"`
+	Version       string          `json:"version,omitempty"`
+	From          int             `json:"-"` // 指纹可能会有多个来源, 指纹合并时会将多个来源记录到froms中
+	Froms         map[int]bool    `json:"froms,omitempty"`
+	Tags          []string        `json:"tags,omitempty"`
+	IsFocus       bool            `json:"is_focus,omitempty"`
+	Data          []byte          `json:"-"`
+	WFNAttributes *wfn.Attributes `json:"-"`
 }
 
 func (f *Framework) String() string {
@@ -98,6 +123,18 @@ func (f *Framework) String() string {
 	return strings.TrimSpace(s.String())
 }
 
+func (f *Framework) CPE() string {
+	return f.WFNAttributes.BindToFmtString()
+}
+
+func (f *Framework) URI() string {
+	return f.WFNAttributes.BindToURI()
+}
+
+func (f *Framework) WFN() string {
+	return f.WFNAttributes.String()
+}
+
 func (f *Framework) IsGuess() bool {
 	var is bool
 	for from, _ := range f.Froms {
@@ -108,6 +145,12 @@ func (f *Framework) IsGuess() bool {
 		}
 	}
 	return is
+}
+
+func (f *Framework) AddTag(tag string) {
+	if !f.HasTag(tag) {
+		f.Tags = append(f.Tags, tag)
+	}
 }
 
 func (f *Framework) HasTag(tag string) bool {
@@ -198,6 +241,39 @@ func (fs Frameworks) GetNames() []string {
 		}
 	}
 	return titles
+}
+
+func (fs Frameworks) URI() []string {
+	if fs == nil {
+		return nil
+	}
+	var uris []string
+	for _, f := range fs {
+		uris = append(uris, f.URI())
+	}
+	return uris
+}
+
+func (fs Frameworks) CPE() []string {
+	if fs == nil {
+		return nil
+	}
+	var cpes []string
+	for _, f := range fs {
+		cpes = append(cpes, f.CPE())
+	}
+	return cpes
+}
+
+func (fs Frameworks) WFN() []string {
+	if fs == nil {
+		return nil
+	}
+	var wfns []string
+	for _, f := range fs {
+		wfns = append(wfns, f.WFN())
+	}
+	return wfns
 }
 
 func (fs Frameworks) IsFocus() bool {
