@@ -67,11 +67,7 @@ func (f *FingerPrintHub) Match(header http.Header, body string) *common.Framewor
 	}
 
 	if status {
-		return &common.Framework{
-			Name: f.Name,
-			From: common.FrameFromDefault,
-			Tags: []string{"fingerprinthub"},
-		}
+		return common.NewFramework(f.Name, common.FrameFromFingerprintHub)
 	}
 	return nil
 }

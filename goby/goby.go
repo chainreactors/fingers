@@ -99,7 +99,7 @@ func (finger *GobyFinger) Match(raw string) *common.Framework {
 	}
 
 	if output == true {
-		return &common.Framework{Name: finger.Name, From: common.FrameFromGoby, Tags: []string{"goby"}}
+		return common.NewFramework(finger.Name, common.FrameFromGoby)
 	}
 	return nil
 }

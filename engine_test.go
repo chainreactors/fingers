@@ -6,8 +6,10 @@ import (
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/goby"
+	"github.com/facebookincubator/nvdtools/wfn"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestNewEngine(t *testing.T) {
@@ -15,15 +17,17 @@ func TestNewEngine(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get("http://81.70.40.138/github.html")
+	resp, err := http.Get("https://baidu.com")
 	if err != nil {
 		return
 	}
+	start := time.Now()
 	frames, err := engine.DetectResponse(resp)
 	if err != nil {
 		return
 	}
-	fmt.Println(frames)
+	println(time.Since(start).String())
+	fmt.Println(frames.CPE())
 }
 
 func TestFingerPrintHubsEngine(t *testing.T) {
@@ -79,4 +83,10 @@ func TestGobyEngine(t *testing.T) {
 	content := common.ReadRaw(resp)
 	frames := engine.Match(string(content))
 	fmt.Println(frames)
+}
+
+func TestFingerPrintEngine(t *testing.T) {
+	a := wfn.NewAttributesWithAny()
+
+	fmt.Println(a.BindToFmtString())
 }

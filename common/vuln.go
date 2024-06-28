@@ -42,6 +42,7 @@ type Vuln struct {
 	Payload       map[string]interface{} `json:"payload,omitempty"`
 	Detail        map[string][]string    `json:"detail,omitempty"`
 	SeverityLevel int                    `json:"severity"`
+	Framework     *Framework             `json:"-"`
 }
 
 func (v *Vuln) HasTag(tag string) bool {
