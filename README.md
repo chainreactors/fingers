@@ -53,7 +53,20 @@ func TestNewEngine(t *testing.T) {
 调用SDK识别Favicon指纹, 示例:
 
 ```golang
-
+func TestFavicon(t *testing.T) {
+	engine, err := NewEngine()
+	if err != nil {
+		panic(err)
+	}
+	resp, err := http.Get("http://81.70.40.202:8080/favicon.ico")
+	if err != nil {
+		return
+	}
+	content := common.ReadRaw(resp)
+	_, body, _ := common.SplitContent(content)
+	frames := engine.HashContentMatch(body)
+	fmt.Println(frames)
+}
 ```
 ## fingers 引擎
 
