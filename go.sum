@@ -10,6 +10,8 @@ github.com/chainreactors/utils v0.0.0-20240528085651-ba1b255482c1/go.mod h1:JA4e
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/expr-lang/expr v1.16.9 h1:WUAzmR0JNI9JCiF0/ewwHB1gmcGw5wW7nWt8gc6PpCI=
+github.com/expr-lang/expr v1.16.9/go.mod h1:8/vRC7+7HBzESEqt5kKpYXxrxkr31SaO8r40VO/1IT4=
 github.com/go-dedup/megophone v0.0.0-20170830025436-f01be21026f5 h1:4U+x+EB1P66zwYgTjxWXSOT8vF+651Ksr1lojiCZnT8=
 github.com/go-dedup/megophone v0.0.0-20170830025436-f01be21026f5/go.mod h1:poR/Cp00iqtqu9ltFwl6C00sKC0HY13u/Gh05ZBmP54=
 github.com/go-dedup/simhash v0.0.0-20170904020510-9ecaca7b509c h1:mucYYQn+sMGNSxidhleonzAdwL203RxhjJGnxQU4NWU=

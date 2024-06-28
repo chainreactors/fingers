@@ -5,6 +5,7 @@ import (
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
+	"github.com/chainreactors/fingers/goby"
 	"net/http"
 	"testing"
 )
@@ -14,7 +15,7 @@ func TestNewEngine(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get("http://81.70.40.138")
+	resp, err := http.Get("http://81.70.40.138/github.html")
 	if err != nil {
 		return
 	}
@@ -25,7 +26,7 @@ func TestNewEngine(t *testing.T) {
 	fmt.Println(frames)
 }
 
-func TestFingerPrintHubsEngine_Match(t *testing.T) {
+func TestFingerPrintHubsEngine(t *testing.T) {
 	engine, err := fingerprinthub.NewFingerPrintHubEngine()
 	if err != nil {
 		t.Error(err)
@@ -45,7 +46,7 @@ func TestFingerPrintHubsEngine_Match(t *testing.T) {
 	}
 }
 
-func TestEHoleEngine_Match(t *testing.T) {
+func TestEHoleEngine(t *testing.T) {
 	engine, err := ehole.NewEHoleEngine()
 	if err != nil {
 		t.Error(err)
@@ -63,4 +64,19 @@ func TestEHoleEngine_Match(t *testing.T) {
 			t.Log(frame)
 		}
 	}
+}
+
+func TestGobyEngine(t *testing.T) {
+	engine, err := goby.NewGobyEngine()
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := http.Get("http://81.70.40.138/github.html")
+	if err != nil {
+		return
+	}
+
+	content := common.ReadRaw(resp)
+	frames := engine.Match(string(content))
+	fmt.Println(frames)
 }

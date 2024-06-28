@@ -2,14 +2,13 @@ package fingers
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
+	"github.com/chainreactors/fingers/goby"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/logs"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -18,24 +17,31 @@ func NewEngine() (*Engine, error) {
 	engine := &Engine{
 		Favicons: common.NewFavicons(),
 	}
-	fingersEngine, err := fingers.NewFingersEngine(fingers.HTTPFingerData, fingers.SocketFingerData)
+	var err error
+	engine.FingersEngine, err = fingers.NewFingersEngine(fingers.HTTPFingerData, fingers.SocketFingerData)
 	if err != nil {
 		return nil, err
 	}
-	engine.FingersEngine = fingersEngine
 
-	fingerPrintEngine, err := fingerprinthub.NewFingerPrintHubEngine()
+	engine.FingerPrintEngine, err = fingerprinthub.NewFingerPrintHubEngine()
 	if err != nil {
 		return nil, err
 	}
-	engine.FingerPrintEngine = fingerPrintEngine
 
-	wappalyzerEngine, err := wappalyzer.NewWappalyzeEngine()
+	engine.WappalyzerEngine, err = wappalyzer.NewWappalyzeEngine()
 	if err != nil {
 		return nil, err
 	}
-	engine.WappalyzerEngine = wappalyzerEngine
 
+	engine.EHoleEngine, err = ehole.NewEHoleEngine()
+	if err != nil {
+		return nil, err
+	}
+
+	engine.GobyEngine, err = goby.NewGobyEngine()
+	if err != nil {
+		return nil, err
+	}
 	err = engine.Compile()
 	if err != nil {
 		return nil, err
@@ -48,6 +54,7 @@ type Engine struct {
 	FingerPrintEngine *fingerprinthub.FingerPrintHubsEngine // support http
 	WappalyzerEngine  *wappalyzer.Wappalyze                 // support http
 	EHoleEngine       *ehole.EHoleEngine                    // support http
+	GobyEngine        *goby.GobyEngine                      // support http
 	*common.Favicons
 }
 
@@ -65,20 +72,9 @@ func (engine *Engine) Compile() error {
 func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, error) {
 	var raw bytes.Buffer
 
-	raw.WriteString(fmt.Sprintf("%s %s\r\n", resp.Proto, resp.Status))
-	for k, v := range resp.Header {
-		for _, i := range v {
-			raw.WriteString(fmt.Sprintf("%s: %s\r\n", k, i))
-		}
-	}
+	content := common.ReadRaw(resp)
+	header, body, _ := common.SplitContent(content)
 
-	raw.WriteString("\r\n")
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	raw.Write(body)
-	_ = resp.Body.Close()
 	frames := make(common.Frameworks)
 	if engine.FingersEngine != nil {
 		var cert string
@@ -99,7 +95,17 @@ func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, er
 		frames.Merge(fs)
 	}
 
-	return frames, err
+	if engine.EHoleEngine != nil {
+		fs := engine.EHoleEngine.Match(string(header), string(body))
+		frames.Merge(fs)
+	}
+
+	if engine.GobyEngine != nil {
+		fs := engine.GobyEngine.Match(string(body))
+		frames.Merge(fs)
+	}
+
+	return frames, nil
 }
 
 func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
@@ -115,7 +121,7 @@ func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
 		logs.Log.Error("not http response, " + err.Error())
 		return nil, err
 	}
-	body, _ := io.ReadAll(resp.Body)
+	header, body, _ := common.SplitContent(content)
 	if engine.FingerPrintEngine != nil {
 
 		fs := engine.FingerPrintEngine.Match(resp.Header, string(body))
@@ -124,6 +130,16 @@ func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
 
 	if engine.WappalyzerEngine != nil {
 		fs := engine.WappalyzerEngine.Fingerprint(resp.Header, body)
+		frames.Merge(fs)
+	}
+
+	if engine.EHoleEngine != nil {
+		fs := engine.EHoleEngine.Match(string(header), string(body))
+		frames.Merge(fs)
+	}
+
+	if engine.GobyEngine != nil {
+		fs := engine.GobyEngine.Match(string(body))
 		frames.Merge(fs)
 	}
 
