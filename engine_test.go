@@ -6,13 +6,12 @@ import (
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/goby"
-	"github.com/facebookincubator/nvdtools/wfn"
 	"net/http"
 	"testing"
 	"time"
 )
 
-func TestNewEngine(t *testing.T) {
+func TestEngine(t *testing.T) {
 	engine, err := NewEngine()
 	if err != nil {
 		panic(err)
@@ -27,7 +26,22 @@ func TestNewEngine(t *testing.T) {
 		return
 	}
 	println(time.Since(start).String())
-	fmt.Println(frames.CPE())
+	fmt.Println(frames.String())
+}
+
+func TestFavicon(t *testing.T) {
+	engine, err := NewEngine()
+	if err != nil {
+		panic(err)
+	}
+	resp, err := http.Get("http://81.70.40.202:8080/favicon.ico")
+	if err != nil {
+		return
+	}
+	content := common.ReadRaw(resp)
+	_, body, _ := common.SplitContent(content)
+	frames := engine.HashContentMatch(body)
+	fmt.Println(frames)
 }
 
 func TestFingerPrintHubsEngine(t *testing.T) {
@@ -35,7 +49,7 @@ func TestFingerPrintHubsEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://81.70.40.138/github.html")
+	resp, err := http.Get("http://127.0.0.1")
 	if err != nil {
 		return
 	}
@@ -55,7 +69,7 @@ func TestEHoleEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://81.70.40.138/github.html")
+	resp, err := http.Get("http://127.0.0.1")
 	if err != nil {
 		return
 	}
@@ -75,7 +89,7 @@ func TestGobyEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://81.70.40.138/github.html")
+	resp, err := http.Get("http://127.0.0.1")
 	if err != nil {
 		return
 	}
@@ -83,10 +97,4 @@ func TestGobyEngine(t *testing.T) {
 	content := common.ReadRaw(resp)
 	frames := engine.Match(string(content))
 	fmt.Println(frames)
-}
-
-func TestFingerPrintEngine(t *testing.T) {
-	a := wfn.NewAttributesWithAny()
-
-	fmt.Println(a.BindToFmtString())
 }
