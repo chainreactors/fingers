@@ -89,7 +89,6 @@ type Framework struct {
 	Froms         map[int]bool    `json:"froms,omitempty"`
 	Tags          []string        `json:"tags,omitempty"`
 	IsFocus       bool            `json:"is_focus,omitempty"`
-	Data          []byte          `json:"-"`
 	WFNAttributes *wfn.Attributes `json:"-"`
 }
 
@@ -182,7 +181,9 @@ func (fs Frameworks) List() []*Framework {
 func (fs Frameworks) Add(other *Framework) bool {
 	other.Name = strings.ToLower(other.Name)
 	if frame, ok := fs[other.Name]; ok {
-		frame.Froms[other.From] = true
+		for from, _ := range other.Froms {
+			frame.Froms[from] = true
+		}
 		frame.Tags = iutils.StringsUnique(append(frame.Tags, other.Tags...))
 		if other.Version != "" && frame.Version == "" {
 			frame.Version = other.Version

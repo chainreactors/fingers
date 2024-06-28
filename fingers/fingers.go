@@ -124,14 +124,14 @@ func (finger *Finger) Match(content *Content, level int, sender Sender) (*common
 			//if vuln == nil && isactive {
 			//	vuln = &parsers.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
 			//}
-			if isactive && hasFrame && ishttp {
-				frame.Data = c
-			}
 
 			if isactive {
-				frame.From = ACTIVE
+				frame.From = common.FrameFromACTIVE
+				frame.Froms = map[int]bool{common.FrameFromACTIVE: true}
 			}
-			frame.Tags = finger.Tags
+			for _, tag := range finger.Tags {
+				frame.AddTag(tag)
+			}
 			return frame, vuln, true
 		}
 	}
@@ -155,7 +155,9 @@ func (finger *Finger) PassiveMatch(content *Content) (*common.Framework, *common
 			//	vuln = &common.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
 			//}
 
-			frame.Tags = finger.Tags
+			for _, tag := range finger.Tags {
+				frame.AddTag(tag)
+			}
 			return frame, vuln, true
 		}
 	}
@@ -201,11 +203,12 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 			//if vuln == nil && isactive {
 			//	vuln = &common.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
 			//}
-			//if hasFrame && ishttp { // re-analysis
-			//	frame.Data = c
-			//}
-			frame.From = ACTIVE
-			frame.Tags = finger.Tags
+
+			frame.From = common.FrameFromACTIVE
+			frame.Froms = map[int]bool{common.FrameFromACTIVE: true}
+			for _, tag := range finger.Tags {
+				frame.AddTag(tag)
+			}
 			return frame, vuln, true
 		}
 	}
@@ -334,6 +337,14 @@ func (r *Rule) Match(content, header, body []byte) (bool, bool, string) {
 		}
 	}
 
+	// http头匹配, http协议特有的匹配
+	for _, headerStr := range r.Regexps.Header {
+		if bytes.Contains(header, []byte(headerStr)) {
+			FingerLog.Debugf("%s finger hit, header: %s", r.FingerName, headerStr)
+			return true, false, ""
+		}
+	}
+
 	if len(body) == 0 {
 		return false, false, ""
 	}
@@ -362,14 +373,6 @@ func (r *Rule) Match(content, header, body []byte) (bool, bool, string) {
 		}
 	}
 
-	// http头匹配, http协议特有的匹配
-
-	for _, headerStr := range r.Regexps.Header {
-		if bytes.Contains(header, []byte(headerStr)) {
-			FingerLog.Debugf("%s finger hit, header: %s", r.FingerName, headerStr)
-			return true, false, ""
-		}
-	}
 	return false, false, ""
 }
 
