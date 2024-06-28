@@ -9,4 +9,7 @@ require (
 	golang.org/x/net v0.21.0
 )
 
-require github.com/chainreactors/files v0.0.0-20231123083421-cea5b4ad18a8 // indirect
+require (
+	github.com/chainreactors/files v0.0.0-20231123083421-cea5b4ad18a8 // indirect
+	github.com/expr-lang/expr v1.16.9 // indirect
+)

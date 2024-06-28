@@ -15,6 +15,7 @@ const (
 	FrameFromFingerprintHub
 	FrameFromWappalyzer
 	FrameFromEhole
+	FrameFromGoby
 )
 
 var NoGuess bool
@@ -27,6 +28,8 @@ var frameFromMap = map[int]string{
 	FrameFromRedirect:       "redirect",
 	FrameFromFingerprintHub: "fingerprinthub",
 	FrameFromWappalyzer:     "wappalyzer",
+	FrameFromEhole:          "ehole",
+	FrameFromGoby:           "goby",
 }
 
 func GetFrameFrom(s string) int {
@@ -45,6 +48,11 @@ func GetFrameFrom(s string) int {
 		return FrameFromFingerprintHub
 	case "wappalyzer":
 		return FrameFromWappalyzer
+	case "ehole":
+		return FrameFromEhole
+	case "goby":
+		return FrameFromGoby
+
 	default:
 		return FrameFromDefault
 	}
