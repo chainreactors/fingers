@@ -52987,30 +52987,6 @@
     "is_equal": true
   }]
 }, {
-  "name": "NTP server",
-  "logic": "(a&&b) ||c||d||e",
-  "rule": [{
-    "label": "a",
-    "feature": "snmp",
-    "is_equal": true
-  }, {
-    "label": "b",
-    "feature": "NTP SNMP",
-    "is_equal": true
-  }, {
-    "label": "c",
-    "feature": "NTP TIME",
-    "is_equal": true
-  }, {
-    "label": "d",
-    "feature": "NTPServer",
-    "is_equal": true
-  }, {
-    "label": "e",
-    "feature": "t",
-    "is_equal": true
-  }]
-}, {
   "name": "ZyXEL-USG20-VPN",
   "logic": "a||b",
   "rule": [{
