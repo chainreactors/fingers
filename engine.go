@@ -61,7 +61,7 @@ type Engine struct {
 func (engine *Engine) Compile() error {
 	engine.Favicons = engine.FingersEngine.Favicons
 	for hash, name := range engine.FingerPrintEngine.FaviconMap {
-		engine.Favicons.Mmh3Fingers[hash] = name
+		engine.Favicons.Md5Fingers[hash] = name
 	}
 	for hash, name := range engine.EHoleEngine.FaviconMap {
 		engine.Favicons.Mmh3Fingers[hash] = name
