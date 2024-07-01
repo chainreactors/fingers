@@ -9,38 +9,40 @@ import (
 	"github.com/chainreactors/fingers/goby"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/logs"
+	"github.com/pkg/errors"
 	"net/http"
 	"strings"
 )
 
-func NewEngine() (*Engine, error) {
+const (
+	//FaviconEngine     = "favicon"
+	FingersEngine     = "fingers"
+	FingerPrintEngine = "fingerprinthub"
+	WappalyzerEngine  = "wappalyzer"
+	EHoleEngine       = "ehole"
+	GobyEngine        = "goby"
+)
+
+var (
+	AllEngines           = []string{FingersEngine, FingerPrintEngine, WappalyzerEngine, EHoleEngine, GobyEngine}
+	DefaultEnableEngines = AllEngines
+
+	NotFoundEngine = errors.New("engine not found")
+)
+
+func NewEngine(engines ...string) (*Engine, error) {
+	if engines == nil {
+		engines = DefaultEnableEngines
+	}
 	engine := &Engine{
 		Favicons: common.NewFavicons(),
 	}
 	var err error
-	engine.FingersEngine, err = fingers.NewFingersEngine(fingers.HTTPFingerData, fingers.SocketFingerData)
-	if err != nil {
-		return nil, err
-	}
-
-	engine.FingerPrintEngine, err = fingerprinthub.NewFingerPrintHubEngine()
-	if err != nil {
-		return nil, err
-	}
-
-	engine.WappalyzerEngine, err = wappalyzer.NewWappalyzeEngine()
-	if err != nil {
-		return nil, err
-	}
-
-	engine.EHoleEngine, err = ehole.NewEHoleEngine()
-	if err != nil {
-		return nil, err
-	}
-
-	engine.GobyEngine, err = goby.NewGobyEngine()
-	if err != nil {
-		return nil, err
+	for _, name := range engines {
+		err = engine.Enable(name)
+		if err != nil {
+			return nil, err
+		}
 	}
 	err = engine.Compile()
 	if err != nil {
@@ -65,6 +67,29 @@ func (engine *Engine) Compile() error {
 	}
 	for hash, name := range engine.EHoleEngine.FaviconMap {
 		engine.Favicons.Mmh3Fingers[hash] = name
+	}
+	return nil
+}
+
+func (engine *Engine) Enable(name string) error {
+	var err error
+	switch name {
+	case FingersEngine:
+		engine.FingersEngine, err = fingers.NewFingersEngine(fingers.HTTPFingerData, fingers.SocketFingerData)
+	case FingerPrintEngine:
+		engine.FingerPrintEngine, err = fingerprinthub.NewFingerPrintHubEngine()
+	case WappalyzerEngine:
+		engine.WappalyzerEngine, err = wappalyzer.NewWappalyzeEngine()
+	case EHoleEngine:
+		engine.EHoleEngine, err = ehole.NewEHoleEngine()
+	case GobyEngine:
+		engine.GobyEngine, err = goby.NewGobyEngine()
+	default:
+		return NotFoundEngine
+	}
+
+	if err != nil {
+		return err
 	}
 	return nil
 }
