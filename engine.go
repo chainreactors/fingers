@@ -1,7 +1,8 @@
 package fingers
 
 import (
-	"bytes"
+	"fmt"
+	"github.com/chainreactors/fingers/alias"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
@@ -35,7 +36,9 @@ func NewEngine(engines ...string) (*Engine, error) {
 		engines = DefaultEnableEngines
 	}
 	engine := &Engine{
-		Favicons: common.NewFavicons(),
+		EnginesImpl: make(map[string]EngineImpl),
+		Favicons:    common.NewFavicons(),
+		Enabled:     make(map[string]bool),
 	}
 	var err error
 	for _, name := range engines {
@@ -44,6 +47,10 @@ func NewEngine(engines ...string) (*Engine, error) {
 			return nil, err
 		}
 	}
+	engine.Aliases, err = alias.NewAliases()
+	if err != nil {
+		return nil, err
+	}
 	err = engine.Compile()
 	if err != nil {
 		return nil, err
@@ -51,23 +58,35 @@ func NewEngine(engines ...string) (*Engine, error) {
 	return engine, nil
 }
 
+type EngineImpl interface {
+	Compile() error
+	//Match(...interface{}) common.Frameworks
+}
+
 type Engine struct {
-	FingersEngine     *fingers.FingersEngine                // support http/socket
-	FingerPrintEngine *fingerprinthub.FingerPrintHubsEngine // support http
-	WappalyzerEngine  *wappalyzer.Wappalyze                 // support http
-	EHoleEngine       *ehole.EHoleEngine                    // support http
-	GobyEngine        *goby.GobyEngine                      // support http
+	EnginesImpl map[string]EngineImpl
+	Aliases     *alias.Aliases
+	Enabled     map[string]bool
 	*common.Favicons
 }
 
 func (engine *Engine) Compile() error {
-	engine.Favicons = engine.FingersEngine.Favicons
-	for hash, name := range engine.FingerPrintEngine.FaviconMap {
-		engine.Favicons.Md5Fingers[hash] = name
+	if impl := engine.Fingers(); impl != nil {
+		engine.Favicons = impl.Favicons
 	}
-	for hash, name := range engine.EHoleEngine.FaviconMap {
-		engine.Favicons.Mmh3Fingers[hash] = name
+
+	if impl := engine.FingerPrintHub(); impl != nil {
+		for hash, name := range impl.FaviconMap {
+			engine.Favicons.Md5Fingers[hash] = name
+		}
 	}
+
+	if impl := engine.EHole(); impl != nil {
+		for hash, name := range impl.FaviconMap {
+			engine.Favicons.Mmh3Fingers[hash] = name
+		}
+	}
+
 	return nil
 }
 
@@ -75,98 +94,115 @@ func (engine *Engine) Enable(name string) error {
 	var err error
 	switch name {
 	case FingersEngine:
-		engine.FingersEngine, err = fingers.NewFingersEngine(fingers.HTTPFingerData, fingers.SocketFingerData)
+		engine.EnginesImpl[name], err = fingers.NewFingersEngine(fingers.HTTPFingerData, fingers.SocketFingerData)
 	case FingerPrintEngine:
-		engine.FingerPrintEngine, err = fingerprinthub.NewFingerPrintHubEngine()
+		engine.EnginesImpl[name], err = fingerprinthub.NewFingerPrintHubEngine()
 	case WappalyzerEngine:
-		engine.WappalyzerEngine, err = wappalyzer.NewWappalyzeEngine()
+		engine.EnginesImpl[name], err = wappalyzer.NewWappalyzeEngine()
 	case EHoleEngine:
-		engine.EHoleEngine, err = ehole.NewEHoleEngine()
+		engine.EnginesImpl[name], err = ehole.NewEHoleEngine()
 	case GobyEngine:
-		engine.GobyEngine, err = goby.NewGobyEngine()
+		engine.EnginesImpl[name], err = goby.NewGobyEngine()
 	default:
 		return NotFoundEngine
 	}
-
+	engine.Enabled[name] = true
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, error) {
-	var raw bytes.Buffer
+func (engine *Engine) Disable(name string) {
+	engine.Enabled[name] = false
+}
 
+func (engine *Engine) Fingers() *fingers.FingersEngine {
+	if impl, ok := engine.EnginesImpl[FingersEngine]; ok {
+		return impl.(*fingers.FingersEngine)
+	}
+	return nil
+}
+
+func (engine *Engine) FingerPrintHub() *fingerprinthub.FingerPrintHubsEngine {
+	if impl, ok := engine.EnginesImpl[FingerPrintEngine]; ok {
+		return impl.(*fingerprinthub.FingerPrintHubsEngine)
+	}
+	return nil
+}
+
+func (engine *Engine) Wappalyzer() *wappalyzer.Wappalyze {
+	if impl, ok := engine.EnginesImpl[WappalyzerEngine]; ok {
+		return impl.(*wappalyzer.Wappalyze)
+	}
+	return nil
+}
+
+func (engine *Engine) EHole() *ehole.EHoleEngine {
+	if impl, ok := engine.EnginesImpl[EHoleEngine]; ok {
+		return impl.(*ehole.EHoleEngine)
+	}
+	return nil
+}
+
+func (engine *Engine) Goby() *goby.GobyEngine {
+	if impl, ok := engine.EnginesImpl[GobyEngine]; ok {
+		return impl.(*goby.GobyEngine)
+	}
+	return nil
+}
+
+func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 	content := common.ReadRaw(resp)
 	header, body, _ := common.SplitContent(content)
-
-	frames := make(common.Frameworks)
-	if engine.FingersEngine != nil {
-		var cert string
-		if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
-			cert = strings.Join(resp.TLS.PeerCertificates[0].DNSNames, ",")
+	combined := make(common.Frameworks)
+	for name, ok := range engine.Enabled {
+		if !ok {
+			continue
 		}
-		fs, _ := engine.FingersEngine.HTTPMatch(raw.Bytes(), cert)
-		frames.Merge(fs)
-	}
+		if engine.EnginesImpl[name] == nil {
+			continue
+		}
+		var fs common.Frameworks
+		switch name {
+		case FingersEngine:
+			var cert string
+			if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
+				cert = strings.Join(resp.TLS.PeerCertificates[0].DNSNames, ",")
+			}
+			fs, _ = engine.Fingers().HTTPMatch(content, cert)
+		case WappalyzerEngine:
+			fs = engine.Wappalyzer().Fingerprint(resp.Header, body)
+		case FingerPrintEngine:
+			fs = engine.FingerPrintHub().Match(resp.Header, string(body))
+		case EHoleEngine:
+			fs = engine.EHole().Match(string(header), string(body))
+		case GobyEngine:
+			fs = engine.Goby().Match(string(content))
+		}
 
-	if engine.FingerPrintEngine != nil {
-		fs := engine.FingerPrintEngine.Match(resp.Header, string(body))
-		frames.Merge(fs)
+		fmt.Println(fs)
+		for _, frame := range fs {
+			aliasFrame, ok := engine.Aliases.FindFramework(frame)
+			if ok {
+				frame.Name = aliasFrame.Name
+				frame.UpdateAttributes(aliasFrame.ToWFN())
+			}
+			combined.Add(frame)
+		}
 	}
+	return combined
+}
 
-	if engine.WappalyzerEngine != nil {
-		fs := engine.WappalyzerEngine.Fingerprint(resp.Header, body)
-		frames.Merge(fs)
-	}
-
-	if engine.EHoleEngine != nil {
-		fs := engine.EHoleEngine.Match(string(header), string(body))
-		frames.Merge(fs)
-	}
-
-	if engine.GobyEngine != nil {
-		fs := engine.GobyEngine.Match(string(body))
-		frames.Merge(fs)
-	}
-
-	return frames, nil
+func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, error) {
+	return engine.Match(resp), nil
 }
 
 func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
-	frames := make(common.Frameworks)
-
-	if engine.FingersEngine != nil {
-		fs, _ := engine.FingersEngine.HTTPMatch(content, "")
-		frames.Merge(fs)
-	}
-
 	resp, err := common.ParseContent(content)
 	if err != nil {
 		logs.Log.Error("not http response, " + err.Error())
 		return nil, err
 	}
-	header, body, _ := common.SplitContent(content)
-	if engine.FingerPrintEngine != nil {
-
-		fs := engine.FingerPrintEngine.Match(resp.Header, string(body))
-		frames.Merge(fs)
-	}
-
-	if engine.WappalyzerEngine != nil {
-		fs := engine.WappalyzerEngine.Fingerprint(resp.Header, body)
-		frames.Merge(fs)
-	}
-
-	if engine.EHoleEngine != nil {
-		fs := engine.EHoleEngine.Match(string(header), string(body))
-		frames.Merge(fs)
-	}
-
-	if engine.GobyEngine != nil {
-		fs := engine.GobyEngine.Match(string(body))
-		frames.Merge(fs)
-	}
-
-	return frames, nil
+	return engine.Match(resp), nil
 }

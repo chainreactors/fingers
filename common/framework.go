@@ -6,34 +6,43 @@ import (
 	"strings"
 )
 
+var NoGuess bool
+
 const (
-	FrameFromDefault = iota
+	FrameFromDefault From = iota
 	FrameFromACTIVE
 	FrameFromICO
 	FrameFromNOTFOUND
 	FrameFromGUESS
 	FrameFromRedirect
+	FrameFromFingers
 	FrameFromFingerprintHub
 	FrameFromWappalyzer
 	FrameFromEhole
 	FrameFromGoby
 )
 
-var NoGuess bool
-var frameFromMap = map[int]string{
-	FrameFromDefault:        "finger",
+type From int
+
+func (f From) String() string {
+	return frameFromMap[f]
+}
+
+var frameFromMap = map[From]string{
+	FrameFromDefault:        "default",
 	FrameFromACTIVE:         "active",
 	FrameFromICO:            "ico",
 	FrameFromNOTFOUND:       "404",
 	FrameFromGUESS:          "guess",
 	FrameFromRedirect:       "redirect",
+	FrameFromFingers:        "fingers",
 	FrameFromFingerprintHub: "fingerprinthub",
 	FrameFromWappalyzer:     "wappalyzer",
 	FrameFromEhole:          "ehole",
 	FrameFromGoby:           "goby",
 }
 
-func GetFrameFrom(s string) int {
+func GetFrameFrom(s string) From {
 	switch s {
 	case "active":
 		return FrameFromACTIVE
@@ -53,43 +62,45 @@ func GetFrameFrom(s string) int {
 		return FrameFromEhole
 	case "goby":
 		return FrameFromGoby
+	case "fingers":
+		return FrameFromFingers
 
 	default:
 		return FrameFromDefault
 	}
 }
 
-func NewFramework(name string, from int) *Framework {
+func NewFramework(name string, from From) *Framework {
 	frame := &Framework{
-		Name:          name,
-		From:          from,
-		Froms:         map[int]bool{from: true},
-		Tags:          make([]string, 0),
-		WFNAttributes: wfn.NewAttributesWithAny(),
+		Name:       name,
+		From:       from,
+		Froms:      map[From]bool{from: true},
+		Tags:       make([]string, 0),
+		Attributes: wfn.NewAttributesWithAny(),
 	}
-	frame.WFNAttributes.Product = name
-	frame.WFNAttributes.Part = "a"
-	if from >= FrameFromFingerprintHub {
-		frame.AddTag(frameFromMap[from])
+	frame.Attributes.Product = name
+	frame.Attributes.Part = "a"
+	if from >= FrameFromFingers {
+		frame.AddTag(from.String())
 	}
 	return frame
 }
 
-func NewFrameworkWithVersion(name string, from int, version string) *Framework {
+func NewFrameworkWithVersion(name string, from From, version string) *Framework {
 	frame := NewFramework(name, from)
-	frame.WFNAttributes.Version = version
-	frame.Version = version
+	frame.Attributes.Version = version
+	//frame.Version = version
 	return frame
 }
 
 type Framework struct {
-	Name          string          `json:"name"`
-	Version       string          `json:"version,omitempty"`
-	From          int             `json:"-"` // 指纹可能会有多个来源, 指纹合并时会将多个来源记录到froms中
-	Froms         map[int]bool    `json:"froms,omitempty"`
-	Tags          []string        `json:"tags,omitempty"`
-	IsFocus       bool            `json:"is_focus,omitempty"`
-	WFNAttributes *wfn.Attributes `json:"-"`
+	Name string `json:"name"`
+	//Version       string          `json:"version,omitempty"`
+	From            From          `json:"-"` // 指纹可能会有多个来源, 指纹合并时会将多个来源记录到froms中
+	Froms           map[From]bool `json:"froms,omitempty"`
+	Tags            []string      `json:"tags,omitempty"`
+	IsFocus         bool          `json:"is_focus,omitempty"`
+	*wfn.Attributes `json:"attributes,omitempty"`
 }
 
 func (f *Framework) String() string {
@@ -113,7 +124,7 @@ func (f *Framework) String() string {
 		s.WriteString(")")
 	} else {
 		for from, _ := range f.Froms {
-			if from != FrameFromDefault {
+			if from != FrameFromFingers {
 				s.WriteString(":")
 				s.WriteString(frameFromMap[from])
 			}
@@ -122,16 +133,23 @@ func (f *Framework) String() string {
 	return strings.TrimSpace(s.String())
 }
 
+func (f *Framework) UpdateAttributes(attrs *wfn.Attributes) {
+	if f.Version != "" {
+		attrs.Version = f.Version
+	}
+	f.Attributes = attrs
+}
+
 func (f *Framework) CPE() string {
-	return f.WFNAttributes.BindToFmtString()
+	return f.Attributes.BindToFmtString()
 }
 
 func (f *Framework) URI() string {
-	return f.WFNAttributes.BindToURI()
+	return f.Attributes.BindToURI()
 }
 
 func (f *Framework) WFN() string {
-	return f.WFNAttributes.String()
+	return f.Attributes.String()
 }
 
 func (f *Framework) IsGuess() bool {
@@ -185,10 +203,7 @@ func (fs Frameworks) Add(other *Framework) bool {
 			frame.Froms[from] = true
 		}
 		frame.Tags = iutils.StringsUnique(append(frame.Tags, other.Tags...))
-		if other.Version != "" && frame.Version == "" {
-			frame.Version = other.Version
-			frame.WFNAttributes.Version = other.Version
-		}
+		frame.UpdateAttributes(other.Attributes)
 		return false
 	} else {
 		fs[other.Name] = other

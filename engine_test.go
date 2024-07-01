@@ -16,7 +16,7 @@ func TestEngine(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get("https://baidu.com")
+	resp, err := http.Get("http://120.237.122.46:2006/")
 	if err != nil {
 		return
 	}
@@ -26,7 +26,9 @@ func TestEngine(t *testing.T) {
 		return
 	}
 	println(time.Since(start).String())
-	fmt.Println(frames.String())
+	for _, f := range frames {
+		fmt.Println(f.CPE(), f.Froms)
+	}
 }
 
 func TestFavicon(t *testing.T) {

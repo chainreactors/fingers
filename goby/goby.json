@@ -479,42 +479,6 @@
     "is_equal": true
   }]
 }, {
-  "name": "MacOS",
-  "logic": "a|| (b&&c&&d&&e) ||f|| (g&&h)",
-  "rule": [{
-    "label": "a",
-    "feature": "MacOS",
-    "is_equal": true
-  }, {
-    "label": "b",
-    "feature": "Mac",
-    "is_equal": true
-  }, {
-    "label": "c",
-    "feature": "couchdb",
-    "is_equal": false
-  }, {
-    "label": "d",
-    "feature": "drupal",
-    "is_equal": false
-  }, {
-    "label": "e",
-    "feature": "ReeCam IP Camera",
-    "is_equal": false
-  }, {
-    "label": "f",
-    "feature": "Macintosh OS X",
-    "is_equal": true
-  }, {
-    "label": "g",
-    "feature": "snmp",
-    "is_equal": true
-  }, {
-    "label": "h",
-    "feature": "Darwin Kernel Version",
-    "is_equal": true
-  }]
-}, {
   "name": "wordpress-woocommerce",
   "logic": "a",
   "rule": [{
