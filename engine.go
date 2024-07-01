@@ -1,7 +1,6 @@
 package fingers
 
 import (
-	"fmt"
 	"github.com/chainreactors/fingers/alias"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
@@ -181,7 +180,6 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 			fs = engine.Goby().Match(string(content))
 		}
 
-		fmt.Println(fs)
 		for _, frame := range fs {
 			aliasFrame, ok := engine.Aliases.FindFramework(frame)
 			if ok {
