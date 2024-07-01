@@ -61,11 +61,11 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, ver string, index int) (f
 
 	if hasFrame {
 		if ver != "" {
-			frame = common.NewFrameworkWithVersion(finger.Name, common.FrameFromDefault, ver)
+			frame = common.NewFrameworkWithVersion(finger.Name, common.FrameFromFingers, ver)
 		} else if finger.Rules[index].Version != "_" {
-			frame = common.NewFrameworkWithVersion(finger.Name, common.FrameFromDefault, finger.Rules[index].Version)
+			frame = common.NewFrameworkWithVersion(finger.Name, common.FrameFromFingers, finger.Rules[index].Version)
 		} else {
-			frame = common.NewFramework(finger.Name, common.FrameFromDefault)
+			frame = common.NewFramework(finger.Name, common.FrameFromFingers)
 			//frame = &common.Framework{Name: finger.Name}
 		}
 	}
@@ -126,8 +126,8 @@ func (finger *Finger) Match(content *Content, level int, sender Sender) (*common
 			//}
 
 			if isactive {
-				frame.From = common.FrameFromACTIVE
-				frame.Froms = map[int]bool{common.FrameFromACTIVE: true}
+				frame.From = common.FrameFromFingers
+				frame.Froms = map[common.From]bool{common.FrameFromACTIVE: true}
 			}
 			for _, tag := range finger.Tags {
 				frame.AddTag(tag)
@@ -204,8 +204,8 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 			//	vuln = &common.Vuln{Name: finger.Name + " detect", SeverityLevel: INFO, Detail: map[string]interface{}{"path": rule.SendDataStr}}
 			//}
 
-			frame.From = common.FrameFromACTIVE
-			frame.Froms = map[int]bool{common.FrameFromACTIVE: true}
+			frame.From = common.FrameFromFingers
+			frame.Froms = map[common.From]bool{common.FrameFromACTIVE: true}
 			for _, tag := range finger.Tags {
 				frame.AddTag(tag)
 			}
