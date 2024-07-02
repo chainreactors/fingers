@@ -2,7 +2,6 @@ package common
 
 import (
 	"github.com/chainreactors/utils/iutils"
-	"github.com/facebookincubator/nvdtools/wfn"
 	"strings"
 )
 
@@ -76,7 +75,7 @@ func NewFramework(name string, from From) *Framework {
 		From:       from,
 		Froms:      map[From]bool{from: true},
 		Tags:       make([]string, 0),
-		Attributes: wfn.NewAttributesWithAny(),
+		Attributes: NewAttributesWithAny(),
 	}
 	frame.Attributes.Product = name
 	frame.Attributes.Part = "a"
@@ -94,13 +93,12 @@ func NewFrameworkWithVersion(name string, from From, version string) *Framework 
 }
 
 type Framework struct {
-	Name string `json:"name"`
-	//Version       string          `json:"version,omitempty"`
-	From            From          `json:"-"` // 指纹可能会有多个来源, 指纹合并时会将多个来源记录到froms中
-	Froms           map[From]bool `json:"froms,omitempty"`
-	Tags            []string      `json:"tags,omitempty"`
-	IsFocus         bool          `json:"is_focus,omitempty"`
-	*wfn.Attributes `json:"attributes,omitempty"`
+	Name        string        `json:"name"`
+	From        From          `json:"-"` // 指纹可能会有多个来源, 指纹合并时会将多个来源记录到froms中
+	Froms       map[From]bool `json:"froms,omitempty"`
+	Tags        []string      `json:"tags,omitempty"`
+	IsFocus     bool          `json:"is_focus,omitempty"`
+	*Attributes `json:"attributes,omitempty"`
 }
 
 func (f *Framework) String() string {
@@ -133,7 +131,7 @@ func (f *Framework) String() string {
 	return strings.TrimSpace(s.String())
 }
 
-func (f *Framework) UpdateAttributes(attrs *wfn.Attributes) {
+func (f *Framework) UpdateAttributes(attrs *Attributes) {
 	if f.Version != "" {
 		attrs.Version = f.Version
 	}
@@ -141,15 +139,15 @@ func (f *Framework) UpdateAttributes(attrs *wfn.Attributes) {
 }
 
 func (f *Framework) CPE() string {
-	return f.Attributes.BindToFmtString()
+	return f.Attributes.String()
 }
 
 func (f *Framework) URI() string {
-	return f.Attributes.BindToURI()
+	return f.Attributes.URI()
 }
 
 func (f *Framework) WFN() string {
-	return f.Attributes.String()
+	return f.Attributes.WFNString()
 }
 
 func (f *Framework) IsGuess() bool {

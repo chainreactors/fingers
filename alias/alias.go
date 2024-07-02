@@ -2,7 +2,6 @@ package alias
 
 import (
 	"github.com/chainreactors/fingers/common"
-	"github.com/facebookincubator/nvdtools/wfn"
 	"gopkg.in/yaml.v3"
 	"strings"
 )
@@ -81,8 +80,8 @@ type Alias struct {
 	AliasMap map[string][]string `json:"alias" yaml:"alias"`
 }
 
-func (a *Alias) ToWFN() *wfn.Attributes {
-	return &wfn.Attributes{
+func (a *Alias) ToWFN() *common.Attributes {
+	return &common.Attributes{
 		Part:    "a",
 		Vendor:  a.Vendor,
 		Product: a.Product,
