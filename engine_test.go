@@ -1,11 +1,12 @@
 package fingers
 
 import (
+	"crypto/tls"
 	"fmt"
-	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/goby"
+	"github.com/chainreactors/utils/httputils"
 	"net/http"
 	"testing"
 	"time"
@@ -16,9 +17,15 @@ func TestEngine(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get("http://120.237.122.46:2006/")
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	resp, err := client.Get("https://81.70.40.17:443/home.php")
 	if err != nil {
-		return
+		panic(err)
 	}
 	start := time.Now()
 	frames, err := engine.DetectResponse(resp)
@@ -26,8 +33,9 @@ func TestEngine(t *testing.T) {
 		return
 	}
 	println(time.Since(start).String())
+	fmt.Println(frames.String())
 	for _, f := range frames {
-		fmt.Println(f.CPE(), f.Froms)
+		fmt.Println("cpe: ", f.CPE(), "||||", f.String())
 	}
 }
 
@@ -40,8 +48,8 @@ func TestFavicon(t *testing.T) {
 	if err != nil {
 		return
 	}
-	content := common.ReadRaw(resp)
-	_, body, _ := common.SplitContent(content)
+	content := httputils.ReadRaw(resp)
+	_, body, _ := httputils.SplitHttpRaw(content)
 	frames := engine.HashContentMatch(body)
 	fmt.Println(frames)
 }
@@ -56,8 +64,8 @@ func TestFingerPrintHubsEngine(t *testing.T) {
 		return
 	}
 
-	content := common.ReadRaw(resp)
-	_, body, ok := common.SplitContent(content)
+	content := httputils.ReadRaw(resp)
+	_, body, ok := httputils.SplitHttpRaw(content)
 	if ok {
 		frames := engine.Match(resp.Header, string(body))
 		for _, frame := range frames {
@@ -76,8 +84,8 @@ func TestEHoleEngine(t *testing.T) {
 		return
 	}
 
-	content := common.ReadRaw(resp)
-	header, body, ok := common.SplitContent(content)
+	content := httputils.ReadRaw(resp)
+	header, body, ok := httputils.SplitHttpRaw(content)
 	if ok {
 		frames := engine.Match(string(header), string(body))
 		for _, frame := range frames {
@@ -96,7 +104,7 @@ func TestGobyEngine(t *testing.T) {
 		return
 	}
 
-	content := common.ReadRaw(resp)
+	content := httputils.ReadRaw(resp)
 	frames := engine.Match(string(content))
 	fmt.Println(frames)
 }

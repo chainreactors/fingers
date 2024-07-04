@@ -9,6 +9,7 @@ import (
 	"github.com/chainreactors/fingers/goby"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/logs"
+	"github.com/chainreactors/utils/httputils"
 	"github.com/pkg/errors"
 	"net/http"
 	"strings"
@@ -152,8 +153,8 @@ func (engine *Engine) Goby() *goby.GobyEngine {
 }
 
 func (engine *Engine) Match(resp *http.Response) common.Frameworks {
-	content := common.ReadRaw(resp)
-	header, body, _ := common.SplitContent(content)
+	content := httputils.ReadRaw(resp)
+	header, body, _ := httputils.SplitHttpRaw(content)
 	combined := make(common.Frameworks)
 	for name, ok := range engine.Enabled {
 		if !ok {
@@ -197,10 +198,10 @@ func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, er
 }
 
 func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
-	resp, err := common.ParseContent(content)
-	if err != nil {
-		logs.Log.Error("not http response, " + err.Error())
-		return nil, err
+	resp := httputils.NewResponseWithRaw(content)
+	if resp == nil {
+		logs.Log.Error("invalid http response")
+		return nil, errors.New("invalid http response")
 	}
 	return engine.Match(resp), nil
 }
