@@ -32,20 +32,14 @@ type Aliases struct {
 func (as *Aliases) Compile(aliases []*Alias) error {
 	for _, alias := range aliases {
 		alias.Name = strings.ToLower(alias.Name)
-		//alias.blocked = make(map[string]bool)
+		alias.blocked = make(map[string]bool)
 		as.Aliases[alias.Name] = alias
-		//for _, block := range alias.Block {
-		//	alias.blocked[block] = true
-		//}
+		for _, block := range alias.Block {
+			alias.blocked[block] = true
+		}
 
 		// 生成映射表
 		for engine, engineMap := range alias.AliasMap {
-			for _, block := range alias.Block {
-				// 如果指纹被block, 则在预编译阶段直接跳过映射
-				if block == engine {
-					continue
-				}
-			}
 			if _, ok := as.Map[engine]; !ok {
 				as.Map[engine] = make(map[string]string)
 			}
@@ -63,7 +57,11 @@ func (as *Aliases) Find(engine, name string) (*Alias, bool) {
 		return nil, false
 	} else {
 		if aliasName, ok := engineMap[name]; ok {
-			return as.Aliases[aliasName], true
+			if alias, ok := as.Aliases[aliasName]; ok && alias.blocked[engine] {
+				return alias, false
+			} else {
+				return alias, true
+			}
 		}
 	}
 
@@ -71,10 +69,13 @@ func (as *Aliases) Find(engine, name string) (*Alias, bool) {
 }
 
 func (as *Aliases) FindAny(name string) (string, *Alias, bool) {
-	for engine, engineMap := range as.Map {
-		if aliasName, ok := engineMap[name]; ok {
-			return engine, as.Aliases[aliasName], true
+	for engine, _ := range as.Map {
+		alias, ok := as.Find(engine, name)
+		if ok {
+			return engine, alias, ok
 		}
+		return engine, alias, false
+
 	}
 	return "", nil, false
 }
@@ -92,7 +93,7 @@ type Alias struct {
 	Edition  string              `json:"edition,omitempty" yaml:"edition"`
 	AliasMap map[string][]string `json:"alias" yaml:"alias"`
 	Block    []string            `json:"block,omitempty" yaml:"block"`
-	//blocked  map[string]bool
+	blocked  map[string]bool
 }
 
 func (a *Alias) ToWFN() *common.Attributes {
