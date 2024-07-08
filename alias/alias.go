@@ -26,14 +26,26 @@ func NewAliases() (*Aliases, error) {
 
 type Aliases struct {
 	Aliases map[string]*Alias
-	Map     map[string]map[string]string
+	Map     map[string]map[string]string // 加速查询的映射表
 }
 
 func (as *Aliases) Compile(aliases []*Alias) error {
 	for _, alias := range aliases {
 		alias.Name = strings.ToLower(alias.Name)
+		//alias.blocked = make(map[string]bool)
 		as.Aliases[alias.Name] = alias
+		//for _, block := range alias.Block {
+		//	alias.blocked[block] = true
+		//}
+
+		// 生成映射表
 		for engine, engineMap := range alias.AliasMap {
+			for _, block := range alias.Block {
+				// 如果指纹被block, 则在预编译阶段直接跳过映射
+				if block == engine {
+					continue
+				}
+			}
 			if _, ok := as.Map[engine]; !ok {
 				as.Map[engine] = make(map[string]string)
 			}
@@ -42,6 +54,7 @@ func (as *Aliases) Compile(aliases []*Alias) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -78,6 +91,8 @@ type Alias struct {
 	Update   string              `json:"update,omitempty" yaml:"update"`
 	Edition  string              `json:"edition,omitempty" yaml:"edition"`
 	AliasMap map[string][]string `json:"alias" yaml:"alias"`
+	Block    []string            `json:"block,omitempty" yaml:"block"`
+	//blocked  map[string]bool
 }
 
 func (a *Alias) ToWFN() *common.Attributes {
