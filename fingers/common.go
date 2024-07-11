@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
-	"github.com/chainreactors/utils"
 	"github.com/chainreactors/utils/iutils"
 )
 
@@ -45,7 +44,7 @@ func LoadFingers(content []byte) (fingers Fingers, err error) {
 	}
 
 	for _, finger := range fingers {
-		err := finger.Compile(utils.ParsePorts)
+		err := finger.Compile()
 		if err != nil {
 			return nil, err
 		}

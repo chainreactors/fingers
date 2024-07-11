@@ -3,6 +3,7 @@ package fingers
 import (
 	"bytes"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/utils"
 	"github.com/chainreactors/utils/encode"
 	"regexp"
 	"strings"
@@ -27,7 +28,7 @@ type Finger struct {
 	IsActive    bool     `yaml:"-" json:"-"`
 }
 
-func (finger *Finger) Compile(portHandler func([]string) []string) error {
+func (finger *Finger) Compile() error {
 	if finger.Protocol == "" {
 		finger.Protocol = "http"
 	}
@@ -36,8 +37,8 @@ func (finger *Finger) Compile(portHandler func([]string) []string) error {
 		if finger.Protocol == "http" {
 			finger.DefaultPort = []string{"80"}
 		}
-	} else if portHandler != nil {
-		finger.DefaultPort = portHandler(finger.DefaultPort)
+	} else if utils.PrePort != nil {
+		finger.DefaultPort = utils.ParsePortsSlice(finger.DefaultPort)
 	}
 
 	err := finger.Rules.Compile(finger.Name)
