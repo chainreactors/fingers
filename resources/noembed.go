@@ -3,6 +3,10 @@
 
 package resources
 
+import (
+	"github.com/chainreactors/utils"
+)
+
 var AliasesData []byte
 
 var PortData []byte // json format
