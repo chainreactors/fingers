@@ -4,8 +4,8 @@
 package resources
 
 import (
+	"encoding/json"
 	"github.com/chainreactors/utils"
-	"json"
 )
 
 var AliasesData []byte
