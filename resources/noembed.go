@@ -5,6 +5,7 @@ package resources
 
 import (
 	"github.com/chainreactors/utils"
+	"json"
 )
 
 var AliasesData []byte
@@ -15,7 +16,7 @@ var PrePort *utils.PortPreset
 func LoadPorts() error {
 	var ports []*utils.PortConfig
 	var err error
-	err = json.Unmarshal(LoadConfig("port"), &ports)
+	err = json.Unmarshal(PortData, &ports)
 	if err != nil {
 		return err
 	}
