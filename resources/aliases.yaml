@@ -12,6 +12,20 @@
       - apache-tomcat
     wappalyzer:
       - Apache Tomcat
+- name: discuz
+  vendor: discuz
+  product: discuz
+  alias:
+      fingers:
+      - discuz
+      ehole:
+      - Discuz!
+      goby:
+      - Discuz
+      fingerprinthub:
+      - discuz
+      wappalyzer:
+      - Discuz!
 - name: 用友 NC
   vendor: yonyou
   product: NC
@@ -25,17 +39,6 @@
       - UFIDA NC
     fingerprinthub:
       - yonyou-ufida-nc
-
-- name: 用友u8-cloud
-  vendor: yonyou
-  product: u8-cloud
-  alias:
-    fingers:
-      - 用友 u8-cloud
-    ehole:
-      - yonyou nc
-    goby:
-      - yongyou-u8-cloud
 
 - name: 用友 GRP-U8
   vendor: yonyou
@@ -334,6 +337,7 @@
       - PHPOA
     fingerprinthub:
       - PHPOA
+
 - name: 山大鲁能 OA
   vendor: sanda
   product: OA
@@ -370,13 +374,6 @@
     fingerprinthub:
       - CTOP OA
 
-- name: 华御 安全网关
-  vendor: huayu
-  product: security gateway
-  alias:
-    fingerprinthub:
-      - 华御 安全网关
-
 - name: 网康 NS-ASG应用安全网关
   vendor: networktech
   product: NS-ASG
@@ -385,20 +382,6 @@
       - 网康 NS-ASG应用安全网关
     fingerprinthub:
       - 网康 NS-ASG应用安全网关
-
-- name: 中科曙光 龙芯防火墙
-  vendor: sugon
-  product: loongson firewall
-  alias:
-    fingerprinthub:
-      - 中科曙光 龙芯防火墙
-
-- name: 中科网威 4A运维堡垒机系统
-  vendor: venustech
-  product: 4A
-  alias:
-    fingerprinthub:
-      - 中科网威 4A运维堡垒机系统
 
 - name: 红帆 Ioffice
   vendor: hongfan
@@ -409,53 +392,5 @@
     fingerprinthub:
       - 红帆 Ioffice
 
-- name: 融能 Ioa
-  vendor: rongneng
-  product: Ioa
-  alias:
-    fingers:
-      - Ioa
-    fingerprinthub:
-      - 融能 Ioa
 
-- name: 新晨阳光 教务办公管理平台
-  vendor: xincheng
-  product: 教务办公管理平台
-  alias:
-    fingers:
-      - 新晨阳光 教务办公管理平台
 
-- name: O2OA
-  vendor: o2oa
-  product: OA
-  alias:
-    fingers:
-      - O2OA
-
-- name: 华磊科技 物流信息系统
-  vendor: hualei
-  product: logistics
-  alias:
-    fingerprinthub:
-      - 华磊科技 物流信息系统
-
-- name: 智能物业管理系统
-  vendor: smartproperty
-  product: property management
-  alias:
-    fingers:
-      - SmartProperty物业管理系统
-
-- name: 易软天创OA
-  vendor: esafenet
-  product: OA
-  alias:
-    fingers:
-      - ESAFENET CDG
-
-- name: 汉邦高科 嵌入式NVR
-  vendor: hanbanggaoke
-  product: embedded NVR
-  alias:
-    fingerprinthub:
-      - 汉邦高科 嵌入式NVR

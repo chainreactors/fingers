@@ -2,13 +2,14 @@ package alias
 
 import (
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/resources"
 	"gopkg.in/yaml.v3"
 	"strings"
 )
 
 func NewAliases() (*Aliases, error) {
 	var aliases []*Alias
-	err := yaml.Unmarshal(AliasesData, &aliases)
+	err := yaml.Unmarshal(resources.AliasesData, &aliases)
 	if err != nil {
 		return nil, err
 	}

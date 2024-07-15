@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
-	"github.com/chainreactors/utils"
+	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/iutils"
 )
 
@@ -62,7 +62,7 @@ func (fs Fingers) GroupByPort() FingerMapper {
 	fingermap := make(FingerMapper)
 	for _, f := range fs {
 		if f.DefaultPort != nil {
-			for _, port := range utils.ParsePortsSlice(f.DefaultPort) {
+			for _, port := range resources.PrePort.ParsePortSlice(f.DefaultPort) {
 				fingermap[port] = append(fingermap[port], f)
 			}
 		} else {
