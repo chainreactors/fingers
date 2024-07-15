@@ -52,10 +52,7 @@ func NewEngine(engines ...string) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = resources.LoadPorts()
-	if err != nil {
-		return nil, err
-	}
+
 	for _, name := range engines {
 		err = engine.Enable(name)
 		if err != nil {

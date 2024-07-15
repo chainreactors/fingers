@@ -44,6 +44,10 @@ func LoadFingers(content []byte) (fingers Fingers, err error) {
 		return nil, err
 	}
 
+	err = resources.LoadPorts()
+	if err != nil {
+		return nil, err
+	}
 	for _, finger := range fingers {
 		err := finger.Compile()
 		if err != nil {
