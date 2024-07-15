@@ -7,6 +7,7 @@ import (
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
+	"github.com/chainreactors/fingers/resources"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/logs"
 	"github.com/chainreactors/utils/httputils"
@@ -31,6 +32,12 @@ var (
 	NotFoundEngine = errors.New("engine not found")
 )
 
+func NewEngineWithCustomResource(portData, aliasData []byte, engines ...string) (*Engine, error) {
+	resources.AliasesData = aliasData
+	resources.PortData = portData
+	return NewEngine(engines...)
+}
+
 func NewEngine(engines ...string) (*Engine, error) {
 	if engines == nil {
 		engines = DefaultEnableEngines
@@ -41,16 +48,21 @@ func NewEngine(engines ...string) (*Engine, error) {
 		Enabled:     make(map[string]bool),
 	}
 	var err error
+	engine.Aliases, err = alias.NewAliases()
+	if err != nil {
+		return nil, err
+	}
+	err = resources.LoadPorts()
+	if err != nil {
+		return nil, err
+	}
 	for _, name := range engines {
 		err = engine.Enable(name)
 		if err != nil {
 			return nil, err
 		}
 	}
-	engine.Aliases, err = alias.NewAliases()
-	if err != nil {
-		return nil, err
-	}
+
 	err = engine.Compile()
 	if err != nil {
 		return nil, err
