@@ -33,3 +33,5 @@ var GobyData []byte
 var Fingerprinthubdata []byte
 var EholeData []byte
 var WappalyzerData []byte
+
+var CheckSum = map[string]string{}

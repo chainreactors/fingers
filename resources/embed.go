@@ -6,6 +6,7 @@ package resources
 import (
 	_ "embed"
 	"github.com/chainreactors/utils"
+	"github.com/chainreactors/utils/encode"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,7 +31,7 @@ func LoadPorts() error {
 }
 
 // engine
-
+//
 //go:embed goby.json
 var GobyData []byte
 
@@ -48,3 +49,14 @@ var FingersSocketData []byte
 
 //go:embed wappalyzer.json
 var WappalyzerData []byte
+
+var CheckSum = map[string]string{
+	"goby":           encode.Md5Hash(GobyData),
+	"fingerprinthub": encode.Md5Hash(Fingerprinthubdata),
+	"ehole":          encode.Md5Hash(EholeData),
+	"fingers_http":   encode.Md5Hash(FingersHTTPData),
+	"fingers_socket": encode.Md5Hash(FingersSocketData),
+	"wappalyzer":     encode.Md5Hash(WappalyzerData),
+	"alias":          encode.Md5Hash(AliasesData),
+	"port":           encode.Md5Hash(PortData),
+}
