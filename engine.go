@@ -1,9 +1,11 @@
 package fingers
 
 import (
+	"fmt"
 	"github.com/chainreactors/fingers/alias"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
+	"github.com/chainreactors/fingers/favicon"
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
@@ -17,7 +19,7 @@ import (
 )
 
 const (
-	//FaviconEngine     = "favicon"
+	FaviconEngine     = "favicon"
 	FingersEngine     = "fingers"
 	FingerPrintEngine = "fingerprinthub"
 	WappalyzerEngine  = "wappalyzer"
@@ -26,7 +28,7 @@ const (
 )
 
 var (
-	AllEngines           = []string{FingersEngine, FingerPrintEngine, WappalyzerEngine, EHoleEngine, GobyEngine}
+	AllEngines           = []string{FingersEngine, FingerPrintEngine, WappalyzerEngine, EHoleEngine, GobyEngine, FaviconEngine}
 	DefaultEnableEngines = AllEngines
 
 	NotFoundEngine = errors.New("engine not found")
@@ -48,8 +50,8 @@ func NewEngine(engines ...string) (*Engine, error) {
 	}
 	engine := &Engine{
 		EnginesImpl: make(map[string]EngineImpl),
-		Favicons:    common.NewFavicons(),
-		Enabled:     make(map[string]bool),
+		//FaviconsEngine: favicon.NewFavicons(),
+		Enabled: make(map[string]bool),
 	}
 	var err error
 	engine.Aliases, err = alias.NewAliases()
@@ -74,6 +76,7 @@ func NewEngine(engines ...string) (*Engine, error) {
 type EngineImpl interface {
 	Name() string
 	Compile() error
+	Len() int
 	Match(content []byte) common.Frameworks
 }
 
@@ -81,26 +84,37 @@ type Engine struct {
 	EnginesImpl map[string]EngineImpl
 	Aliases     *alias.Aliases
 	Enabled     map[string]bool
-	*common.Favicons
+}
+
+func (engine *Engine) String() string {
+	var s strings.Builder
+	for name, impl := range engine.EnginesImpl {
+		s.WriteString(fmt.Sprintf(" %s:%d", name, impl.Len()))
+	}
+	return s.String()
 }
 
 func (engine *Engine) Compile() error {
 	if impl := engine.Fingers(); impl != nil {
-		engine.Favicons = impl.Favicons
+		for hash, name := range impl.Favicons.Md5Fingers {
+			engine.Favicon().Md5Fingers[hash] = name
+		}
+		for hash, name := range impl.Favicons.Mmh3Fingers {
+			engine.Favicon().Mmh3Fingers[hash] = name
+		}
 	}
 
 	if impl := engine.FingerPrintHub(); impl != nil {
 		for hash, name := range impl.FaviconMap {
-			engine.Favicons.Md5Fingers[hash] = name
+			engine.Favicon().Md5Fingers[hash] = name
 		}
 	}
 
 	if impl := engine.EHole(); impl != nil {
 		for hash, name := range impl.FaviconMap {
-			engine.Favicons.Mmh3Fingers[hash] = name
+			engine.Favicon().Mmh3Fingers[hash] = name
 		}
 	}
-
 	return nil
 }
 
@@ -109,6 +123,7 @@ func (engine *Engine) Register(impl EngineImpl) bool {
 		return false
 	}
 	engine.EnginesImpl[impl.Name()] = impl
+	engine.Enabled[impl.Name()] = true
 	return true
 }
 
@@ -127,6 +142,8 @@ func (engine *Engine) Enable(name string) error {
 			impl, err = ehole.NewEHoleEngine()
 		case GobyEngine:
 			impl, err = goby.NewGobyEngine()
+		case FaviconEngine:
+			impl = favicon.NewFavicons()
 		default:
 			return NotFoundEngine
 		}
@@ -147,6 +164,13 @@ func (engine *Engine) Disable(name string) {
 func (engine *Engine) Fingers() *fingers.FingersEngine {
 	if impl, ok := engine.EnginesImpl[FingersEngine]; ok {
 		return impl.(*fingers.FingersEngine)
+	}
+	return nil
+}
+
+func (engine *Engine) Favicon() *favicon.FaviconsEngine {
+	if impl, ok := engine.EnginesImpl[FaviconEngine]; ok {
+		return impl.(*favicon.FaviconsEngine)
 	}
 	return nil
 }

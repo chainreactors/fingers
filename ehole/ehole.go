@@ -43,6 +43,10 @@ func (engine *EHoleEngine) Name() string {
 	return "ehole"
 }
 
+func (engine *EHoleEngine) Len() int {
+	return len(engine.Fingerprints)
+}
+
 func (engine *EHoleEngine) Compile() error {
 	engine.FaviconMap = make(map[string]string)
 	for _, finger := range engine.Fingerprints {

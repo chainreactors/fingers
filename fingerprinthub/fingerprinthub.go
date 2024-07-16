@@ -32,6 +32,10 @@ func (engine *FingerPrintHubsEngine) Name() string {
 	return "fingerprinthub"
 }
 
+func (engine *FingerPrintHubsEngine) Len() int {
+	return len(engine.FingerPrints)
+}
+
 func (engine *FingerPrintHubsEngine) Compile() error {
 	engine.FaviconMap = make(map[string]string)
 	for _, finger := range engine.FingerPrints {

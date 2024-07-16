@@ -32,6 +32,10 @@ func (engine *Wappalyze) Name() string {
 	return "wappalyzer"
 }
 
+func (engine *Wappalyze) Len() int {
+	return len(engine.fingerprints.Apps)
+}
+
 func (engine *Wappalyze) Compile() error {
 	err := engine.loadFingerprints()
 	if err != nil {

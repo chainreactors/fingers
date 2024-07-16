@@ -15,6 +15,7 @@ import (
 
 func TestEngine(t *testing.T) {
 	engine, err := NewEngine()
+	fmt.Println(engine.String())
 	if err != nil {
 		panic(err)
 	}
@@ -23,7 +24,7 @@ func TestEngine(t *testing.T) {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	resp, err := client.Get("https://81.70.40.17/")
+	resp, err := client.Get("http://www.baidu.com")
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +51,7 @@ func TestFavicon(t *testing.T) {
 	}
 	content := httputils.ReadRaw(resp)
 	_, body, _ := httputils.SplitHttpRaw(content)
-	frames := engine.HashContentMatch(body)
+	frames := engine.Favicon().Match(body)
 	fmt.Println(frames)
 }
 
