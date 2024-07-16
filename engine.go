@@ -11,7 +11,6 @@ import (
 	"github.com/chainreactors/fingers/goby"
 	"github.com/chainreactors/fingers/resources"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
-	"github.com/chainreactors/logs"
 	"github.com/chainreactors/utils/httputils"
 	"github.com/pkg/errors"
 	"net/http"
@@ -50,8 +49,7 @@ func NewEngine(engines ...string) (*Engine, error) {
 	}
 	engine := &Engine{
 		EnginesImpl: make(map[string]EngineImpl),
-		//FaviconsEngine: favicon.NewFavicons(),
-		Enabled: make(map[string]bool),
+		Enabled:     make(map[string]bool),
 	}
 	var err error
 	engine.Aliases, err = alias.NewAliases()
@@ -60,7 +58,7 @@ func NewEngine(engines ...string) (*Engine, error) {
 	}
 
 	for _, name := range engines {
-		err = engine.Enable(name)
+		err = engine.InitEngine(name)
 		if err != nil {
 			return nil, err
 		}
@@ -115,6 +113,7 @@ func (engine *Engine) Compile() error {
 			engine.Favicon().Mmh3Fingers[hash] = name
 		}
 	}
+	engine.Enabled[FaviconEngine] = false // 默认faviconEngine与其他引擎不同时使用
 	return nil
 }
 
@@ -127,7 +126,7 @@ func (engine *Engine) Register(impl EngineImpl) bool {
 	return true
 }
 
-func (engine *Engine) Enable(name string) error {
+func (engine *Engine) InitEngine(name string) error {
 	var err error
 	var impl EngineImpl
 	if _, ok := engine.EnginesImpl[name]; !ok {
@@ -210,15 +209,13 @@ func (engine *Engine) GetEngine(name string) EngineImpl {
 	return nil
 }
 
+// Match use http.Response ensure legal input
 func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 	content := httputils.ReadRaw(resp)
 	body, header, _ := httputils.SplitHttpRaw(content)
 	combined := make(common.Frameworks)
 	for name, ok := range engine.Enabled {
 		if !ok {
-			continue
-		}
-		if engine.EnginesImpl[name] == nil {
 			continue
 		}
 		var fs common.Frameworks
@@ -245,16 +242,40 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 			}
 		}
 
-		for _, frame := range fs {
-			aliasFrame, ok := engine.Aliases.FindFramework(frame)
-			if ok {
-				frame.Name = aliasFrame.Name
-				frame.UpdateAttributes(aliasFrame.ToWFN())
-			}
-			combined.Add(frame)
+		combined = engine.MergeFrameworks(combined, fs)
+	}
+	return combined
+}
+
+func (engine *Engine) MatchWithEngines(resp *http.Response, engines ...string) common.Frameworks {
+	content := httputils.ReadRaw(resp)
+	combined := make(common.Frameworks)
+	for _, name := range engines {
+		if impl, ok := engine.EnginesImpl[name]; ok {
+			combined = engine.MergeFrameworks(combined, impl.Match(content))
 		}
 	}
 	return combined
+}
+
+func (engine *Engine) MatchFavicon(content []byte) common.Frameworks {
+	favEngine := engine.Favicon()
+	if favEngine != nil {
+		return favEngine.Match(content)
+	}
+	return make(common.Frameworks)
+}
+
+func (engine *Engine) MergeFrameworks(origin, other common.Frameworks) common.Frameworks {
+	for _, frame := range other {
+		aliasFrame, ok := engine.Aliases.FindFramework(frame)
+		if ok {
+			frame.Name = aliasFrame.Name
+			frame.UpdateAttributes(aliasFrame.ToWFN())
+		}
+		origin.Add(frame)
+	}
+	return origin
 }
 
 func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, error) {
@@ -264,7 +285,6 @@ func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, er
 func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
 	resp := httputils.NewResponseWithRaw(content)
 	if resp == nil {
-		logs.Log.Error("invalid http response")
 		return nil, errors.New("invalid http response")
 	}
 	return engine.Match(resp), nil
