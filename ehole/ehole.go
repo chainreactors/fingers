@@ -55,8 +55,12 @@ func (engine *EHoleEngine) Compile() error {
 			for _, reg := range finger.Keyword {
 				finger.compiledRegexp = append(finger.compiledRegexp, regexp.MustCompile(reg))
 			}
-		}
-		if finger.Method == FaviconMethod {
+		} else if finger.Method == KeywordMethod {
+			finger.lowerKeyword = make([]string, len(finger.Keyword))
+			for _, word := range finger.Keyword {
+				finger.lowerKeyword = append(finger.lowerKeyword, strings.ToLower(word))
+			}
+		} else if finger.Method == FaviconMethod {
 			for _, hash := range finger.Keyword {
 				engine.FaviconMap[hash] = finger.Cms
 			}
@@ -92,6 +96,7 @@ type Fingerprint struct {
 	Method         string   `json:"method"`
 	Location       string   `json:"location"`
 	Keyword        []string `json:"keyword"`
+	lowerKeyword   []string `json:"-"`
 	compiledRegexp []*regexp.Regexp
 }
 

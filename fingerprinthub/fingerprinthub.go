@@ -39,6 +39,7 @@ func (engine *FingerPrintHubsEngine) Len() int {
 func (engine *FingerPrintHubsEngine) Compile() error {
 	engine.FaviconMap = make(map[string]string)
 	for _, finger := range engine.FingerPrints {
+		finger.Compile()
 		if len(finger.FaviconHash) > 0 {
 			for _, hash := range finger.FaviconHash {
 				engine.FaviconMap[hash] = finger.Name
@@ -74,6 +75,16 @@ type FingerPrintHub struct {
 	Keyword     []string          `json:"keyword,omitempty"`
 	Path        string            `json:"path"`
 	Headers     map[string]string `json:"headers,omitempty"`
+}
+
+func (f *FingerPrintHub) Compile() {
+	for i, word := range f.Keyword {
+		f.Keyword[i] = strings.ToLower(word)
+	}
+
+	for k, v := range f.Headers {
+		f.Headers[strings.ToLower(k)] = strings.ToLower(v)
+	}
 }
 
 func (f *FingerPrintHub) Match(header http.Header, body string) *common.Framework {
