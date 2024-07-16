@@ -3,6 +3,7 @@ package ehole
 import (
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/resources"
 	"regexp"
 	"strings"
 )
@@ -21,7 +22,7 @@ const (
 
 func NewEHoleEngine() (*EHoleEngine, error) {
 	var engine *EHoleEngine
-	err := json.Unmarshal(EholeData, &engine)
+	err := json.Unmarshal(resources.EholeData, &engine)
 	if err != nil {
 		return nil, err
 	}
