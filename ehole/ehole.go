@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/utils/httputils"
 	"regexp"
 	"strings"
 )
@@ -38,6 +39,10 @@ type EHoleEngine struct {
 	FaviconMap   map[string]string
 }
 
+func (engine *EHoleEngine) Name() string {
+	return "ehole"
+}
+
 func (engine *EHoleEngine) Compile() error {
 	engine.FaviconMap = make(map[string]string)
 	for _, finger := range engine.Fingerprints {
@@ -56,7 +61,18 @@ func (engine *EHoleEngine) Compile() error {
 	return nil
 }
 
-func (engine *EHoleEngine) Match(header, body string) common.Frameworks {
+func (engine *EHoleEngine) Match(content []byte) common.Frameworks {
+	var header, body string
+	bodyBytes, headerBytes, ok := httputils.SplitHttpRaw(content)
+	if ok {
+		header = string(headerBytes)
+		body = string(bodyBytes)
+		return engine.MatchWithHeaderAndBody(header, body)
+	}
+	return make(common.Frameworks)
+}
+
+func (engine *EHoleEngine) MatchWithHeaderAndBody(header, body string) common.Frameworks {
 	frames := make(common.Frameworks)
 	for _, finger := range engine.Fingerprints {
 		frame := finger.Match(header, body)

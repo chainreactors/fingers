@@ -6,7 +6,17 @@ import (
 	"github.com/chainreactors/fingers/resources"
 )
 
-func NewFingersEngine(httpdata, socketdata []byte) (*FingersEngine, error) {
+func NewFingersEngineWithCustom(httpConfig, socketConfig []byte) (*FingersEngine, error) {
+	if httpConfig != nil {
+		resources.FingersHTTPData = httpConfig
+	}
+	if socketConfig != nil {
+		resources.FingersSocketData = socketConfig
+	}
+	return NewFingersEngine()
+}
+
+func NewFingersEngine() (*FingersEngine, error) {
 	// httpdata must be not nil
 	// socketdata can be nil
 	err := resources.LoadPorts()
@@ -14,7 +24,7 @@ func NewFingersEngine(httpdata, socketdata []byte) (*FingersEngine, error) {
 		return nil, err
 	}
 
-	httpfs, err := LoadFingers(httpdata)
+	httpfs, err := LoadFingers(resources.FingersHTTPData)
 	if err != nil {
 		return nil, err
 	}
@@ -24,11 +34,9 @@ func NewFingersEngine(httpdata, socketdata []byte) (*FingersEngine, error) {
 		Favicons:    common.NewFavicons(),
 	}
 
-	if socketdata != nil {
-		engine.SocketFingers, err = LoadFingers(socketdata)
-		if err != nil {
-			return nil, err
-		}
+	engine.SocketFingers, err = LoadFingers(resources.FingersSocketData)
+	if err != nil {
+		return nil, err
 	}
 
 	err = engine.Compile()
@@ -44,6 +52,10 @@ type FingersEngine struct {
 	SocketFingers            Fingers
 	SocketGroup              FingerMapper
 	Favicons                 *common.Favicons
+}
+
+func (engine *FingersEngine) Name() string {
+	return "fingers"
 }
 
 func (engine *FingersEngine) Compile() error {
@@ -129,6 +141,11 @@ func (engine *FingersEngine) SocketMatch(content []byte, port string, level int,
 		}
 	}
 	return nil, nil
+}
+
+func (engine *FingersEngine) Match(content []byte) common.Frameworks {
+	fs, _ := engine.HTTPMatch(content, "")
+	return fs
 }
 
 func (engine *FingersEngine) HTTPMatch(content []byte, cert string) (common.Frameworks, common.Vulns) {

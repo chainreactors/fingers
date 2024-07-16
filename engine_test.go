@@ -7,7 +7,6 @@ import (
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
-	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/httputils"
 	"net/http"
 	"testing"
@@ -56,7 +55,7 @@ func TestFavicon(t *testing.T) {
 }
 
 func TestFingersEngine(t *testing.T) {
-	engine, err := fingers.NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData)
+	engine, err := fingers.NewFingersEngine()
 	if err != nil {
 		t.Error(err)
 	}
@@ -85,7 +84,7 @@ func TestFingerPrintHubsEngine(t *testing.T) {
 	content := httputils.ReadRaw(resp)
 	_, body, ok := httputils.SplitHttpRaw(content)
 	if ok {
-		frames := engine.Match(resp.Header, string(body))
+		frames := engine.MatchWithHttpAndBody(resp.Header, string(body))
 		for _, frame := range frames {
 			t.Log(frame)
 		}
@@ -105,7 +104,7 @@ func TestEHoleEngine(t *testing.T) {
 	content := httputils.ReadRaw(resp)
 	header, body, ok := httputils.SplitHttpRaw(content)
 	if ok {
-		frames := engine.Match(string(header), string(body))
+		frames := engine.MatchWithHeaderAndBody(string(header), string(body))
 		for _, frame := range frames {
 			t.Log(frame)
 		}
@@ -124,7 +123,7 @@ func TestGobyEngine(t *testing.T) {
 
 	content := httputils.ReadRaw(resp)
 	start := time.Now()
-	frames := engine.Match(string(content))
+	frames := engine.Match(content)
 	fmt.Println(frames)
 	fmt.Println(time.Since(start).String())
 }
