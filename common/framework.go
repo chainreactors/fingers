@@ -195,6 +195,9 @@ func (fs Frameworks) List() []*Framework {
 }
 
 func (fs Frameworks) Add(other *Framework) bool {
+	if other == nil {
+		return false
+	}
 	other.Name = strings.ToLower(other.Name)
 	if frame, ok := fs[other.Name]; ok {
 		for from, _ := range other.Froms {

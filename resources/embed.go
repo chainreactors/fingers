@@ -54,7 +54,7 @@ var CheckSum = map[string]string{
 	"goby":           encode.Md5Hash(GobyData),
 	"fingerprinthub": encode.Md5Hash(Fingerprinthubdata),
 	"ehole":          encode.Md5Hash(EholeData),
-	"fingers_http":   encode.Md5Hash(FingersHTTPData),
+	"fingers":        encode.Md5Hash(FingersHTTPData),
 	"fingers_socket": encode.Md5Hash(FingersSocketData),
 	"wappalyzer":     encode.Md5Hash(WappalyzerData),
 	"alias":          encode.Md5Hash(AliasesData),

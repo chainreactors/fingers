@@ -34,6 +34,10 @@ func (engine *GobyEngine) Name() string {
 	return "goby"
 }
 
+func (engine *GobyEngine) Len() int {
+	return len(engine.Fingers)
+}
+
 func (engine *GobyEngine) Compile() error {
 	for _, finger := range engine.Fingers {
 		err := finger.Compile()

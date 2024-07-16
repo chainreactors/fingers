@@ -3,6 +3,7 @@ package fingers
 import (
 	"errors"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/favicon"
 	"github.com/chainreactors/fingers/resources"
 )
 
@@ -31,7 +32,7 @@ func NewFingersEngine() (*FingersEngine, error) {
 
 	engine := &FingersEngine{
 		HTTPFingers: httpfs,
-		Favicons:    common.NewFavicons(),
+		Favicons:    favicon.NewFavicons(),
 	}
 
 	engine.SocketFingers, err = LoadFingers(resources.FingersSocketData)
@@ -51,11 +52,15 @@ type FingersEngine struct {
 	HTTPFingersActiveFingers Fingers
 	SocketFingers            Fingers
 	SocketGroup              FingerMapper
-	Favicons                 *common.Favicons
+	Favicons                 *favicon.FaviconsEngine
 }
 
 func (engine *FingersEngine) Name() string {
 	return "fingers"
+}
+
+func (engine *FingersEngine) Len() int {
+	return len(engine.HTTPFingers) + len(engine.SocketFingers)
 }
 
 func (engine *FingersEngine) Compile() error {
