@@ -24,10 +24,10 @@ const (
 type From int
 
 func (f From) String() string {
-	return frameFromMap[f]
+	return FrameFromMap[f]
 }
 
-var frameFromMap = map[From]string{
+var FrameFromMap = map[From]string{
 	FrameFromDefault:        "default",
 	FrameFromACTIVE:         "active",
 	FrameFromICO:            "ico",
@@ -116,7 +116,7 @@ func (f *Framework) String() string {
 		s.WriteString(":(")
 		var froms []string
 		for from, _ := range f.Froms {
-			froms = append(froms, frameFromMap[from])
+			froms = append(froms, FrameFromMap[from])
 		}
 		s.WriteString(strings.Join(froms, " "))
 		s.WriteString(")")
@@ -124,7 +124,7 @@ func (f *Framework) String() string {
 		for from, _ := range f.Froms {
 			if from != FrameFromFingers {
 				s.WriteString(":")
-				s.WriteString(frameFromMap[from])
+				s.WriteString(FrameFromMap[from])
 			}
 		}
 	}
