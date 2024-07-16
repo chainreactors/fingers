@@ -151,6 +151,7 @@ fingers设计的核心思路是命中一个指纹仅需要一条规则, 因此�
   - [ ] fingerprinthub v4
   - [ ] tidefinger
   - [ ] kscan
+  - [ ] nmap
 
 ## Thanks
 

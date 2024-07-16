@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/utils/httputils"
 	"strings"
 )
 
@@ -27,8 +28,12 @@ func NewWappalyzeEngine() (*Wappalyze, error) {
 	return wappalyze, nil
 }
 
-func (s *Wappalyze) Compile() error {
-	err := s.loadFingerprints()
+func (engine *Wappalyze) Name() string {
+	return "wappalyzer"
+}
+
+func (engine *Wappalyze) Compile() error {
+	err := engine.loadFingerprints()
 	if err != nil {
 		return err
 	}
@@ -36,7 +41,7 @@ func (s *Wappalyze) Compile() error {
 }
 
 // loadFingerprints loads the fingerprints and compiles them
-func (s *Wappalyze) loadFingerprints() error {
+func (engine *Wappalyze) loadFingerprints() error {
 	var fingerprintsStruct Fingerprints
 	err := json.Unmarshal(resources.WappalyzerData, &fingerprintsStruct)
 	if err != nil {
@@ -44,9 +49,18 @@ func (s *Wappalyze) loadFingerprints() error {
 	}
 
 	for i, fingerprint := range fingerprintsStruct.Apps {
-		s.fingerprints.Apps[i] = compileFingerprint(fingerprint)
+		engine.fingerprints.Apps[i] = compileFingerprint(fingerprint)
 	}
 	return nil
+}
+
+func (engine *Wappalyze) Match(content []byte) common.Frameworks {
+	resp := httputils.NewResponseWithRaw(content)
+	if resp != nil {
+		body := httputils.ReadBody(resp)
+		engine.Fingerprint(resp.Header, body)
+	}
+	return make(common.Frameworks)
 }
 
 // Fingerprint identifies technologies on a target,
@@ -54,25 +68,25 @@ func (s *Wappalyze) loadFingerprints() error {
 //
 // Body should not be mutated while this function is being called, or it may
 // lead to unexpected things.
-func (s *Wappalyze) Fingerprint(headers map[string][]string, body []byte) common.Frameworks {
+func (engine *Wappalyze) Fingerprint(headers map[string][]string, body []byte) common.Frameworks {
 	uniqueFingerprints := make(common.Frameworks)
 
 	// Lowercase everything that we have received to check
 	normalizedBody := bytes.ToLower(body)
-	normalizedHeaders := s.normalizeHeaders(headers)
+	normalizedHeaders := engine.normalizeHeaders(headers)
 
 	// Run header based fingerprinting if the number
 	// of header checks if more than 0.
-	uniqueFingerprints.Merge(s.checkHeaders(normalizedHeaders))
+	uniqueFingerprints.Merge(engine.checkHeaders(normalizedHeaders))
 
-	cookies := s.findSetCookie(normalizedHeaders)
+	cookies := engine.findSetCookie(normalizedHeaders)
 	// Run cookie based fingerprinting if we have a set-cookie header
 	if len(cookies) > 0 {
-		uniqueFingerprints.Merge(s.checkCookies(cookies))
+		uniqueFingerprints.Merge(engine.checkCookies(cookies))
 	}
 
 	// Check for stuff in the body finally
-	uniqueFingerprints.Merge(s.checkBody(normalizedBody))
+	uniqueFingerprints.Merge(engine.checkBody(normalizedBody))
 	return uniqueFingerprints
 }
 
@@ -82,29 +96,29 @@ func (s *Wappalyze) Fingerprint(headers map[string][]string, body []byte) common
 //
 // Body should not be mutated while this function is being called, or it may
 // lead to unexpected things.
-func (s *Wappalyze) FingerprintWithTitle(headers map[string][]string, body []byte) (common.Frameworks, string) {
+func (engine *Wappalyze) FingerprintWithTitle(headers map[string][]string, body []byte) (common.Frameworks, string) {
 	uniqueFingerprints := make(common.Frameworks)
 
 	// Lowercase everything that we have received to check
 	normalizedBody := bytes.ToLower(body)
-	normalizedHeaders := s.normalizeHeaders(headers)
+	normalizedHeaders := engine.normalizeHeaders(headers)
 
 	// Run header based fingerprinting if the number
 	// of header checks if more than 0.
 
-	uniqueFingerprints.Merge(s.checkHeaders(normalizedHeaders))
+	uniqueFingerprints.Merge(engine.checkHeaders(normalizedHeaders))
 
-	cookies := s.findSetCookie(normalizedHeaders)
+	cookies := engine.findSetCookie(normalizedHeaders)
 	// Run cookie based fingerprinting if we have a set-cookie header
 	if len(cookies) > 0 {
-		uniqueFingerprints.Merge(s.checkCookies(cookies))
+		uniqueFingerprints.Merge(engine.checkCookies(cookies))
 	}
 
 	// Check for stuff in the body finally
 	if strings.Contains(normalizedHeaders["content-type"], "text/html") {
-		bodyTech := s.checkBody(normalizedBody)
+		bodyTech := engine.checkBody(normalizedBody)
 		uniqueFingerprints.Merge(bodyTech)
-		title := s.getTitle(body)
+		title := engine.getTitle(body)
 		return uniqueFingerprints, title
 	}
 	return uniqueFingerprints, ""
@@ -117,12 +131,12 @@ func (s *Wappalyze) FingerprintWithTitle(headers map[string][]string, body []byt
 //
 // Body should not be mutated while this function is being called, or it may
 // lead to unexpected things.
-func (s *Wappalyze) FingerprintWithInfo(headers map[string][]string, body []byte) map[string]AppInfo {
-	apps := s.Fingerprint(headers, body)
+func (engine *Wappalyze) FingerprintWithInfo(headers map[string][]string, body []byte) map[string]AppInfo {
+	apps := engine.Fingerprint(headers, body)
 	result := make(map[string]AppInfo, len(apps))
 
 	for app := range apps {
-		if fingerprint, ok := s.fingerprints.Apps[app]; ok {
+		if fingerprint, ok := engine.fingerprints.Apps[app]; ok {
 			result[app] = AppInfo{
 				Description: fingerprint.description,
 				Website:     fingerprint.website,
@@ -139,12 +153,12 @@ func (s *Wappalyze) FingerprintWithInfo(headers map[string][]string, body []byte
 // It also returns categories information about the technology, is there's any
 // Body should not be mutated while this function is being called, or it may
 // lead to unexpected things.
-func (s *Wappalyze) FingerprintWithCats(headers map[string][]string, body []byte) map[string]CatsInfo {
-	apps := s.Fingerprint(headers, body)
+func (engine *Wappalyze) FingerprintWithCats(headers map[string][]string, body []byte) map[string]CatsInfo {
+	apps := engine.Fingerprint(headers, body)
 	result := make(map[string]CatsInfo, len(apps))
 
 	for app := range apps {
-		if fingerprint, ok := s.fingerprints.Apps[app]; ok {
+		if fingerprint, ok := engine.fingerprints.Apps[app]; ok {
 			result[app] = CatsInfo{
 				Cats: fingerprint.cats,
 			}

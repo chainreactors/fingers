@@ -33,8 +33,12 @@ var (
 )
 
 func NewEngineWithCustomResource(portData, aliasData []byte, engines ...string) (*Engine, error) {
-	resources.AliasesData = aliasData
-	resources.PortData = portData
+	if aliasData != nil {
+		resources.AliasesData = aliasData
+	}
+	if portData != nil {
+		resources.PortData = portData
+	}
 	return NewEngine(engines...)
 }
 
@@ -68,8 +72,9 @@ func NewEngine(engines ...string) (*Engine, error) {
 }
 
 type EngineImpl interface {
+	Name() string
 	Compile() error
-	//Match(...interface{}) common.Frameworks
+	Match(content []byte) common.Frameworks
 }
 
 type Engine struct {
@@ -99,26 +104,39 @@ func (engine *Engine) Compile() error {
 	return nil
 }
 
+func (engine *Engine) Register(impl EngineImpl) bool {
+	if impl == nil {
+		return false
+	}
+	engine.EnginesImpl[impl.Name()] = impl
+	return true
+}
+
 func (engine *Engine) Enable(name string) error {
 	var err error
-	switch name {
-	case FingersEngine:
-		engine.EnginesImpl[name], err = fingers.NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData)
-	case FingerPrintEngine:
-		engine.EnginesImpl[name], err = fingerprinthub.NewFingerPrintHubEngine()
-	case WappalyzerEngine:
-		engine.EnginesImpl[name], err = wappalyzer.NewWappalyzeEngine()
-	case EHoleEngine:
-		engine.EnginesImpl[name], err = ehole.NewEHoleEngine()
-	case GobyEngine:
-		engine.EnginesImpl[name], err = goby.NewGobyEngine()
-	default:
-		return NotFoundEngine
+	var impl EngineImpl
+	if _, ok := engine.EnginesImpl[name]; !ok {
+		switch name {
+		case FingersEngine:
+			impl, err = fingers.NewFingersEngine()
+		case FingerPrintEngine:
+			impl, err = fingerprinthub.NewFingerPrintHubEngine()
+		case WappalyzerEngine:
+			impl, err = wappalyzer.NewWappalyzeEngine()
+		case EHoleEngine:
+			impl, err = ehole.NewEHoleEngine()
+		case GobyEngine:
+			impl, err = goby.NewGobyEngine()
+		default:
+			return NotFoundEngine
+		}
+		if err != nil {
+			return err
+		}
+		engine.Register(impl)
 	}
+
 	engine.Enabled[name] = true
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -161,9 +179,16 @@ func (engine *Engine) Goby() *goby.GobyEngine {
 	return nil
 }
 
+func (engine *Engine) GetEngine(name string) EngineImpl {
+	if enabled, _ := engine.Enabled[name]; enabled {
+		return engine.EnginesImpl[name]
+	}
+	return nil
+}
+
 func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 	content := httputils.ReadRaw(resp)
-	header, body, _ := httputils.SplitHttpRaw(content)
+	body, header, _ := httputils.SplitHttpRaw(content)
 	combined := make(common.Frameworks)
 	for name, ok := range engine.Enabled {
 		if !ok {
@@ -183,11 +208,17 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 		case WappalyzerEngine:
 			fs = engine.Wappalyzer().Fingerprint(resp.Header, body)
 		case FingerPrintEngine:
-			fs = engine.FingerPrintHub().Match(resp.Header, string(body))
+			fs = engine.FingerPrintHub().MatchWithHttpAndBody(resp.Header, string(body))
 		case EHoleEngine:
-			fs = engine.EHole().Match(string(header), string(body))
+			fs = engine.EHole().MatchWithHeaderAndBody(string(header), string(body))
 		case GobyEngine:
-			fs = engine.Goby().Match(string(content))
+			fs = engine.Goby().Match(content)
+		default:
+			if eng := engine.GetEngine(name); eng != nil {
+				fs = eng.Match(content)
+			} else {
+				continue
+			}
 		}
 
 		for _, frame := range fs {

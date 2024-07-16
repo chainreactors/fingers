@@ -30,6 +30,10 @@ type GobyEngine struct {
 	Fingers []*GobyFinger
 }
 
+func (engine *GobyEngine) Name() string {
+	return "goby"
+}
+
 func (engine *GobyEngine) Compile() error {
 	for _, finger := range engine.Fingers {
 		err := finger.Compile()
@@ -40,7 +44,11 @@ func (engine *GobyEngine) Compile() error {
 	return nil
 }
 
-func (engine *GobyEngine) Match(raw string) common.Frameworks {
+func (engine *GobyEngine) Match(content []byte) common.Frameworks {
+	return engine.MatchRaw(string(content))
+}
+
+func (engine *GobyEngine) MatchRaw(raw string) common.Frameworks {
 	frames := make(common.Frameworks)
 	for _, finger := range engine.Fingers {
 		frame := finger.Match(raw)

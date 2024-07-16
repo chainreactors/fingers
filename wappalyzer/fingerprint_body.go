@@ -9,10 +9,10 @@ import (
 )
 
 // checkBody checks for fingerprints in the HTML body
-func (s *Wappalyze) checkBody(body []byte) common.Frameworks {
+func (engine *Wappalyze) checkBody(body []byte) common.Frameworks {
 	technologies := make(common.Frameworks)
 	bodyString := unsafeToString(body)
-	technologies.Merge(s.fingerprints.matchString(bodyString, htmlPart))
+	technologies.Merge(engine.fingerprints.matchString(bodyString, htmlPart))
 
 	// Tokenize the HTML document and check for fingerprints as required
 	tokenizer := html.NewTokenizer(bytes.NewReader(body))
@@ -30,7 +30,7 @@ func (s *Wappalyze) checkBody(body []byte) common.Frameworks {
 				source, found := getScriptSource(token)
 				if found {
 					// Check the script tags for script fingerprints
-					technologies.Merge(s.fingerprints.matchString(source, scriptPart))
+					technologies.Merge(engine.fingerprints.matchString(source, scriptPart))
 					continue
 				}
 
@@ -54,7 +54,7 @@ func (s *Wappalyze) checkBody(body []byte) common.Frameworks {
 				if !found {
 					continue
 				}
-				technologies.Merge(s.fingerprints.matchKeyValueString(name, content, metaPart))
+				technologies.Merge(engine.fingerprints.matchKeyValueString(name, content, metaPart))
 			}
 		case html.SelfClosingTagToken:
 			token := tokenizer.Token()
@@ -67,12 +67,12 @@ func (s *Wappalyze) checkBody(body []byte) common.Frameworks {
 			if !found {
 				continue
 			}
-			technologies.Merge(s.fingerprints.matchKeyValueString(name, content, metaPart))
+			technologies.Merge(engine.fingerprints.matchKeyValueString(name, content, metaPart))
 		}
 	}
 }
 
-func (s *Wappalyze) getTitle(body []byte) string {
+func (engine *Wappalyze) getTitle(body []byte) string {
 	var title string
 
 	// Tokenize the HTML document and check for fingerprints as required

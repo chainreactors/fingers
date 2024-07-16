@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/utils/httputils"
 	"net/http"
 	"strings"
 )
@@ -27,21 +28,34 @@ type FingerPrintHubsEngine struct {
 	FaviconMap   map[string]string `json:"favicon_map,omitempty"`
 }
 
-func (f *FingerPrintHubsEngine) Compile() error {
-	f.FaviconMap = make(map[string]string)
-	for _, finger := range f.FingerPrints {
+func (engine *FingerPrintHubsEngine) Name() string {
+	return "fingerprinthub"
+}
+
+func (engine *FingerPrintHubsEngine) Compile() error {
+	engine.FaviconMap = make(map[string]string)
+	for _, finger := range engine.FingerPrints {
 		if len(finger.FaviconHash) > 0 {
 			for _, hash := range finger.FaviconHash {
-				f.FaviconMap[hash] = finger.Name
+				engine.FaviconMap[hash] = finger.Name
 			}
 		}
 	}
 	return nil
 }
 
-func (f *FingerPrintHubsEngine) Match(header http.Header, body string) common.Frameworks {
+func (engine *FingerPrintHubsEngine) Match(content []byte) common.Frameworks {
+	resp := httputils.NewResponseWithRaw(content)
+	if resp != nil {
+		body := httputils.ReadBody(resp)
+		return engine.MatchWithHttpAndBody(resp.Header, string(body))
+	}
+	return make(common.Frameworks)
+}
+
+func (engine *FingerPrintHubsEngine) MatchWithHttpAndBody(header http.Header, body string) common.Frameworks {
 	frames := make(common.Frameworks)
-	for _, finger := range f.FingerPrints {
+	for _, finger := range engine.FingerPrints {
 		frame := finger.Match(header, body)
 		if frame != nil {
 			frames.Add(frame)

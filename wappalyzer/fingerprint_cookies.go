@@ -7,11 +7,11 @@ import (
 
 // checkCookies checks if the cookies for a target match the fingerprints
 // and returns the matched IDs if any.
-func (s *Wappalyze) checkCookies(cookies []string) common.Frameworks {
+func (engine *Wappalyze) checkCookies(cookies []string) common.Frameworks {
 	// Normalize the cookies for further processing
-	normalized := s.normalizeCookies(cookies)
+	normalized := engine.normalizeCookies(cookies)
 
-	technologies := s.fingerprints.matchMapString(normalized, cookiesPart)
+	technologies := engine.fingerprints.matchMapString(normalized, cookiesPart)
 	return technologies
 }
 
@@ -19,7 +19,7 @@ const keyValuePairLength = 2
 
 // normalizeCookies normalizes the cookies and returns an
 // easily parsed format that can be processed upon.
-func (s *Wappalyze) normalizeCookies(cookies []string) map[string]string {
+func (engine *Wappalyze) normalizeCookies(cookies []string) map[string]string {
 	normalized := make(map[string]string)
 
 	for _, part := range cookies {
@@ -33,7 +33,7 @@ func (s *Wappalyze) normalizeCookies(cookies []string) map[string]string {
 }
 
 // findSetCookie finds the set cookie header from the normalized headers
-func (s *Wappalyze) findSetCookie(headers map[string]string) []string {
+func (engine *Wappalyze) findSetCookie(headers map[string]string) []string {
 	value, ok := headers["set-cookie"]
 	if !ok {
 		return nil
