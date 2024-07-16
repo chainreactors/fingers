@@ -28,7 +28,7 @@ type Finger struct {
 	IsActive    bool     `yaml:"-" json:"-"`
 }
 
-func (finger *Finger) Compile() error {
+func (finger *Finger) Compile(caseSensitive bool) error {
 	if finger.Protocol == "" {
 		finger.Protocol = "http"
 	}
@@ -41,7 +41,7 @@ func (finger *Finger) Compile() error {
 		finger.DefaultPort = utils.ParsePortsSlice(finger.DefaultPort)
 	}
 
-	err := finger.Rules.Compile(finger.Name)
+	err := finger.Rules.Compile(finger.Name, caseSensitive)
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ type Regexps struct {
 	Vuln                  []string         `yaml:"vuln,omitempty" json:"vuln,omitempty"`
 }
 
-func (r *Regexps) Compile() error {
+func (r *Regexps) Compile(caseSensitive bool) error {
 	for _, reg := range r.Regexp {
 		creg, err := compileRegexp("(?i)" + reg)
 		if err != nil {
@@ -257,11 +257,15 @@ func (r *Regexps) Compile() error {
 	}
 
 	for i, b := range r.Body {
-		r.Body[i] = strings.ToLower(b)
+		if !caseSensitive {
+			r.Body[i] = strings.ToLower(b)
+		}
 	}
 
 	for i, h := range r.Header {
-		r.Header[i] = strings.ToLower(h)
+		if !caseSensitive {
+			r.Header[i] = strings.ToLower(h)
+		}
 	}
 	return nil
 }
@@ -285,7 +289,7 @@ type Rule struct {
 	IsActive    bool      `yaml:"-" json:"-"`
 }
 
-func (r *Rule) Compile(name string) error {
+func (r *Rule) Compile(name string, caseSensitive bool) error {
 	if r.Version == "" {
 		r.Version = "_"
 	}
@@ -299,7 +303,7 @@ func (r *Rule) Compile(name string) error {
 	}
 
 	if r.Regexps != nil {
-		err := r.Regexps.Compile()
+		err := r.Regexps.Compile(caseSensitive)
 		if err != nil {
 			return err
 		}
@@ -310,9 +314,9 @@ func (r *Rule) Compile(name string) error {
 
 type Rules []*Rule
 
-func (rs Rules) Compile(name string) error {
+func (rs Rules) Compile(name string, caseSensitive bool) error {
 	for _, r := range rs {
-		err := r.Compile(name)
+		err := r.Compile(name, caseSensitive)
 		if err != nil {
 			return err
 		}

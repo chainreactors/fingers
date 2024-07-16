@@ -3,11 +3,16 @@ package fingers
 import (
 	"errors"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/resources"
 )
 
 func NewFingersEngine(httpdata, socketdata []byte) (*FingersEngine, error) {
 	// httpdata must be not nil
 	// socketdata can be nil
+	err := resources.LoadPorts()
+	if err != nil {
+		return nil, err
+	}
 
 	httpfs, err := LoadFingers(httpdata)
 	if err != nil {
@@ -18,6 +23,7 @@ func NewFingersEngine(httpdata, socketdata []byte) (*FingersEngine, error) {
 		HTTPFingers: httpfs,
 		Favicons:    common.NewFavicons(),
 	}
+
 	if socketdata != nil {
 		engine.SocketFingers, err = LoadFingers(socketdata)
 		if err != nil {
@@ -41,10 +47,15 @@ type FingersEngine struct {
 }
 
 func (engine *FingersEngine) Compile() error {
+	var err error
 	if engine.HTTPFingers == nil {
 		return errors.New("fingers is nil")
 	}
 	for _, finger := range engine.HTTPFingers {
+		err = finger.Compile(false)
+		if err != nil {
+			return err
+		}
 		if finger.IsActive {
 			engine.HTTPFingersActiveFingers = append(engine.HTTPFingersActiveFingers, finger)
 		}
@@ -65,6 +76,12 @@ func (engine *FingersEngine) Compile() error {
 	}
 
 	if engine.SocketFingers != nil {
+		for _, finger := range engine.SocketFingers {
+			err = finger.Compile(true)
+			if err != nil {
+				return err
+			}
+		}
 		engine.SocketGroup = engine.SocketFingers.GroupByPort()
 	}
 	return nil
