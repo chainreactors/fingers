@@ -1,6 +1,7 @@
 package fingers
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/chainreactors/fingers/alias"
 	"github.com/chainreactors/fingers/common"
@@ -212,6 +213,7 @@ func (engine *Engine) GetEngine(name string) EngineImpl {
 // Match use http.Response ensure legal input
 func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 	content := httputils.ReadRaw(resp)
+	content = bytes.ToLower(content)
 	body, header, _ := httputils.SplitHttpRaw(content)
 	combined := make(common.Frameworks)
 	for name, ok := range engine.Enabled {
