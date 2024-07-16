@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/resources"
 	"strings"
 )
 
@@ -37,7 +38,7 @@ func (s *Wappalyze) Compile() error {
 // loadFingerprints loads the fingerprints and compiles them
 func (s *Wappalyze) loadFingerprints() error {
 	var fingerprintsStruct Fingerprints
-	err := json.Unmarshal(WappalyzerData, &fingerprintsStruct)
+	err := json.Unmarshal(resources.WappalyzerData, &fingerprintsStruct)
 	if err != nil {
 		return err
 	}

@@ -24,3 +24,12 @@ func LoadPorts() error {
 	PrePort = utils.NewPortPreset(ports)
 	return nil
 }
+
+// engine
+var FingersHTTPData []byte
+var FingersSocketData []byte
+
+var GobyData []byte
+var Fingerprinthubdata []byte
+var EholeData []byte
+var WappalyzerData []byte

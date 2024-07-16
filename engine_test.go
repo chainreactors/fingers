@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
+	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
+	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/httputils"
 	"net/http"
 	"testing"
@@ -22,8 +24,7 @@ func TestEngine(t *testing.T) {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-
-	resp, err := client.Get("https://81.70.40.17:443/home.php")
+	resp, err := client.Get("https://81.70.40.17/")
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +45,7 @@ func TestFavicon(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get("http://81.70.40.202:8080/favicon.ico")
+	resp, err := http.Get("http://127.0.0.1:8080/favicon.ico")
 	if err != nil {
 		return
 	}
@@ -52,6 +53,23 @@ func TestFavicon(t *testing.T) {
 	_, body, _ := httputils.SplitHttpRaw(content)
 	frames := engine.HashContentMatch(body)
 	fmt.Println(frames)
+}
+
+func TestFingersEngine(t *testing.T) {
+	engine, err := fingers.NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData)
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := http.Get("http://127.0.0.1")
+	if err != nil {
+		return
+	}
+
+	content := httputils.ReadRaw(resp)
+	frames, _ := engine.HTTPMatch(content, "")
+	for _, frame := range frames {
+		t.Log(frame)
+	}
 }
 
 func TestFingerPrintHubsEngine(t *testing.T) {

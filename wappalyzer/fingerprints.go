@@ -403,8 +403,3 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 	}
 	return technologies
 }
-
-// GetFingerprints returns the fingerprint string from wappalyzer
-func GetFingerprints() string {
-	return string(WappalyzerData)
-}

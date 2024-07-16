@@ -3,13 +3,14 @@ package fingerprinthub
 import (
 	"encoding/json"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/resources"
 	"net/http"
 	"strings"
 )
 
 func NewFingerPrintHubEngine() (*FingerPrintHubsEngine, error) {
 	var fingerprints []*FingerPrintHub
-	err := json.Unmarshal(Fingerprinthubdata, &fingerprints)
+	err := json.Unmarshal(resources.Fingerprinthubdata, &fingerprints)
 	if err != nil {
 		return nil, err
 	}

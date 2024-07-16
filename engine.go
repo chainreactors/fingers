@@ -103,7 +103,7 @@ func (engine *Engine) Enable(name string) error {
 	var err error
 	switch name {
 	case FingersEngine:
-		engine.EnginesImpl[name], err = fingers.NewFingersEngine(fingers.HTTPFingerData, fingers.SocketFingerData)
+		engine.EnginesImpl[name], err = fingers.NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData)
 	case FingerPrintEngine:
 		engine.EnginesImpl[name], err = fingerprinthub.NewFingerPrintHubEngine()
 	case WappalyzerEngine:
