@@ -142,10 +142,15 @@ fingers设计的核心思路是命中一个指纹仅需要一条规则, 因此�
 
 ## TODO 
 
-- [ ] [nuclei technologies](https://github.com/projectdiscovery/nuclei-templates/tree/main/http/technologies) 实现 
-- [ ] 指纹名重定向, 统一多指纹库的同一指纹不同名问题
-- [ ] 指纹黑名单, 用于过滤指纹库中的垃圾指纹
+- [x] 指纹名重定向, 统一多指纹库的同一指纹不同名问题
+- [x] 指纹黑名单, 用于过滤指纹库中的垃圾指纹
 - [ ] 更丰富的CPE相关特性支持
+- [ ] 更优雅的与nuclei或其他漏洞库联动
+- 支持更多引擎
+  - [ ] [nuclei technologies](https://github.com/projectdiscovery/nuclei-templates/tree/main/http/technologies) 实现
+  - [ ] fingerprinthub v4
+  - [ ] tidefinger
+  - [ ] kscan
 
 ## Thanks
 
