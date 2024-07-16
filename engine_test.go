@@ -117,12 +117,14 @@ func TestGobyEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://127.0.0.1")
+	resp, err := http.Get("http://www.baidu.com")
 	if err != nil {
 		return
 	}
 
 	content := httputils.ReadRaw(resp)
+	start := time.Now()
 	frames := engine.Match(string(content))
 	fmt.Println(frames)
+	fmt.Println(time.Since(start).String())
 }
