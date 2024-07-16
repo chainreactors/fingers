@@ -91,12 +91,16 @@ func (engine *FingersEngine) SocketMatch(content []byte, port string, level int,
 	// socket service only match one fingerprint
 	var alreadyFrameworks = make(map[string]bool)
 	input := NewContent(content, "", false)
-	fs, vs := engine.SocketGroup[port].Match(input, level, sender, callback, true)
-	if len(fs) > 0 {
-		return fs.One(), vs.One()
-	}
-	for _, fs := range engine.SocketGroup[port] {
-		alreadyFrameworks[fs.Name] = true
+	var fs common.Frameworks
+	var vs common.Vulns
+	if port != "" {
+		fs, vs = engine.SocketGroup[port].Match(input, level, sender, callback, true)
+		if len(fs) > 0 {
+			return fs.One(), vs.One()
+		}
+		for _, fs := range engine.SocketGroup[port] {
+			alreadyFrameworks[fs.Name] = true
+		}
 	}
 
 	fs, vs = engine.SocketGroup["0"].Match(input, level, sender, callback, true)
