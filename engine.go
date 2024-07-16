@@ -91,7 +91,7 @@ func (engine *Engine) String() string {
 	for name, impl := range engine.EnginesImpl {
 		s.WriteString(fmt.Sprintf(" %s:%d", name, impl.Len()))
 	}
-	return s.String()
+	return strings.TrimSpace(s.String())
 }
 
 func (engine *Engine) Compile() error {
