@@ -38,6 +38,7 @@ type CompiledFingerprints struct {
 
 // CompiledFingerprint contains the compiled fingerprints from the tech json
 type CompiledFingerprint struct {
+	name string
 	// cats contain categories that are implicit with this tech
 	cats []int
 	// implies contains technologies that are implicit with this tech
@@ -62,6 +63,17 @@ type CompiledFingerprint struct {
 	meta map[string][]*versionRegex
 	// cpe contains the cpe for a fingerpritn
 	cpe string
+}
+
+func (finger *CompiledFingerprint) NewFrame(version string) *common.Framework {
+	frame := common.NewFrameworkWithVersion(finger.name, common.FrameFromWappalyzer, version)
+	for _, tag := range finger.implies {
+		frame.AddTag(tag)
+	}
+	if finger.cpe != "" {
+		frame.Attributes = common.NewAttributesWithCPE(finger.cpe)
+	}
+	return frame
 }
 
 // AppInfo contains basic information about an App.
@@ -143,8 +155,9 @@ const (
 )
 
 // loadPatterns loads the fingerprint patterns and compiles regexes
-func compileFingerprint(fingerprint *Fingerprint) *CompiledFingerprint {
+func compileFingerprint(app string, fingerprint *Fingerprint) *CompiledFingerprint {
 	compiled := &CompiledFingerprint{
+		name:        app,
 		cats:        fingerprint.Cats,
 		implies:     fingerprint.Implies,
 		description: fingerprint.Description,
@@ -226,7 +239,7 @@ func compileFingerprint(fingerprint *Fingerprint) *CompiledFingerprint {
 func (f *CompiledFingerprints) matchString(data string, part part) common.Frameworks {
 	var matched bool
 	technologies := make(common.Frameworks)
-	for app, fingerprint := range f.Apps {
+	for _, fingerprint := range f.Apps {
 		var version string
 
 		switch part {
@@ -260,10 +273,7 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 			continue
 		}
 
-		frame := common.NewFrameworkWithVersion(app, common.FrameFromWappalyzer, version)
-		for _, tag := range fingerprint.implies {
-			frame.AddTag(tag)
-		}
+		frame := fingerprint.NewFrame(version)
 		technologies.Add(frame)
 		matched = false
 	}
@@ -275,7 +285,7 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 	var matched bool
 	var technologies = make(common.Frameworks)
 
-	for app, fingerprint := range f.Apps {
+	for _, fingerprint := range f.Apps {
 		var version string
 
 		switch part {
@@ -323,10 +333,7 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 		if !matched {
 			continue
 		}
-		frame := common.NewFrameworkWithVersion(app, common.FrameFromWappalyzer, version)
-		for _, tag := range fingerprint.implies {
-			frame.AddTag(tag)
-		}
+		frame := fingerprint.NewFrame(version)
 		technologies.Add(frame)
 		matched = false
 	}
@@ -338,7 +345,7 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 	var matched bool
 	technologies := make(common.Frameworks)
 
-	for app, fingerprint := range f.Apps {
+	for _, fingerprint := range f.Apps {
 		var version string
 
 		switch part {
@@ -394,10 +401,7 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 
 		// Append the technologies as well as implied ones
 
-		frame := common.NewFrameworkWithVersion(app, common.FrameFromWappalyzer, version)
-		for _, tag := range fingerprint.implies {
-			frame.AddTag(tag)
-		}
+		frame := fingerprint.NewFrame(version)
 		technologies.Add(frame)
 		matched = false
 	}

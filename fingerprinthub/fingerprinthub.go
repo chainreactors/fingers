@@ -1,6 +1,7 @@
 package fingerprinthub
 
 import (
+	"bytes"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/httputils"
@@ -51,7 +52,7 @@ func (engine *FingerPrintHubsEngine) Compile() error {
 func (engine *FingerPrintHubsEngine) Match(content []byte) common.Frameworks {
 	resp := httputils.NewResponseWithRaw(content)
 	if resp != nil {
-		body := httputils.ReadBody(resp)
+		body := bytes.ToLower(httputils.ReadBody(resp))
 		return engine.MatchWithHttpAndBody(resp.Header, string(body))
 	}
 	return make(common.Frameworks)

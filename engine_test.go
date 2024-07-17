@@ -1,12 +1,14 @@
 package fingers
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
+	"github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/utils/httputils"
 	"net/http"
 	"testing"
@@ -24,7 +26,7 @@ func TestEngine(t *testing.T) {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	resp, err := client.Get("http://www.baidu.com")
+	resp, err := client.Get("http://127.0.0.1:8000")
 	if err != nil {
 		panic(err)
 	}
@@ -117,14 +119,33 @@ func TestGobyEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://127.0.0.1:8089")
+	resp, err := http.Get("http://127.0.0.1:8000")
 	if err != nil {
 		return
 	}
 
 	content := httputils.ReadRaw(resp)
+	content = bytes.ToLower(content)
 	start := time.Now()
 	frames := engine.Match(content)
+	fmt.Println(frames)
+	fmt.Println(time.Since(start).String())
+}
+
+func TestEngine_Wappalyzer(t *testing.T) {
+	engine, err := wappalyzer.NewWappalyzeEngine()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	resp, err := http.Get("http://127.0.0.1:8000")
+	if err != nil {
+		return
+	}
+
+	content := httputils.ReadBody(resp)
+	start := time.Now()
+	frames := engine.Fingerprint(resp.Header, content)
 	fmt.Println(frames)
 	fmt.Println(time.Since(start).String())
 }

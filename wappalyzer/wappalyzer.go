@@ -53,17 +53,18 @@ func (engine *Wappalyze) loadFingerprints() error {
 		return err
 	}
 
-	for i, fingerprint := range fingerprintsStruct.Apps {
-		engine.fingerprints.Apps[i] = compileFingerprint(fingerprint)
+	for app, fingerprint := range fingerprintsStruct.Apps {
+		engine.fingerprints.Apps[app] = compileFingerprint(app, fingerprint)
 	}
 	return nil
 }
 
 func (engine *Wappalyze) Match(content []byte) common.Frameworks {
+	//content = bytes.ToLower(content)
 	resp := httputils.NewResponseWithRaw(content)
 	if resp != nil {
 		body := httputils.ReadBody(resp)
-		engine.Fingerprint(resp.Header, body)
+		return engine.Fingerprint(resp.Header, body)
 	}
 	return make(common.Frameworks)
 }

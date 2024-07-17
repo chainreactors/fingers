@@ -1,6 +1,7 @@
 package goby
 
 import (
+	"bytes"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/logs"
@@ -48,7 +49,7 @@ func (engine *GobyEngine) Compile() error {
 }
 
 func (engine *GobyEngine) Match(content []byte) common.Frameworks {
-	return engine.MatchRaw(string(content))
+	return engine.MatchRaw(string(bytes.ToLower(content)))
 }
 
 func (engine *GobyEngine) MatchRaw(raw string) common.Frameworks {
