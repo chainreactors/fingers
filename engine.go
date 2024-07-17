@@ -10,7 +10,6 @@ import (
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
-	"github.com/chainreactors/fingers/resources"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/utils/httputils"
 	"github.com/pkg/errors"
@@ -33,16 +32,6 @@ var (
 
 	NotFoundEngine = errors.New("engine not found")
 )
-
-func NewEngineWithCustomResource(portData, aliasData []byte, engines ...string) (*Engine, error) {
-	if aliasData != nil {
-		resources.AliasesData = aliasData
-	}
-	if portData != nil {
-		resources.PortData = portData
-	}
-	return NewEngine(engines...)
-}
 
 func NewEngine(engines ...string) (*Engine, error) {
 	if engines == nil {
