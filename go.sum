@@ -89,6 +89,8 @@ github.com/chainreactors/utils v0.0.0-20240711193713-3f498c03d1b6 h1:U+gTyfd7rEv
 github.com/chainreactors/utils v0.0.0-20240711193713-3f498c03d1b6/go.mod h1:LajXuvESQwP+qCMAvlcoSXppQCjuLlBrnQpu9XQ1HtU=
 github.com/chainreactors/utils v0.0.0-20240715080349-d2d0484c95ed h1:5zxxMweHgo2e7r4ic7LHGibGBnOiVmCqbzbcbgoPn7U=
 github.com/chainreactors/utils v0.0.0-20240715080349-d2d0484c95ed/go.mod h1:LajXuvESQwP+qCMAvlcoSXppQCjuLlBrnQpu9XQ1HtU=
+github.com/chainreactors/utils v0.0.0-20240716182459-e85f2b01ee16 h1:TCOshCp7PrWqhP/HSAM5kT3VxoOe7EoJbRseyoSX3RM=
+github.com/chainreactors/utils v0.0.0-20240716182459-e85f2b01ee16/go.mod h1:LajXuvESQwP+qCMAvlcoSXppQCjuLlBrnQpu9XQ1HtU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=

@@ -31,32 +31,34 @@ func LoadPorts() error {
 }
 
 // engine
-//
-//go:embed goby.json
-var GobyData []byte
 
-//go:embed fingerprinthub_v3.json
-var Fingerprinthubdata []byte
+var (
+	//go:embed goby.json.gz
+	GobyData []byte
 
-//go:embed ehole.json
-var EholeData []byte
+	//go:embed fingerprinthub_v3.json.gz
+	Fingerprinthubdata []byte
 
-//go:embed fingers_http.json
-var FingersHTTPData []byte
+	//go:embed ehole.json.gz
+	EholeData []byte
 
-//go:embed fingers_socket.json
-var FingersSocketData []byte
+	//go:embed fingers_http.json.gz
+	FingersHTTPData []byte
 
-//go:embed wappalyzer.json
-var WappalyzerData []byte
+	//go:embed fingers_socket.json.gz
+	FingersSocketData []byte
 
-var CheckSum = map[string]string{
-	"goby":           encode.Md5Hash(GobyData),
-	"fingerprinthub": encode.Md5Hash(Fingerprinthubdata),
-	"ehole":          encode.Md5Hash(EholeData),
-	"fingers":        encode.Md5Hash(FingersHTTPData),
-	"fingers_socket": encode.Md5Hash(FingersSocketData),
-	"wappalyzer":     encode.Md5Hash(WappalyzerData),
-	"alias":          encode.Md5Hash(AliasesData),
-	"port":           encode.Md5Hash(PortData),
-}
+	//go:embed wappalyzer.json.gz
+	WappalyzerData []byte
+
+	CheckSum = map[string]string{
+		"goby":           encode.Md5Hash(GobyData),
+		"fingerprinthub": encode.Md5Hash(Fingerprinthubdata),
+		"ehole":          encode.Md5Hash(EholeData),
+		"fingers":        encode.Md5Hash(FingersHTTPData),
+		"fingers_socket": encode.Md5Hash(FingersSocketData),
+		"wappalyzer":     encode.Md5Hash(WappalyzerData),
+		"alias":          encode.Md5Hash(AliasesData),
+		"port":           encode.Md5Hash(PortData),
+	}
+)
