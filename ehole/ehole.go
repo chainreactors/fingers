@@ -1,6 +1,7 @@
 package ehole
 
 import (
+	"bytes"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/httputils"
@@ -70,6 +71,7 @@ func (engine *EHoleEngine) Compile() error {
 
 func (engine *EHoleEngine) Match(content []byte) common.Frameworks {
 	var header, body string
+	content = bytes.ToLower(content)
 	bodyBytes, headerBytes, ok := httputils.SplitHttpRaw(content)
 	if ok {
 		header = string(headerBytes)

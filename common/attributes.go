@@ -6,6 +6,26 @@ func NewAttributesWithAny() *Attributes {
 	return &Attributes{}
 }
 
+func NewAttributesWithCPE(s string) *Attributes {
+	attr, err := wfn.Parse(s)
+	if err != nil {
+		return nil
+	}
+	return &Attributes{
+		Part:      attr.Part,
+		Vendor:    attr.Vendor,
+		Product:   attr.Product,
+		Version:   attr.Version,
+		Update:    attr.Update,
+		Edition:   attr.Edition,
+		SWEdition: attr.SWEdition,
+		TargetSW:  attr.TargetSW,
+		TargetHW:  attr.TargetHW,
+		Other:     attr.Other,
+		Language:  attr.Language,
+	}
+}
+
 type Attributes struct {
 	Part      string `json:"part" yaml:"part"`
 	Vendor    string `json:"vendor" yaml:"vendor"`
