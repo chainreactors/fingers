@@ -30,6 +30,13 @@ type Aliases struct {
 	Map     map[string]map[string]string // 加速查询的映射表
 }
 
+func (as *Aliases) AppendCustomAliases(other []*Alias) {
+	err := as.Compile(other)
+	if err != nil {
+		return
+	}
+}
+
 func (as *Aliases) Compile(aliases []*Alias) error {
 	for _, alias := range aliases {
 		alias.Name = strings.ToLower(alias.Name)
