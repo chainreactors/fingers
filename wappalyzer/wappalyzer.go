@@ -2,7 +2,6 @@ package wappalyzer
 
 import (
 	"bytes"
-	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/httputils"
@@ -21,7 +20,13 @@ func NewWappalyzeEngine() (*Wappalyze, error) {
 			Apps: make(map[string]*CompiledFingerprint),
 		},
 	}
-	err := wappalyze.Compile()
+
+	err := wappalyze.loadFingerprints()
+	if err != nil {
+		return nil, err
+	}
+
+	err = wappalyze.Compile()
 	if err != nil {
 		return nil, err
 	}
@@ -37,17 +42,13 @@ func (engine *Wappalyze) Len() int {
 }
 
 func (engine *Wappalyze) Compile() error {
-	err := engine.loadFingerprints()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
 // loadFingerprints loads the fingerprints and compiles them
 func (engine *Wappalyze) loadFingerprints() error {
 	var fingerprintsStruct Fingerprints
-	err := json.Unmarshal(resources.WappalyzerData, &fingerprintsStruct)
+	err := resources.UnmarshalData(resources.WappalyzerData, &fingerprintsStruct)
 	if err != nil {
 		return err
 	}

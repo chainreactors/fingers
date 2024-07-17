@@ -251,6 +251,7 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 
 func (engine *Engine) MatchWithEngines(resp *http.Response, engines ...string) common.Frameworks {
 	content := httputils.ReadRaw(resp)
+	content = bytes.ToLower(content)
 	combined := make(common.Frameworks)
 	for _, name := range engines {
 		if impl, ok := engine.EnginesImpl[name]; ok {

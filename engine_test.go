@@ -97,7 +97,7 @@ func TestEHoleEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://127.0.0.1")
+	resp, err := http.Get("http://127.0.0.1:8089")
 	if err != nil {
 		return
 	}
@@ -117,7 +117,7 @@ func TestGobyEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://www.baidu.com")
+	resp, err := http.Get("http://127.0.0.1:8089")
 	if err != nil {
 		return
 	}

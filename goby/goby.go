@@ -1,7 +1,6 @@
 package goby
 
 import (
-	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/logs"
@@ -12,7 +11,7 @@ import (
 
 func NewGobyEngine() (*GobyEngine, error) {
 	var fingers []*GobyFinger
-	err := json.Unmarshal(resources.GobyData, &fingers)
+	err := resources.UnmarshalData(resources.GobyData, &fingers)
 	if err != nil {
 		return nil, err
 	}

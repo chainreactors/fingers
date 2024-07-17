@@ -2,7 +2,6 @@ package fingers
 
 import (
 	"bytes"
-	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/iutils"
@@ -37,9 +36,9 @@ func (c *Content) UpdateContent(content []byte) {
 	}
 }
 
-// LoadFingers 加载指纹 迁移到fingers包从, 允许其他服务调用
+// LoadFingers 加载指纹 迁移到fingers包, 允许其他服务调用
 func LoadFingers(content []byte) (fingers Fingers, err error) {
-	err = json.Unmarshal(content, &fingers)
+	err = resources.UnmarshalData(content, &fingers)
 	if err != nil {
 		return nil, err
 	}

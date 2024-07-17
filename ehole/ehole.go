@@ -1,7 +1,6 @@
 package ehole
 
 import (
-	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/httputils"
@@ -23,7 +22,7 @@ const (
 
 func NewEHoleEngine() (*EHoleEngine, error) {
 	var engine *EHoleEngine
-	err := json.Unmarshal(resources.EholeData, &engine)
+	err := resources.UnmarshalData(resources.EholeData, &engine)
 	if err != nil {
 		return nil, err
 	}
