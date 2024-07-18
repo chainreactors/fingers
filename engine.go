@@ -47,6 +47,10 @@ func NewEngine(engines ...string) (*Engine, error) {
 		return nil, err
 	}
 
+	err = engine.InitEngine(FaviconEngine)
+	if err != nil {
+		return nil, err
+	}
 	for _, name := range engines {
 		err = engine.InitEngine(name)
 		if err != nil {
