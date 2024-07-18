@@ -30,7 +30,7 @@ type Aliases struct {
 	Map     map[string]map[string]string // 加速查询的映射表
 }
 
-func (as *Aliases) AppendCustomAliases(other []*Alias) {
+func (as *Aliases) AppendAliases(other []*Alias) {
 	err := as.Compile(other)
 	if err != nil {
 		return
