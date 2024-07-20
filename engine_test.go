@@ -17,16 +17,17 @@ import (
 
 func TestEngine(t *testing.T) {
 	engine, err := NewEngine()
-	fmt.Println(engine.String())
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(engine.String())
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	resp, err := client.Get("http://127.0.0.1:8000")
+	resp, err := client.Get("https://www.baidu.com")
 	if err != nil {
 		panic(err)
 	}
@@ -148,4 +149,15 @@ func TestEngine_Wappalyzer(t *testing.T) {
 	frames := engine.Fingerprint(resp.Header, content)
 	fmt.Println(frames)
 	fmt.Println(time.Since(start).String())
+}
+
+func TestAlias(t *testing.T) {
+	engine, err := NewEngine()
+	if err != nil {
+		t.Error()
+		return
+	}
+	fmt.Println(engine.FindAny("cdncache_server"))
+	fmt.Println(engine.Aliases.Aliases["cdn-cache-server"])
+	fmt.Println(engine.Aliases.Map["fingers"]["cdn-cache-server"])
 }
