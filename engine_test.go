@@ -27,20 +27,34 @@ func TestEngine(t *testing.T) {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	resp, err := client.Get("https://www.baidu.com")
+	resp, err := client.Get("http://127.0.0.1:8089")
 	if err != nil {
 		panic(err)
 	}
 	start := time.Now()
-	frames, err := engine.DetectResponse(resp)
+	content := httputils.ReadRaw(resp)
+	frames, err := engine.DetectContent(content)
 	if err != nil {
 		return
 	}
-	println(time.Since(start).String())
+	println("耗时: " + time.Since(start).String())
 	fmt.Println(frames.String())
 	for _, f := range frames {
 		fmt.Println("cpe: ", f.CPE(), "||||", f.String())
 	}
+}
+
+func TestEngine_Match(t *testing.T) {
+	engine, err := NewEngine()
+	if err != nil {
+		panic(err)
+	}
+	resp, err := http.Get("http://127.0.0.1:8089")
+	if err != nil {
+		panic(err)
+	}
+	frames := engine.Match(resp)
+	fmt.Println(frames.String())
 }
 
 func TestFavicon(t *testing.T) {
@@ -48,14 +62,14 @@ func TestFavicon(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get("http://127.0.0.1:8080/favicon.ico")
+	resp, err := http.Get("http://baidu.com/favicon.ico")
 	if err != nil {
 		return
 	}
 	content := httputils.ReadRaw(resp)
-	_, body, _ := httputils.SplitHttpRaw(content)
-	frames := engine.Favicon().Match(body)
-	fmt.Println(frames)
+	body, _, _ := httputils.SplitHttpRaw(content)
+	frame := engine.DetectFavicon(body)
+	fmt.Println(frame)
 }
 
 func TestFingersEngine(t *testing.T) {
@@ -69,7 +83,24 @@ func TestFingersEngine(t *testing.T) {
 	}
 
 	content := httputils.ReadRaw(resp)
-	frames, _ := engine.HTTPMatch(content, "")
+	frames := engine.Match(content)
+	for _, frame := range frames {
+		t.Log(frame)
+	}
+}
+
+func TestEngine_MatchWithEngines(t *testing.T) {
+	engine, err := NewEngine()
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := http.Get("http://127.0.0.1")
+	if err != nil {
+		return
+	}
+
+	need := []string{FingersEngine, FingerPrintEngine}
+	frames := engine.MatchWithEngines(resp, need...)
 	for _, frame := range frames {
 		t.Log(frame)
 	}

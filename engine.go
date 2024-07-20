@@ -169,6 +169,12 @@ func (engine *Engine) InitEngine(name string) error {
 	return nil
 }
 
+func (engine *Engine) Enable(name string) {
+	if _, ok := engine.EnginesImpl[name]; ok {
+		engine.Enabled[name] = true
+	}
+}
+
 func (engine *Engine) Disable(name string) {
 	engine.Enabled[name] = false
 }
@@ -305,4 +311,12 @@ func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
 		return nil, errors.New("invalid http response")
 	}
 	return engine.Match(resp), nil
+}
+
+func (engine *Engine) DetectFavicon(content []byte) *common.Framework {
+	frames := engine.Favicon().Match(content)
+	for _, frame := range frames {
+		return frame
+	}
+	return nil
 }
