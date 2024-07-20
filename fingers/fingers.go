@@ -13,6 +13,8 @@ var (
 
 type Finger struct {
 	Name        string   `yaml:"name" json:"name"`
+	Vendor      string   `yaml:"vendor,omitempty" json:"vendor,omitempty"`
+	Product     string   `yaml:"product,omitempty" json:"product,omitempty"`
 	Protocol    string   `yaml:"protocol,omitempty" json:"protocol"`
 	Link        string   `yaml:"link,omitempty" json:"link,omitempty"`
 	DefaultPort []string `yaml:"default_port,omitempty" json:"default_port,omitempty"`
@@ -62,7 +64,6 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, ver string, index int) (f
 			frame = common.NewFrameworkWithVersion(finger.Name, common.FrameFromFingers, finger.Rules[index].Version)
 		} else {
 			frame = common.NewFramework(finger.Name, common.FrameFromFingers)
-			//frame = &common.Framework{Name: finger.Name}
 		}
 	}
 
@@ -79,6 +80,8 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, ver string, index int) (f
 		}
 	}
 
+	frame.Vendor = finger.Vendor
+	frame.Product = finger.Product
 	return frame, vuln
 }
 

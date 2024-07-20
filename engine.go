@@ -42,10 +42,6 @@ func NewEngine(engines ...string) (*Engine, error) {
 		Enabled:     make(map[string]bool),
 	}
 	var err error
-	engine.Aliases, err = alias.NewAliases()
-	if err != nil {
-		return nil, err
-	}
 
 	err = engine.InitEngine(FaviconEngine)
 	if err != nil {
@@ -74,8 +70,8 @@ type EngineImpl interface {
 
 type Engine struct {
 	EnginesImpl map[string]EngineImpl
-	Aliases     *alias.Aliases
-	Enabled     map[string]bool
+	*alias.Aliases
+	Enabled map[string]bool
 }
 
 func (engine *Engine) String() string {
@@ -87,6 +83,7 @@ func (engine *Engine) String() string {
 }
 
 func (engine *Engine) Compile() error {
+	// 从所有引擎中填充Favicon引擎的数据
 	if impl := engine.Fingers(); impl != nil {
 		for hash, name := range impl.Favicons.Md5Fingers {
 			engine.Favicon().Md5Fingers[hash] = name
@@ -107,7 +104,29 @@ func (engine *Engine) Compile() error {
 			engine.Favicon().Mmh3Fingers[hash] = name
 		}
 	}
+
 	engine.Enabled[FaviconEngine] = false // 默认faviconEngine与其他引擎不同时使用
+
+	// 将fingers指纹库的数据作为未配置alias的基准值
+	var aliases []*alias.Alias
+	if impl := engine.Fingers(); impl != nil {
+		for _, finger := range impl.HTTPFingers {
+			aliases = append(aliases, &alias.Alias{
+				Name:    finger.Name,
+				Vendor:  finger.Vendor,
+				Product: finger.Product,
+				AliasMap: map[string][]string{
+					"fingers": []string{finger.Name},
+				},
+			})
+		}
+	}
+
+	var err error
+	engine.Aliases, err = alias.NewAliases(aliases...)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -229,6 +248,8 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 			fs = engine.EHole().MatchWithHeaderAndBody(string(header), string(body))
 		case GobyEngine:
 			fs = engine.Goby().Match(content)
+		//case FaviconEngine:
+		//	continue
 		default:
 			if eng := engine.GetEngine(name); eng != nil {
 				fs = eng.Match(content)

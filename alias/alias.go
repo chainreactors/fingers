@@ -7,18 +7,18 @@ import (
 	"strings"
 )
 
-func NewAliases() (*Aliases, error) {
+func NewAliases(origin ...*Alias) (*Aliases, error) {
 	var aliases []*Alias
 	err := yaml.Unmarshal(resources.AliasesData, &aliases)
 	if err != nil {
 		return nil, err
 	}
 	aliasMap := &Aliases{
-		Aliases: make(map[string]*Alias, len(aliases)),
+		Aliases: make(map[string]*Alias, len(aliases)+len(origin)),
 		Map:     make(map[string]map[string]string),
 	}
 
-	err = aliasMap.Compile(aliases)
+	err = aliasMap.Compile(append(origin, aliases...)) // yaml的优先级高于origin
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +40,7 @@ func (as *Aliases) AppendAliases(other []*Alias) {
 func (as *Aliases) Compile(aliases []*Alias) error {
 	for _, alias := range aliases {
 		alias.Name = strings.ToLower(alias.Name)
+		alias.normalizedName = resources.NormalizeString(alias.Name)
 		alias.blocked = make(map[string]bool)
 		as.Aliases[alias.Name] = alias
 		for _, block := range alias.Block {
@@ -52,7 +53,7 @@ func (as *Aliases) Compile(aliases []*Alias) error {
 				as.Map[engine] = make(map[string]string)
 			}
 			for _, name := range engineMap {
-				as.Map[engine][strings.ToLower(name)] = alias.Name
+				as.Map[engine][resources.NormalizeString(name)] = alias.Name
 			}
 		}
 	}
@@ -61,47 +62,46 @@ func (as *Aliases) Compile(aliases []*Alias) error {
 }
 
 func (as *Aliases) Find(engine, name string) (*Alias, bool) {
-	if engineMap, ok := as.Map[engine]; !ok {
-		return nil, false
-	} else {
+	if engineMap, ok := as.Map[engine]; ok {
 		if aliasName, ok := engineMap[name]; ok {
-			if alias, ok := as.Aliases[aliasName]; ok && alias.blocked[engine] {
-				return alias, false
-			} else {
+			if alias, ok := as.Aliases[aliasName]; ok && !alias.blocked[engine] {
 				return alias, true
 			}
 		}
 	}
-
 	return nil, false
 }
 
 func (as *Aliases) FindAny(name string) (string, *Alias, bool) {
+	name = resources.NormalizeString(name)
 	for engine, _ := range as.Map {
 		alias, ok := as.Find(engine, name)
 		if ok {
 			return engine, alias, ok
 		}
-		return engine, alias, false
-
 	}
 	return "", nil, false
 }
 
 func (as *Aliases) FindFramework(frame *common.Framework) (*Alias, bool) {
-	return as.Find(frame.From.String(), frame.Name)
+	return as.Find(frame.From.String(), resources.NormalizeString(frame.Name))
 }
 
 type Alias struct {
-	Name     string              `json:"name" yaml:"name"`
-	Vendor   string              `json:"vendor" yaml:"vendor"`
-	Product  string              `json:"product" yaml:"product"`
-	Version  string              `json:"version,omitempty" yaml:"version"`
-	Update   string              `json:"update,omitempty" yaml:"update"`
-	Edition  string              `json:"edition,omitempty" yaml:"edition"`
-	AliasMap map[string][]string `json:"alias" yaml:"alias"`
-	Block    []string            `json:"block,omitempty" yaml:"block"`
-	blocked  map[string]bool
+	Name           string `json:"name" yaml:"name"`
+	normalizedName string
+	Vendor         string              `json:"vendor" yaml:"vendor"`
+	Product        string              `json:"product" yaml:"product"`
+	Version        string              `json:"version,omitempty" yaml:"version"`
+	Update         string              `json:"update,omitempty" yaml:"update"`
+	Edition        string              `json:"edition,omitempty" yaml:"edition"`
+	AliasMap       map[string][]string `json:"alias" yaml:"alias"`
+	Block          []string            `json:"block,omitempty" yaml:"block"`
+	blocked        map[string]bool
+}
+
+func (a *Alias) FuzzyMatch(s string) bool {
+	return a.normalizedName == resources.NormalizeString(s)
 }
 
 func (a *Alias) ToWFN() *common.Attributes {
