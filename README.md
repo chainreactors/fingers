@@ -29,24 +29,26 @@
 
 ### Example
 
+document: https://chainreactors.github.io/wiki/libs/fingers/
+
 调用内置所有进行指纹引擎识别, 示例:
 
 ```golang
-
-func TestNewEngine(t *testing.T) {
-	engine, err := NewEngine()
-	if err != nil {
-		panic(err)
-	}
-	resp, err := http.Get("https://baidu.com")
-	if err != nil {
-		return
-	}
-	frames, err := engine.DetectResponse(resp)
-	if err != nil {
-		return
-	}
-	fmt.Println(frames)
+func TestEngine(t *testing.T) {
+    engine, err := NewEngine()
+    if err != nil {
+       panic(err)
+    }
+    resp, err := http.Get("http://127.0.0.1:8080/")
+    if err != nil {
+       return
+    }
+    content := httputils.ReadRaw(resp)
+    frames, err := engine.DetectContent(content)
+    if err != nil {
+        return
+    }
+    fmt.Println(frames.String())
 }
 ```
 
@@ -54,20 +56,23 @@ func TestNewEngine(t *testing.T) {
 
 ```golang
 func TestFavicon(t *testing.T) {
-	engine, err := NewEngine()
-	if err != nil {
-		panic(err)
-	}
-	resp, err := http.Get("http://81.70.40.202:8080/favicon.ico")
-	if err != nil {
-		return
-	}
-	content := common.ReadRaw(resp)
-	_, body, _ := common.SplitContent(content)
-	frames := engine.HashContentMatch(body)
-	fmt.Println(frames)
+    engine, err := NewEngine()
+    if err != nil {
+        panic(err)
+    }
+    resp, err := http.Get("http://baidu.com/favicon.ico")
+    if err != nil {
+        return
+    }
+    content := httputils.ReadRaw(resp)
+    body, _, _ := httputils.SplitHttpRaw(content)
+    frame := engine.DetectFavicon(body)
+    fmt.Println(frame.String())
 }
 ```
+
+更多用法请见: https://chainreactors.github.io/wiki/libs/fingers/sdk/
+
 ## fingers 引擎
 
 fingers指纹引擎是目前特性最丰富, 性能最强的指纹规则库.
@@ -84,13 +89,13 @@ fingers指纹引擎是目前特性最丰富, 性能最强的指纹规则库.
 
 指纹库位于: https://github.com/chainreactors/templates/tree/master/fingers
 
+文档: https://chainreactors.github.io/wiki/libs/fingers/rule/
+
 tcp指纹与http指纹为同一格式, 但通过不同的文件进行管理
 
 ### 完整的配置
 
 fingers设计的核心思路是命中一个指纹仅需要一条规则, 因此配置的多条规则中, 只需要任意一条命中即标记为命中, 需要在编写指纹的时候注意找到最能匹配目标框架的那条规则.
-
-配置文件: `v2/templates/http/*` 与 `v2/templates/socket/*`
 
 一个完整的配置:
 
@@ -144,7 +149,7 @@ fingers设计的核心思路是命中一个指纹仅需要一条规则, 因此�
 
 - [x] 指纹名重定向, 统一多指纹库的同一指纹不同名问题
 - [x] 指纹黑名单, 用于过滤指纹库中的垃圾指纹
-- [ ] 更丰富的CPE相关特性支持
+- [x] 更丰富的CPE相关特性支持
 - [ ] 更优雅的与nuclei或其他漏洞库联动
 - 支持更多引擎
   - [ ] [nuclei technologies](https://github.com/projectdiscovery/nuclei-templates/tree/main/http/technologies) 实现
