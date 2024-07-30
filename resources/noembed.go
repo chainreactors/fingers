@@ -1,5 +1,5 @@
-//go:build !go1.16 && noembed
-// +build !go1.16,noembed
+//go:build !go1.16 || noembed
+// +build !go1.16 noembed
 
 package resources
 
