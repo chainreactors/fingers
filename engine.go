@@ -314,9 +314,5 @@ func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
 }
 
 func (engine *Engine) DetectFavicon(content []byte) *common.Framework {
-	frames := engine.Favicon().Match(content)
-	for _, frame := range frames {
-		return frame
-	}
-	return nil
+	return engine.Favicon().Match(content).One()
 }
