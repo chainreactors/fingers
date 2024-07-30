@@ -20,9 +20,11 @@ func NewFingersEngineWithCustom(httpConfig, socketConfig []byte) (*FingersEngine
 func NewFingersEngine() (*FingersEngine, error) {
 	// httpdata must be not nil
 	// socketdata can be nil
-	err := resources.LoadPorts()
-	if err != nil {
-		return nil, err
+	if resources.PrePort == nil && resources.PortData != nil {
+		err := resources.LoadPorts()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	httpfs, err := LoadFingers(resources.FingersHTTPData)
