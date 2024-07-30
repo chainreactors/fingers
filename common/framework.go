@@ -7,6 +7,8 @@ import (
 
 var NoGuess bool
 
+type From int
+
 const (
 	FrameFromDefault From = iota
 	FrameFromACTIVE
@@ -20,8 +22,6 @@ const (
 	FrameFromEhole
 	FrameFromGoby
 )
-
-type From int
 
 func (f From) String() string {
 	return FrameFromMap[f]
