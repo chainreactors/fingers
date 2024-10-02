@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/chainreactors/logs v0.0.0-20240207121836-c946f072f81f
-	github.com/chainreactors/utils v0.0.0-20240716182459-e85f2b01ee16
+	github.com/chainreactors/utils v0.0.0-20241002093511-ef3a209f5bf1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/net v0.21.0
 )
