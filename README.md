@@ -7,8 +7,11 @@
 
 使用了fingers的工具: 
 
-* [spray](https://github.com/chainreactors/spray), 集合了目录爆破, 指纹识别, 信息收集等等功能的超强性能的http fuzz工具
-* [gogo](https://github.com/chainreactors/gogo), 只使用了fingers原生指纹库, 红队向的自动化扫描引擎
+* ⭐ [spray](https://github.com/chainreactors/spray) **最佳实践**, 集合了目录爆破, 指纹识别, 信息收集等等功能的超强性能的http fuzz工具
+* [gogo](https://github.com/chainreactors/gogo), 使用了fingers原生指纹库, 红队向的自动化扫描引擎
+* [zombie](https://github.com/chainreactors/zombie), 在爆破前使用fingers进行指纹验证, 提高爆破效率
+
+(任何使用了fingers的工具欢迎在issue中告诉我, 我会将你的工具添加到这里)
 
 ## Features
 
@@ -22,6 +25,14 @@
 * 超强性能, 单个站点识别 <100ms. 重写了各指纹库的引擎, 并极大优化了性能
 * 聚合输出, 多指纹库的结果将会自动整合
 * 支持CPE的URI, FSB, WFN格式输出
+
+### morefingers
+
+https://github.com/chainreactors/morefingers
+
+fingers的拓展引擎, 有更全更大的指纹库.
+
+从对闭源工具的逆向得到的指纹库, 为了避免可能存在的纠纷, 不提供开源版本. 
 
 ## QuickStart
 
