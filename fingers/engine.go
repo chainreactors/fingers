@@ -159,7 +159,6 @@ func (engine *FingersEngine) HTTPMatch(content []byte, cert string) (common.Fram
 	// input map[string]interface{}
 	// content: []byte
 	// cert: string
-
 	return engine.HTTPFingers.PassiveMatch(NewContent(content, cert, true), false)
 }
 

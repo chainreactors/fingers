@@ -228,11 +228,14 @@ func (engine *Engine) GetEngine(name string) EngineImpl {
 	return nil
 }
 
-// Match use http.Response ensure legal input
+// Match use http.Response ensure legal input,
+// internal engine already adapt lower match
+// is use custom engine, you should adapt lower by yourself
 func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 	content := httputils.ReadRaw(resp)
-	content = bytes.ToLower(content)
-	body, header, _ := httputils.SplitHttpRaw(content)
+	// lower content
+	lower := bytes.ToLower(content)
+	body, header, _ := httputils.SplitHttpRaw(lower)
 	combined := make(common.Frameworks)
 	for name, ok := range engine.Enabled {
 		if !ok {
@@ -245,7 +248,7 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 			if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
 				cert = strings.Join(resp.TLS.PeerCertificates[0].DNSNames, ",")
 			}
-			fs, _ = engine.Fingers().HTTPMatch(content, cert)
+			fs, _ = engine.Fingers().HTTPMatch(lower, cert)
 		case WappalyzerEngine:
 			fs = engine.Wappalyzer().Fingerprint(resp.Header, body)
 		case FingerPrintEngine:
@@ -253,9 +256,7 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 		case EHoleEngine:
 			fs = engine.EHole().MatchWithHeaderAndBody(string(header), string(body))
 		case GobyEngine:
-			fs = engine.Goby().Match(content)
-		//case FaviconEngine:
-		//	continue
+			fs = engine.Goby().Match(lower)
 		default:
 			if eng := engine.GetEngine(name); eng != nil {
 				fs = eng.Match(content)
@@ -271,7 +272,6 @@ func (engine *Engine) Match(resp *http.Response) common.Frameworks {
 
 func (engine *Engine) MatchWithEngines(resp *http.Response, engines ...string) common.Frameworks {
 	content := httputils.ReadRaw(resp)
-	content = bytes.ToLower(content)
 	combined := make(common.Frameworks)
 	for _, name := range engines {
 		if impl, ok := engine.EnginesImpl[name]; ok {

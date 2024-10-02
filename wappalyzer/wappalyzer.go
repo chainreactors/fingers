@@ -60,11 +60,9 @@ func (engine *Wappalyze) loadFingerprints() error {
 }
 
 func (engine *Wappalyze) Match(content []byte) common.Frameworks {
-	//content = bytes.ToLower(content)
 	resp := httputils.NewResponseWithRaw(content)
 	if resp != nil {
-		body := httputils.ReadBody(resp)
-		return engine.Fingerprint(resp.Header, body)
+		return engine.Fingerprint(resp.Header, httputils.ReadBody(resp))
 	}
 	return make(common.Frameworks)
 }
