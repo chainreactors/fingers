@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
-	"github.com/chainreactors/logs"
-	"github.com/expr-lang/expr"
-	"github.com/expr-lang/expr/vm"
+	"github.com/chainreactors/words/logic"
 	"strings"
 )
 
@@ -71,7 +69,7 @@ type gobyRule struct {
 
 type GobyFinger struct {
 	Logic     string `json:"logic"`
-	logicExpr *vm.Program
+	logicExpr *logic.Program
 	Name      string     `json:"name"`
 	Rule      []gobyRule `json:"rule"`
 }
@@ -80,38 +78,21 @@ func (finger *GobyFinger) Compile() error {
 	for _, r := range finger.Rule {
 		r.Feature = strings.ToLower(r.Feature)
 	}
-	program, err := expr.Compile(finger.Logic)
-	if err != nil {
-		return err
-	}
-	finger.logicExpr = program
+
+	finger.logicExpr = logic.Compile(finger.Logic)
 	return nil
 }
 
 func (finger *GobyFinger) Match(raw string) *common.Framework {
-	env := map[string]interface{}{}
+	env := make(map[string]bool)
 	for _, r := range finger.Rule {
-		if strings.Contains(raw, r.Feature) {
-			if r.IsEquel {
-				env[r.Label] = true
-			} else {
-				env[r.Label] = false
-			}
-		} else {
-			if r.IsEquel {
-				env[r.Label] = false
-			} else {
-				env[r.Label] = true
-			}
-		}
-	}
-	output, err := expr.Run(finger.logicExpr, env)
-	if err != nil {
-		logs.Log.Debugf("goby expr error: %v", err)
-		return nil
+		match := strings.Contains(raw, r.Feature)
+		env[r.Label] = match == r.IsEquel
 	}
 
-	if output == true {
+	matched := logic.EvalLogic(finger.logicExpr, env)
+
+	if matched {
 		return common.NewFramework(finger.Name, common.FrameFromGoby)
 	}
 	return nil
