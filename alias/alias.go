@@ -64,8 +64,11 @@ func (as *Aliases) Compile(aliases []*Alias) error {
 func (as *Aliases) Find(engine, name string) (*Alias, bool) {
 	if engineMap, ok := as.Map[engine]; ok {
 		if aliasName, ok := engineMap[name]; ok {
-			if alias, ok := as.Aliases[aliasName]; ok && !alias.blocked[engine] {
-				return alias, true
+			if alias, ok := as.Aliases[aliasName]; ok {
+				if !alias.blocked[engine] {
+					return alias, true
+				}
+				return alias, false
 			}
 		}
 	}
@@ -98,6 +101,10 @@ type Alias struct {
 	AliasMap       map[string][]string `json:"alias" yaml:"alias"`
 	Block          []string            `json:"block,omitempty" yaml:"block"`
 	blocked        map[string]bool
+}
+
+func (a *Alias) IsBlocked(key string) bool {
+	return a.blocked[key]
 }
 
 func (a *Alias) FuzzyMatch(s string) bool {
