@@ -392,5 +392,20 @@
     fingerprinthub:
       - 红帆 Ioffice
 
+- name: redis
+  vendor: Redis
+  product: Redis
+  alias:
+    goby:
+      - Redis
+  block:
+    - goby
 
-
+- name: ibm-db2 database
+  vendor: ibm
+  product: db2
+  alias:
+    goby:
+      - IBM-DB2 database
+  block:
+    - goby
