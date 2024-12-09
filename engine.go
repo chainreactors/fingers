@@ -1,6 +1,7 @@
 package fingers
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/chainreactors/fingers/alias"
@@ -306,9 +307,9 @@ func (engine *Engine) DetectResponse(resp *http.Response) (common.Frameworks, er
 }
 
 func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
-	resp := httputils.NewResponseWithRaw(content)
-	if resp == nil {
-		return nil, errors.New("invalid http response")
+	resp, err := httputils.ReadResponse(bufio.NewReader(bytes.NewReader(content)))
+	if err != nil {
+		return nil, err
 	}
 	return engine.Match(resp), nil
 }
