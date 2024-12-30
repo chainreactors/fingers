@@ -13,6 +13,7 @@ require (
 	github.com/chainreactors/files v0.0.0-20240716182835-7884ee1e77f0 // indirect
 	github.com/chainreactors/words v0.0.0-20241002061906-25d8893158d9
 	github.com/facebookincubator/nvdtools v0.1.5
+	github.com/jessevdk/go-flags v1.6.1
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/pkg/errors v0.9.1
 	gopkg.in/yaml.v3 v3.0.1
