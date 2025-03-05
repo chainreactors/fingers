@@ -293,9 +293,14 @@ func (engine *Engine) MatchFavicon(content []byte) common.Frameworks {
 func (engine *Engine) MergeFrameworks(origin, other common.Frameworks) common.Frameworks {
 	for _, frame := range other {
 		aliasFrame, ok := engine.Aliases.FindFramework(frame)
-		if ok {
-			frame.Name = aliasFrame.Name
-			frame.UpdateAttributes(aliasFrame.ToWFN())
+		if aliasFrame != nil {
+			if ok {
+				frame.Name = aliasFrame.Name
+				frame.UpdateAttributes(aliasFrame.ToWFN())
+			}
+			if aliasFrame.IsBlocked(frame.From.String()) {
+				continue
+			}
 		}
 		origin.Add(frame)
 	}
