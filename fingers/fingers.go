@@ -27,11 +27,11 @@ type Finger struct {
 
 func (finger *Finger) Compile(caseSensitive bool) error {
 	if finger.Protocol == "" {
-		finger.Protocol = "http"
+		finger.Protocol = HTTPProtocol
 	}
 
 	if len(finger.DefaultPort) == 0 {
-		if finger.Protocol == "http" {
+		if finger.Protocol == HTTPProtocol {
 			finger.DefaultPort = []string{"80"}
 		}
 	} else if utils.PrePort != nil {
@@ -93,7 +93,7 @@ func (finger *Finger) Match(content *Content, level int, sender Sender) (*common
 	for i, rule := range finger.Rules {
 		var ishttp bool
 		var isactive bool
-		if finger.Protocol == "http" {
+		if finger.Protocol == HTTPProtocol {
 			ishttp = true
 		}
 		var c []byte
@@ -140,7 +140,7 @@ func (finger *Finger) Match(content *Content, level int, sender Sender) (*common
 func (finger *Finger) PassiveMatch(content *Content) (*common.Framework, *common.Vuln, bool) {
 	for i, rule := range finger.Rules {
 		var ishttp bool
-		if finger.Protocol == "http" {
+		if finger.Protocol == HTTPProtocol {
 			ishttp = true
 		}
 
@@ -170,7 +170,7 @@ func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, 
 
 	for i, rule := range finger.Rules {
 		var ishttp bool
-		if finger.Protocol == "http" {
+		if finger.Protocol == HTTPProtocol {
 			ishttp = true
 		}
 		// 主动发包获取指纹

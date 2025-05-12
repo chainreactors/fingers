@@ -7,6 +7,12 @@ import (
 	"github.com/chainreactors/fingers/resources"
 )
 
+const (
+	HTTPProtocol = "http"
+	TCPProtocol  = "tcp"
+	UDPProtocol  = "udp"
+)
+
 func NewFingersEngineWithCustom(httpConfig, socketConfig []byte) (*FingersEngine, error) {
 	if httpConfig != nil {
 		resources.FingersHTTPData = httpConfig
@@ -102,6 +108,24 @@ func (engine *FingersEngine) Compile() error {
 			}
 		}
 		engine.SocketGroup = engine.SocketFingers.GroupByPort()
+	}
+	return nil
+}
+
+func (engine *FingersEngine) Append(fingers Fingers) error {
+	for _, f := range fingers {
+		err := f.Compile(false)
+		if err != nil {
+			return err
+		}
+		if f.Protocol == HTTPProtocol {
+			engine.HTTPFingers = append(engine.HTTPFingers, f)
+			if f.IsActive {
+				engine.HTTPFingersActiveFingers = append(engine.HTTPFingersActiveFingers, f)
+			}
+		} else if f.Protocol == TCPProtocol {
+			engine.SocketFingers = append(engine.SocketFingers, f)
+		}
 	}
 	return nil
 }
