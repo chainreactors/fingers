@@ -41,7 +41,7 @@ func RuleMatcher(rule *Rule, content *Content, ishttp bool) (bool, bool, string)
 	}
 
 	hasFrame, hasVuln, version = rule.Match(content.Content, content.Header, content.Body)
-	if hasFrame || !ishttp {
+	if !ishttp {
 		return hasFrame, hasVuln, version
 	}
 
