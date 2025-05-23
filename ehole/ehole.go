@@ -52,13 +52,19 @@ func (engine *EHoleEngine) Compile() error {
 	for _, finger := range engine.Fingerprints {
 		if finger.Method == RegularMethod {
 			finger.compiledRegexp = make([]*regexp.Regexp, len(finger.Keyword))
-			for _, reg := range finger.Keyword {
-				finger.compiledRegexp = append(finger.compiledRegexp, regexp.MustCompile(reg))
+			for i, reg := range finger.Keyword {
+				/** Fix bug
+				 * 使用 append 会导致数组前面有 len(finger.Keyword) 个 nil，在 `reg.Match` 时导致 panic（144行）
+				 * 匹配引擎会将内容全部转小写，正则表达式也需要转小写
+				 */
+				//finger.compiledRegexp = append(finger.compiledRegexp, regexp.MustCompile(reg))
+				finger.compiledRegexp[i] = regexp.MustCompile(strings.ToLower(reg))
 			}
 		} else if finger.Method == KeywordMethod {
-			finger.lowerKeyword = make([]string, len(finger.Keyword))
-			for _, word := range finger.Keyword {
-				finger.lowerKeyword = append(finger.lowerKeyword, strings.ToLower(word))
+			finger.LowerKeyword = make([]string, len(finger.Keyword))
+			for i, word := range finger.Keyword {
+				//finger.lowerKeyword = append(finger.lowerKeyword, strings.ToLower(word))
+				finger.LowerKeyword[i] = strings.ToLower(word)
 			}
 		} else if finger.Method == FaviconMethod {
 			for _, hash := range finger.Keyword {
@@ -97,7 +103,7 @@ type Fingerprint struct {
 	Method         string   `json:"method"`
 	Location       string   `json:"location"`
 	Keyword        []string `json:"keyword"`
-	lowerKeyword   []string `json:"-"`
+	LowerKeyword   []string `json:"-"`
 	compiledRegexp []*regexp.Regexp
 }
 
@@ -129,7 +135,9 @@ func (finger *Fingerprint) MatchMethod(content string) bool {
 }
 
 func (finger *Fingerprint) MatchKeyword(content string) bool {
-	for _, k := range finger.Keyword {
+	// Fix bug: 匹配引擎会将内容全部转小写，这里需要使用 LowerKeyword 检测
+	//for _, k := range finger.Keyword {
+	for _, k := range finger.LowerKeyword {
 		if !strings.Contains(content, k) {
 			return false
 		}
