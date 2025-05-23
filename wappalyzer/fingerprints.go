@@ -22,7 +22,7 @@ type Fingerprint struct {
 	Headers     map[string]string   `json:"headers"`
 	HTML        []string            `json:"html"`
 	Script      []string            `json:"scripts"`
-	ScriptSrc   []string            `json:"scriptSrcs"`
+	ScriptSrc   []string            `json:"scriptSrc"`
 	Meta        map[string][]string `json:"meta"`
 	Implies     []string            `json:"implies"`
 	Description string              `json:"description"`
@@ -99,6 +99,7 @@ const versionPrefix = "version:\\"
 // newVersionRegex creates a new version matching regex
 // TODO: handles simple group cases only as of now (no ternary)
 func newVersionRegex(value string) (*versionRegex, error) {
+	value = strings.ToLower(value)
 	splitted := strings.Split(value, "\\;")
 	if len(splitted) == 0 {
 		return nil, nil
