@@ -2,6 +2,7 @@ package fingers
 
 import (
 	"errors"
+	"fmt"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/favicon"
 	"github.com/chainreactors/fingers/resources"
@@ -27,7 +28,7 @@ func NewFingersEngine() (*FingersEngine, error) {
 	// httpdata must be not nil
 	// socketdata can be nil
 	if resources.PrePort == nil && resources.PortData != nil {
-		err := resources.LoadPorts()
+		_, err := resources.LoadPorts()
 		if err != nil {
 			return nil, err
 		}
@@ -174,9 +175,53 @@ func (engine *FingersEngine) SocketMatch(content []byte, port string, level int,
 	return nil, nil
 }
 
-func (engine *FingersEngine) Match(content []byte) common.Frameworks {
+// WebMatch 实现Web指纹匹配
+func (engine *FingersEngine) WebMatch(content []byte) common.Frameworks {
 	fs, _ := engine.HTTPMatch(content, "")
 	return fs
+}
+
+// ServiceMatch 实现Service指纹匹配
+func (engine *FingersEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+	if sender == nil {
+		return nil
+	}
+
+	// 创建自适应的Callback
+	fingersCallback := func(framework *common.Framework, vuln *common.Vuln) {
+		if callback != nil {
+			result := &common.ServiceResult{
+				Framework: framework,
+				Vuln:      vuln,
+			}
+			callback(result)
+		}
+	}
+
+	// 创建适配器将common.ServiceSender转换为fingers.Sender
+	// fingers.Sender: func([]byte) ([]byte, bool)
+	// common.ServiceSender.Send(host, port, data) ([]byte, error)
+	fingersSender := Sender(func(data []byte) ([]byte, bool) {
+		response, err := sender.Send(host, port, data, "tcp")
+		if err != nil {
+			return nil, false
+		}
+		return response, true
+	})
+
+	framework, vuln := engine.SocketMatch(nil, fmt.Sprintf("%d", port), level, fingersSender, fingersCallback)
+
+	return &common.ServiceResult{
+		Framework: framework,
+		Vuln:      vuln,
+	}
+}
+
+func (engine *FingersEngine) Capability() common.EngineCapability {
+	return common.EngineCapability{
+		SupportWeb:     true, // fingers支持Web指纹
+		SupportService: true, // fingers支持Service指纹
+	}
 }
 
 func (engine *FingersEngine) HTTPMatch(content []byte, cert string) (common.Frameworks, common.Vulns) {

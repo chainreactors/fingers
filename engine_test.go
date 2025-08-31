@@ -4,41 +4,69 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"net/http"
+	"os"
+	"runtime/pprof"
+	"testing"
+	"time"
+
+	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
 	"github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/utils/httputils"
-	"net/http"
-	"testing"
-	"time"
 )
 
 func TestEngine(t *testing.T) {
+	// 创建内存分析文件
+	memProfileFile, err := os.Create("memprofile.out")
+	if err != nil {
+		t.Fatal("could not create memory profile: ", err)
+	}
+	defer memProfileFile.Close()
+
+	// 在检测 `DetectContent` 前进行内存分析
+
+	// Your test code
 	engine, err := NewEngine()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(engine.String())
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-	resp, err := client.Get("http://127.0.0.1:8089")
+	//client := &http.Client{
+	//	Transport: &http.Transport{
+	//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	//	},
+	//}
+	//resp, err := client.Get("https://boce.aliyun.com/detect/http")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//start := time.Now()
+	//content := httputils.ReadRaw(resp)
+
+	// 调用 DetectContent
+
+	content, err := os.ReadFile("1.raw")
 	if err != nil {
-		panic(err)
+		return
 	}
-	start := time.Now()
-	content := httputils.ReadRaw(resp)
 	frames, err := engine.DetectContent(content)
 	if err != nil {
 		return
 	}
-	println("耗时: " + time.Since(start).String())
+
+	// 打印执行时间
+	//println("耗时: " + time.Since(start).String())
 	fmt.Println(frames.String())
+
+	// 在检测 `DetectContent` 后进行内存分析
+	pprof.WriteHeapProfile(memProfileFile)
+
+	// 打印内存分配
 	for _, f := range frames {
 		fmt.Println("cpe: ", f.CPE(), "||||", f.String())
 	}
@@ -77,13 +105,20 @@ func TestFingersEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://127.0.0.1")
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+	resp, err := client.Get("https://218.94.127.25:443")
 	if err != nil {
+		t.Log(err)
 		return
 	}
+	fmt.Println("math")
 
 	content := httputils.ReadRaw(resp)
-	frames := engine.Match(content)
+	frames := engine.WebMatch(content)
 	for _, frame := range frames {
 		t.Log(frame)
 	}
@@ -151,7 +186,7 @@ func TestGobyEngine(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := http.Get("http://127.0.0.1:8000")
+	resp, err := http.Get("https://baidu.com")
 	if err != nil {
 		return
 	}
@@ -159,7 +194,7 @@ func TestGobyEngine(t *testing.T) {
 	content := httputils.ReadRaw(resp)
 	content = bytes.ToLower(content)
 	start := time.Now()
-	frames := engine.Match(content)
+	frames := engine.WebMatch(content)
 	fmt.Println(frames)
 	fmt.Println(time.Since(start).String())
 }
@@ -191,4 +226,93 @@ func TestAlias(t *testing.T) {
 	fmt.Println(engine.FindAny("cdncache_server"))
 	fmt.Println(engine.Aliases.Aliases["cdn-cache-server"])
 	fmt.Println(engine.Aliases.Map["fingers"]["cdn-cache-server"])
+}
+
+func TestNmapEngine(t *testing.T) {
+	engine, err := NewEngine(NmapEngine)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	nmapEngine := engine.Nmap()
+	if nmapEngine == nil {
+		t.Error("nmap engine not found")
+		return
+	}
+
+	fmt.Printf("nmap engine loaded with %d fingerprints\n", nmapEngine.Len())
+
+	// 测试Service指纹匹配 - 使用common包的默认实现
+	testServiceSender := common.NewServiceSender(3 * time.Second)
+
+	testServiceCallback := func(result *common.ServiceResult) {
+		if result.Framework != nil {
+			t.Logf("detected service: %s", result.Framework.String())
+		}
+	}
+
+	result := nmapEngine.ServiceMatch("127.0.0.1", 80, 1, testServiceSender, testServiceCallback)
+	if result != nil && result.Framework != nil {
+		t.Logf("service result: %s", result.Framework.String())
+	}
+
+	// 测试引擎能力
+	capability := nmapEngine.Capability()
+	if !capability.SupportService {
+		t.Error("nmap engine should support service fingerprinting")
+	}
+	if capability.SupportWeb {
+		t.Error("nmap engine should not support web fingerprinting")
+	}
+
+	// 测试WebMatch应该返回空结果
+	webFrames := nmapEngine.WebMatch([]byte("test"))
+	if len(webFrames) != 0 {
+		t.Error("nmap engine WebMatch should return empty results")
+	}
+}
+
+// TestServiceEngine 测试Service引擎的能力
+func TestServiceEngine(t *testing.T) {
+	engine, err := NewEngine(NmapEngine)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// 测试获取支持Service的引擎
+	serviceEngines := engine.GetEnginesByType(common.ServiceFingerprint)
+	expectedServiceEngines := []string{NmapEngine}
+
+	if len(serviceEngines) != len(expectedServiceEngines) {
+		t.Errorf("Expected %d service engines, got %d", len(expectedServiceEngines), len(serviceEngines))
+	}
+
+	for _, expected := range expectedServiceEngines {
+		found := false
+		for _, actual := range serviceEngines {
+			if actual == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected service engine %s not found", expected)
+		}
+	}
+
+	// 测试DetectService API
+	testSender := common.NewServiceSender(3 * time.Second)
+
+	ports := []int{80, 443, 445, 135, 1080, 3306, 1433, 1521}
+	for _, port := range ports {
+		results, err := engine.DetectService("127.0.0.1", port, 9, testSender, nil)
+		if err != nil {
+			t.Logf("DetectService error: %v", err)
+		}
+		if len(results) > 0 && results[0].Framework != nil {
+			fmt.Printf("DetectService result: %s\n", results[0].Framework.String())
+		}
+	}
 }

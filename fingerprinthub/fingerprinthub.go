@@ -49,13 +49,27 @@ func (engine *FingerPrintHubsEngine) Compile() error {
 	return nil
 }
 
-func (engine *FingerPrintHubsEngine) Match(content []byte) common.Frameworks {
+// WebMatch 实现Web指纹匹配
+func (engine *FingerPrintHubsEngine) WebMatch(content []byte) common.Frameworks {
 	resp := httputils.NewResponseWithRaw(content)
 	if resp != nil {
 		body := bytes.ToLower(httputils.ReadBody(resp))
 		return engine.MatchWithHttpAndBody(resp.Header, string(body))
 	}
 	return make(common.Frameworks)
+}
+
+// ServiceMatch 实现Service指纹匹配 - fingerprinthub不支持Service指纹
+func (engine *FingerPrintHubsEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+	// fingerprinthub不支持Service指纹识别
+	return nil
+}
+
+func (engine *FingerPrintHubsEngine) Capability() common.EngineCapability {
+	return common.EngineCapability{
+		SupportWeb:     true,  // fingerprinthub支持Web指纹
+		SupportService: false, // fingerprinthub不支持Service指纹
+	}
 }
 
 func (engine *FingerPrintHubsEngine) MatchWithHttpAndBody(header http.Header, body string) common.Frameworks {

@@ -12,6 +12,19 @@
       - apache-tomcat
     wappalyzer:
       - Apache Tomcat
+    tanggo:
+      - tomcat默认页面
+      - apachetomcat
+      - apache_tomcat
+- name: block tanggo
+  vendor: null
+  product: null
+  block:
+    - tanggo
+  alias:
+    tanggo:
+      - html5
+      - javadoc
 - name: discuz
   vendor: discuz
   product: discuz
