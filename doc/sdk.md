@@ -1,5 +1,11 @@
 # Engine
 
+## install
+
+```
+go get github.com/chainreactors/fingers@master
+```
+
 ## 初始化
 
 fingers 提供了一个预设配置的初始化API `NewEngine`, 提供初始化所有支持的引擎. 
