@@ -59,12 +59,26 @@ func (engine *Wappalyze) loadFingerprints() error {
 	return nil
 }
 
-func (engine *Wappalyze) Match(content []byte) common.Frameworks {
+// WebMatch 实现Web指纹匹配
+func (engine *Wappalyze) WebMatch(content []byte) common.Frameworks {
 	resp := httputils.NewResponseWithRaw(content)
 	if resp != nil {
 		return engine.Fingerprint(resp.Header, httputils.ReadBody(resp))
 	}
 	return make(common.Frameworks)
+}
+
+// ServiceMatch 实现Service指纹匹配 - wappalyzer不支持Service指纹
+func (engine *Wappalyze) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+	// wappalyzer不支持Service指纹识别
+	return nil
+}
+
+func (engine *Wappalyze) Capability() common.EngineCapability {
+	return common.EngineCapability{
+		SupportWeb:     true,  // wappalyzer支持Web指纹
+		SupportService: false, // wappalyzer不支持Service指纹
+	}
 }
 
 // Fingerprint identifies technologies on a target,

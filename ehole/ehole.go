@@ -69,7 +69,8 @@ func (engine *EHoleEngine) Compile() error {
 	return nil
 }
 
-func (engine *EHoleEngine) Match(content []byte) common.Frameworks {
+// WebMatch 实现Web指纹匹配
+func (engine *EHoleEngine) WebMatch(content []byte) common.Frameworks {
 	var header, body string
 	content = bytes.ToLower(content)
 	bodyBytes, headerBytes, ok := httputils.SplitHttpRaw(content)
@@ -79,6 +80,19 @@ func (engine *EHoleEngine) Match(content []byte) common.Frameworks {
 		return engine.MatchWithHeaderAndBody(header, body)
 	}
 	return make(common.Frameworks)
+}
+
+// ServiceMatch 实现Service指纹匹配 - ehole不支持Service指纹
+func (engine *EHoleEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+	// ehole不支持Service指纹识别
+	return nil
+}
+
+func (engine *EHoleEngine) Capability() common.EngineCapability {
+	return common.EngineCapability{
+		SupportWeb:     true,  // ehole支持Web指纹
+		SupportService: false, // ehole不支持Service指纹
+	}
 }
 
 func (engine *EHoleEngine) MatchWithHeaderAndBody(header, body string) common.Frameworks {

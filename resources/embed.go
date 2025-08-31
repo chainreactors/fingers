@@ -18,16 +18,16 @@ var PortData []byte // yaml format
 
 var PrePort *utils.PortPreset
 
-func LoadPorts() error {
+func LoadPorts() (*utils.PortPreset, error) {
 	var ports []*utils.PortConfig
 	var err error
 	err = yaml.Unmarshal(PortData, &ports)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	PrePort = utils.NewPortPreset(ports)
-	return nil
+	return PrePort, nil
 }
 
 // engine
@@ -51,6 +51,9 @@ var (
 	//go:embed wappalyzer.json.gz
 	WappalyzerData []byte
 
+	//go:embed nmap-service-probes.json.gz
+	NmapServiceProbesData []byte
+
 	CheckSum = map[string]string{
 		"goby":           encode.Md5Hash(GobyData),
 		"fingerprinthub": encode.Md5Hash(Fingerprinthubdata),
@@ -58,6 +61,7 @@ var (
 		"fingers":        encode.Md5Hash(FingersHTTPData),
 		"fingers_socket": encode.Md5Hash(FingersSocketData),
 		"wappalyzer":     encode.Md5Hash(WappalyzerData),
+		"nmap":           encode.Md5Hash(NmapServiceProbesData),
 		"alias":          encode.Md5Hash(AliasesData),
 		"port":           encode.Md5Hash(PortData),
 	}

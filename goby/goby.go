@@ -46,8 +46,22 @@ func (engine *GobyEngine) Compile() error {
 	return nil
 }
 
-func (engine *GobyEngine) Match(content []byte) common.Frameworks {
+// WebMatch 实现Web指纹匹配
+func (engine *GobyEngine) WebMatch(content []byte) common.Frameworks {
 	return engine.MatchRaw(string(bytes.ToLower(content)))
+}
+
+// ServiceMatch 实现Service指纹匹配 - goby不支持Service指纹
+func (engine *GobyEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+	// goby不支持Service指纹识别
+	return nil
+}
+
+func (engine *GobyEngine) Capability() common.EngineCapability {
+	return common.EngineCapability{
+		SupportWeb:     true,  // goby支持Web指纹
+		SupportService: false, // goby不支持Service指纹
+	}
 }
 
 func (engine *GobyEngine) MatchRaw(raw string) common.Frameworks {

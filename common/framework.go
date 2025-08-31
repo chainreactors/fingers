@@ -5,6 +5,26 @@ import (
 	"strings"
 )
 
+// 指纹类型定义
+type FingerprintType int
+
+const (
+	WebFingerprint     FingerprintType = iota // Web应用指纹
+	ServiceFingerprint                        // 服务指纹
+)
+
+// 引擎能力定义
+type EngineCapability struct {
+	SupportWeb     bool // 支持Web指纹
+	SupportService bool // 支持Service指纹
+}
+
+// Service指纹检测结果
+type ServiceResult struct {
+	Framework *Framework
+	Vuln      *Vuln // 可选，只有部分引擎（如fingers）会返回漏洞信息
+}
+
 var NoGuess bool
 
 type From int
@@ -21,6 +41,7 @@ const (
 	FrameFromWappalyzer
 	FrameFromEhole
 	FrameFromGoby
+	FrameFromNmap
 )
 
 func (f From) String() string {
@@ -39,6 +60,7 @@ var FrameFromMap = map[From]string{
 	FrameFromWappalyzer:     "wappalyzer",
 	FrameFromEhole:          "ehole",
 	FrameFromGoby:           "goby",
+	FrameFromNmap:           "nmap",
 }
 
 func GetFrameFrom(s string) From {
@@ -63,6 +85,8 @@ func GetFrameFrom(s string) From {
 		return FrameFromGoby
 	case "fingers":
 		return FrameFromFingers
+	case "nmap":
+		return FrameFromNmap
 
 	default:
 		return FrameFromDefault
