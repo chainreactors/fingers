@@ -40,10 +40,17 @@ func ExportProbes() *NmapProbesData {
 func copyNmapServices() map[string]string {
 	services := make(map[string]string)
 
+	// 确保nmap已经初始化
+	if nmap == nil {
+		initNmap()
+	}
+
 	// 将nmapServices数组转换为map格式
-	for port, service := range nmapServices {
-		if service != "" && service != "unknown" {
-			services[fmt.Sprintf("%d", port)] = service
+	if nmap.nmapServices != nil {
+		for port, service := range nmap.nmapServices {
+			if service != "" && service != "unknown" {
+				services[fmt.Sprintf("%d", port)] = service
+			}
 		}
 	}
 

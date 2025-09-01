@@ -75,7 +75,7 @@ type EngineImpl interface {
 	WebMatch(content []byte) common.Frameworks
 
 	// Service指纹匹配 - 主动探测服务
-	ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult
+	ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult
 }
 
 type Engine struct {
@@ -332,13 +332,13 @@ func (engine *Engine) WebMatch(resp *http.Response) common.Frameworks {
 }
 
 // ServiceMatch 专门用于Service指纹识别
-func (engine *Engine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) []*common.ServiceResult {
+func (engine *Engine) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) []*common.ServiceResult {
 	var results []*common.ServiceResult
 	engines := engine.GetEnginesByType(common.ServiceFingerprint)
 
 	for _, engineName := range engines {
 		if eng := engine.GetEngine(engineName); eng != nil {
-			result := eng.ServiceMatch(host, port, level, sender, callback)
+			result := eng.ServiceMatch(host, portStr, level, sender, callback)
 			if result != nil && result.Framework != nil {
 				results = append(results, result)
 			}
@@ -405,8 +405,8 @@ func (engine *Engine) DetectContent(content []byte) (common.Frameworks, error) {
 }
 
 // DetectService Service指纹检测 - 基于主动探测
-func (engine *Engine) DetectService(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) ([]*common.ServiceResult, error) {
-	results := engine.ServiceMatch(host, port, level, sender, callback)
+func (engine *Engine) DetectService(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) ([]*common.ServiceResult, error) {
+	results := engine.ServiceMatch(host, portStr, level, sender, callback)
 	return results, nil
 }
 

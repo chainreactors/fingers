@@ -2,7 +2,6 @@ package fingers
 
 import (
 	"errors"
-	"fmt"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/favicon"
 	"github.com/chainreactors/fingers/resources"
@@ -182,7 +181,7 @@ func (engine *FingersEngine) WebMatch(content []byte) common.Frameworks {
 }
 
 // ServiceMatch 实现Service指纹匹配
-func (engine *FingersEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+func (engine *FingersEngine) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
 	if sender == nil {
 		return nil
 	}
@@ -202,14 +201,14 @@ func (engine *FingersEngine) ServiceMatch(host string, port int, level int, send
 	// fingers.Sender: func([]byte) ([]byte, bool)
 	// common.ServiceSender.Send(host, port, data) ([]byte, error)
 	fingersSender := Sender(func(data []byte) ([]byte, bool) {
-		response, err := sender.Send(host, port, data, "tcp")
+		response, err := sender.Send(host, portStr, data, "tcp")
 		if err != nil {
 			return nil, false
 		}
 		return response, true
 	})
 
-	framework, vuln := engine.SocketMatch(nil, fmt.Sprintf("%d", port), level, fingersSender, fingersCallback)
+	framework, vuln := engine.SocketMatch(nil, portStr, level, fingersSender, fingersCallback)
 
 	return &common.ServiceResult{
 		Framework: framework,

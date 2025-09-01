@@ -60,7 +60,7 @@ func (engine *FingerPrintHubsEngine) WebMatch(content []byte) common.Frameworks 
 }
 
 // ServiceMatch 实现Service指纹匹配 - fingerprinthub不支持Service指纹
-func (engine *FingerPrintHubsEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+func (engine *FingerPrintHubsEngine) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
 	// fingerprinthub不支持Service指纹识别
 	return nil
 }

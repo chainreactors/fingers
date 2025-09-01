@@ -1,7 +1,12 @@
 package gonmap
 
 import (
+	"compress/gzip"
+	"encoding/json"
+	"strconv"
 	"strings"
+
+	"github.com/chainreactors/fingers/resources"
 )
 
 type Nmap struct {
@@ -14,43 +19,228 @@ type Nmap struct {
 	//bypassAllProbePort PortList
 	sslSecondProbeMap ProbeList
 	sslProbeMap       ProbeList
+
+	// Services数据，用于端口服务识别
+	servicesData *ServicesData
+	nmapServices []string
 }
 
-func (n *Nmap) Scan(ip string, port int, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
-	// 为本次扫描创建独立的已使用探针列表
-	localProbeUsed := make(ProbeList, 0)
+// parsePortString 解析端口字符串，返回端口号、协议类型和是否为UDP
+func (n *Nmap) parsePortString(portStr string) (port int, protocol string, isUDP bool) {
+	portStr = strings.TrimSpace(portStr)
 
-	// 根据稀有度从低到高选择探针
-	var probeNames ProbeList
-	for rarity := 1; rarity <= level; rarity++ {
-		if probes, exists := n.rarityProbeMap[rarity]; exists {
-			for _, probe := range probes {
-				probeNames = append(probeNames, probe.Name)
+	// 检查UDP标记 (U:139)
+	if strings.HasPrefix(strings.ToUpper(portStr), "U:") {
+		portStr = portStr[2:] // 移除"U:"前缀
+		isUDP = true
+		protocol = "UDP"
+	} else {
+		// 默认为TCP
+		isUDP = false
+		protocol = "TCP"
+	}
+
+	// 解析端口号
+	portNum, err := strconv.Atoi(portStr)
+	if err != nil {
+		// 如果解析失败，返回默认值
+		return 0, protocol, isUDP
+	}
+
+	return portNum, protocol, isUDP
+}
+
+// shouldSkipUDPScan 判断是否应该跳过UDP扫描（未明确标记为UDP的情况下）
+func (n *Nmap) shouldSkipUDPScan(port int) bool {
+	// 这里暂时返回false，因为我们现在主要处理TCP
+	// 将来可以根据需要添加更多逻辑
+	return false
+}
+
+// scanUDPPort UDP端口扫描逻辑
+func (n *Nmap) scanUDPPort(ip string, port int, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
+	localProbeUsed := make(ProbeList, 0)
+	
+	// 筛选适用的UDP探针
+	udpProbes := n.getUDPProbes(port, level)
+	if len(udpProbes) > 0 {
+		return n.getResponseByProbes(ip, port, level, sender, &localProbeUsed, udpProbes...)
+	}
+	
+	return NotMatched, nil
+}
+
+// getUDPProbes 获取UDP探针列表
+func (n *Nmap) getUDPProbes(port, level int) ProbeList {
+	var udpProbes ProbeList
+	for _, probe := range n.probeNameMap {
+		if probe.Protocol == "UDP" && probe.Rarity <= level {
+			// 检查端口是否匹配
+			if len(probe.Ports) == 0 || probe.Ports.exist(port) {
+				udpProbes = append(udpProbes, probe.Name)
+			}
+		}
+	}
+	return udpProbes
+}
+
+// handleNetworkError 统一处理网络错误
+func (n *Nmap) handleNetworkError(err error, protocol string) (Status, *Response) {
+	errStr := err.Error()
+	
+	// 明确的连接拒绝错误，端口关闭
+	connectionErrors := []string{"connection refused", "no route to host", "network is unreachable"}
+	for _, errPattern := range connectionErrors {
+		if strings.Contains(errStr, errPattern) {
+			return Closed, nil
+		}
+	}
+	
+	// UDP特殊处理
+	if protocol == "UDP" && strings.Contains(errStr, "refused") {
+		return Closed, nil
+	}
+	
+	// 超时和其他错误返回NotMatched，避免触发guess逻辑
+	return NotMatched, nil
+}
+
+func (n *Nmap) Scan(ip string, portStr string, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
+	// 解析端口字符串
+	port, _, isUDP := n.parsePortString(portStr)
+	if port == 0 {
+		return NotMatched, nil
+	}
+
+	// 如果没有明确标记为UDP，则只进行TCP扫描
+	if isUDP {
+		// UDP扫描逻辑（暂时简化，主要扫描UDP探针）
+		return n.scanUDPPort(ip, port, level, sender)
+	}
+
+	// TCP扫描逻辑 - 分层扫描策略
+	return n.scanTCPPort(ip, port, level, sender)
+}
+
+// scanTCPPort TCP端口扫描的分层策略
+func (n *Nmap) scanTCPPort(ip string, port int, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
+	localProbeUsed := make(ProbeList, 0)
+	
+	// 定义扫描层次
+	scanLayers := []struct {
+		name   string
+		probes func() ProbeList
+	}{
+		{"NULL", func() ProbeList {
+			if nullProbe, exists := n.probeNameMap["TCP_NULL"]; exists {
+				return ProbeList{nullProbe.Name}
+			}
+			return ProbeList{}
+		}},
+		{"Port-Specific", func() ProbeList {
+			return n.getPortSpecificProbes(port)
+		}},
+		{"SSL", func() ProbeList {
+			var sslProbes ProbeList
+			for _, sslProbe := range n.sslProbeMap {
+				if !localProbeUsed.exist(sslProbe) {
+					sslProbes = append(sslProbes, sslProbe)
+				}
+			}
+			return sslProbes
+		}},
+		{"Rarity", func() ProbeList {
+			var rarityProbes ProbeList
+			for rarity := 1; rarity <= level; rarity++ {
+				if probes, exists := n.rarityProbeMap[rarity]; exists {
+					for _, probe := range probes {
+						if !localProbeUsed.exist(probe.Name) {
+							rarityProbes = append(rarityProbes, probe.Name)
+						}
+					}
+				}
+			}
+			return rarityProbes.removeDuplicate()
+		}},
+	}
+	
+	// 按层次依次执行扫描
+	for _, layer := range scanLayers {
+		probes := layer.probes()
+		if len(probes) > 0 {
+			status, response = n.getResponseByProbes(ip, port, level, sender, &localProbeUsed, probes...)
+			if status == Closed || status == Matched {
+				return status, response
+			}
+		}
+	}
+	
+	return NotMatched, nil
+}
+
+// getPortSpecificProbes 获取端口特定的探针列表，从nmap-services配置自动选择
+// 端口特定探针不受level限制，因为它们是最相关的探针
+func (n *Nmap) getPortSpecificProbes(port int) ProbeList {
+	var probes ProbeList
+
+	// 优化1: 直接从portProbeMap获取该端口对应的探针，O(1)操作
+	if portProbes, exists := n.portProbeMap[port]; exists && len(portProbes) > 0 {
+		// 优化2: 使用probeNameMap直接获取探针信息，避免遍历
+		probesByRarity := make(map[int][]string)
+		maxRarity := 0
+
+		for _, probeName := range portProbes {
+			if probe, exists := n.probeNameMap[probeName]; exists {
+				rarity := probe.Rarity
+				probesByRarity[rarity] = append(probesByRarity[rarity], probeName)
+				if rarity > maxRarity {
+					maxRarity = rarity
+				}
+			}
+		}
+
+		// 优化3: 按稀有度排序，但不限制稀有度级别（因为是端口特定的）
+		for rarity := 1; rarity <= maxRarity; rarity++ {
+			probes = append(probes, probesByRarity[rarity]...)
+		}
+
+		// 不再限制探针数量，按分层逻辑执行
+	}
+
+	return probes.removeDuplicate()
+}
+
+// getPortCategoryProbes 获取端口分类特定探针，参考vscan的tcpPortsProbesScanTask
+func (n *Nmap) getPortCategoryProbes(port int) ProbeList {
+	var probes ProbeList
+
+	switch port {
+	case 3389: // RDP - Terminal探针组
+		terminalProbes := []string{"TCP_TerminalServerCookie", "TCP_TerminalServer"}
+		for _, probeName := range terminalProbes {
+			if _, exists := n.probeNameMap[probeName]; exists {
+				probes = append(probes, probeName)
+			}
+		}
+
+	case 443, 8433, 9433: // HTTPS - SSL探针组
+		sslProbes := []string{"TCP_SSLSessionReq", "TCP_TLSSessionReq", "TCP_SSLv23SessionReq"}
+		for _, probeName := range sslProbes {
+			if _, exists := n.probeNameMap[probeName]; exists {
+				probes = append(probes, probeName)
+			}
+		}
+
+	case 80, 3000, 4567, 5000, 8000, 8001, 8080, 8081, 8888, 9001, 9080, 9090, 9100: // HTTP - FourOhFourRequest探针
+		httpProbes := []string{"TCP_GetRequest", "TCP_HTTPOptions"}
+		for _, probeName := range httpProbes {
+			if _, exists := n.probeNameMap[probeName]; exists {
+				probes = append(probes, probeName)
 			}
 		}
 	}
 
-	// 添加端口相关探针
-	probeNames = append(probeNames, n.portProbeMap[port]...)
-	probeNames = append(probeNames, n.sslProbeMap...)
-
-	//探针去重
-	probeNames = probeNames.removeDuplicate()
-
-	if len(probeNames) == 0 {
-		return NotMatched, nil
-	}
-
-	// 首先尝试第一个探针
-	firstProbe := probeNames[0]
-	status, response = n.getResponseByProbes(ip, port, level, sender, &localProbeUsed, firstProbe)
-	if status == Closed || status == Matched {
-		return status, response
-	}
-
-	// 如果第一个探针没有匹配，尝试其他探针
-	otherProbes := probeNames[1:]
-	return n.getResponseByProbes(ip, port, level, sender, &localProbeUsed, otherProbes...)
+	return probes.removeDuplicate()
 }
 
 // getResponseByProbes 使用外部sender和本地probeUsed进行扫描
@@ -124,18 +314,34 @@ func (n *Nmap) getResponse(host string, port int, tls bool, sender func(host str
 	probeData := []byte(p.buildRequest(host)) // 构建探测请求数据
 	responseData, actualTLS, err := sender(host, port, probeData, tls)
 
+	// Debug output can be enabled here if needed for troubleshooting
+
 	if err != nil {
 		// 根据错误类型判断端口状态
 		errStr := err.Error()
+
+		// 明确的连接拒绝错误，端口关闭
 		if strings.Contains(errStr, "connection refused") ||
 			strings.Contains(errStr, "no route to host") ||
 			strings.Contains(errStr, "network is unreachable") {
 			return Closed, nil
 		}
+
+		// UDP特殊处理
 		if p.Protocol == "UDP" && strings.Contains(errStr, "refused") {
 			return Closed, nil
 		}
-		return Open, nil
+
+		// 超时错误通常意味着端口被过滤或服务不响应，但不一定意味着端口关闭
+		// 这种情况下应该返回NotMatched而不是Open，避免触发guess逻辑
+		if strings.Contains(errStr, "timeout") ||
+			strings.Contains(errStr, "i/o timeout") ||
+			strings.Contains(errStr, "deadline exceeded") {
+			return NotMatched, nil
+		}
+
+		// 其他错误也返回NotMatched
+		return NotMatched, nil
 	}
 
 	response := &Response{
@@ -203,36 +409,100 @@ func (n *Nmap) AddMatch(probeName string, expr string) {
 	probe.loadMatch(expr, false)
 }
 
-//初始化类
+// GetProbeMap 返回探针名称映射（用于调试）
+func (n *Nmap) GetProbeMap() map[string]*Probe {
+	return n.probeNameMap
+}
 
-func (n *Nmap) loads(s string) {
-	lines := strings.Split(s, "\n")
-	var probeGroups [][]string
-	var probeLines []string
-	for _, line := range lines {
-		if !n.isCommand(line) {
-			continue
-		}
-		commandName := line[:strings.Index(line, " ")]
-		if commandName == "Exclude" {
-			n.loadExclude(line)
-			continue
-		}
-		if commandName == "Probe" {
-			if len(probeLines) != 0 {
-				probeGroups = append(probeGroups, probeLines)
-				probeLines = []string{}
-			}
-		}
-		probeLines = append(probeLines, line)
+// GetPortProbeMap 返回端口探针映射（用于调试）
+func (n *Nmap) GetPortProbeMap() map[int]ProbeList {
+	return n.portProbeMap
+}
+
+// GetRarityProbeMap 返回稀有度探针映射（用于调试）
+func (n *Nmap) GetRarityProbeMap() map[int][]*Probe {
+	return n.rarityProbeMap
+}
+
+// GetPortSpecificProbes 公开方法，用于调试
+func (n *Nmap) GetPortSpecificProbes(port int) ProbeList {
+	return n.getPortSpecificProbes(port)
+}
+
+// initServicesData 初始化ServicesData，参考loadFromEmbeddedJSON的简洁实现
+func (n *Nmap) initServicesData() {
+	// 从embedded资源加载nmap-services.json.gz
+	reader, err := gzip.NewReader(strings.NewReader(string(resources.NmapServicesData)))
+	if err != nil {
+		return // 忽略错误，使用默认值
 	}
-	probeGroups = append(probeGroups, probeLines)
+	defer reader.Close()
 
-	for _, lines := range probeGroups {
-		p := parseProbe(lines)
-		n.pushProbe(*p)
+	// 解析JSON数据
+	decoder := json.NewDecoder(reader)
+	var data ServicesData
+	err = decoder.Decode(&data)
+	if err != nil {
+		return // 忽略错误，使用默认值
+	}
+
+	// 保存数据
+	n.servicesData = &data
+
+	// 构建nmapServices数组以保持兼容性
+	n.nmapServices = n.buildNmapServicesArray(&data)
+}
+
+// buildNmapServicesArray 构建原有格式的services数组以保持兼容性
+func (n *Nmap) buildNmapServicesArray(data *ServicesData) []string {
+	// 找到最大端口号
+	maxPort := 0
+	for _, service := range data.Services {
+		if service.Port > maxPort {
+			maxPort = service.Port
+		}
+	}
+
+	// 初始化数组，所有端口默认为"unknown"
+	services := make([]string, maxPort+1)
+	for i := range services {
+		services[i] = "unknown"
+	}
+
+	// 填充已知服务
+	for _, service := range data.Services {
+		if service.Port >= 0 && service.Port < len(services) {
+			services[service.Port] = n.fixServiceName(service.Name)
+		}
+	}
+
+	return services
+}
+
+// fixServiceName 修复服务名称
+func (n *Nmap) fixServiceName(serviceName string) string {
+	serviceName = strings.ToLower(serviceName)
+	if serviceName == "" {
+		return "unknown"
+	}
+
+	// 处理一些特殊情况
+	switch serviceName {
+	case "www", "www-http":
+		return "http"
+	case "https", "http-ssl":
+		return "https"
+	case "domain":
+		return "dns"
+	case "nameserver":
+		return "dns"
+	default:
+		serviceName = strings.ReplaceAll(serviceName, "_", "-")
+		return serviceName
 	}
 }
+
+//初始化类
 
 func (n *Nmap) loadExclude(expr string) {
 	n.exclude = parsePortList(expr)
