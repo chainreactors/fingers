@@ -4,16 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/chainreactors/fingers/resources"
-
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils"
 )
 
@@ -29,7 +27,7 @@ type ScanStats struct {
 // 扫描结果
 type ScanResult struct {
 	Host      string
-	Port      int
+	Port      string
 	Open      bool
 	Framework *common.Framework
 	Error     error
@@ -114,11 +112,8 @@ func main() {
 		defer close(taskChan)
 		for ip := range ips.Range() {
 			for _, port := range portList {
-				p, err := strconv.Atoi(strings.TrimSpace(port))
-				if err != nil {
-					continue
-				}
-				taskChan <- scanTask{Host: ip.String(), Port: p}
+				portStr := strings.TrimSpace(port)
+				taskChan <- scanTask{Host: ip.String(), Port: portStr}
 			}
 		}
 	}()
@@ -141,7 +136,7 @@ func main() {
 // 扫描任务
 type scanTask struct {
 	Host string
-	Port int
+	Port string
 }
 
 // 工作协程
@@ -207,7 +202,7 @@ func resultHandler(resultChan <-chan ScanResult, stats *ScanStats, verbose bool,
 
 // 打印扫描结果
 func printResult(result ScanResult) {
-	target := fmt.Sprintf("%s:%d", result.Host, result.Port)
+	target := fmt.Sprintf("%s:%s", result.Host, result.Port)
 
 	if result.Framework != nil {
 		// 使用Framework.String()方法进行输出

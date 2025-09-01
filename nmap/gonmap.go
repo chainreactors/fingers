@@ -31,16 +31,18 @@ func initNmap() {
 		nmap.portProbeMap[i] = []string{}
 	}
 
-	// 尝试从预处理的JSON资源加载数据
-	if !loadFromEmbeddedJSON() {
-		// 如果JSON加载失败，则使用自定义探针数据
-		loadCustomizeProbes()
-	}
+	// 初始化ServicesData
+	nmap.initServicesData()
+
+	// 从预处理的JSON资源加载探针数据
+	loadFromEmbeddedJSON()
 
 	//修复fallback
 	nmap.fixFallback()
+	//新增自定义指纹信息
+	customNMAPMatch() // 可能有问题，暂时禁用
 	//优化检测逻辑，及端口对应的默认探针
-	// optimizeNMAPProbes() // 暂时禁用，避免空指针错误
+	optimizeNMAPProbes() // 可能访问不存在的探针，暂时禁用
 	//输出统计数据状态
 }
 
@@ -95,29 +97,6 @@ func loadNmapProbesFromEmbedded() (*NmapProbesData, error) {
 }
 
 // loadCustomizeProbes 加载自定义探针数据（临时方案）
-func loadCustomizeProbes() {
-	// 创建一些基本的探针用于测试
-	basicProbes := `
-# Basic HTTP probe for testing
-Probe TCP GetRequest q|GET / HTTP/1.0\r\nHost: {Host}\r\nUser-Agent: Mozilla/5.0\r\n\r\n|
-rarity 1
-ports 80,8080,8000,8888,9000
-sslports 443,8443
-match http m|^HTTP/1\.[01] \d\d\d|
-
-# Basic NULL probe
-Probe TCP NULL q||
-rarity 1
-ports 1-65535
-match telnet m|^.*telnet|i
-match ssh m|^SSH-|
-match ftp m|^220|
-match smtp m|^220.*SMTP|i
-match mysql m|.\x00\x00\x00\x0a|
-match redis m|^-|
-`
-	nmap.loads(basicProbes)
-}
 
 func customNMAPMatch() {
 	//新增自定义指纹信息
@@ -191,8 +170,16 @@ func New() *Nmap {
 }
 
 func GuessProtocol(port int) string {
-	protocol := nmapServices[port]
-	return protocol
+	// 确保nmap已经初始化
+	if nmap == nil {
+		initNmap()
+	}
+
+	// 直接从nmap实例获取服务名称
+	if port >= 0 && port < len(nmap.nmapServices) {
+		return nmap.nmapServices[port]
+	}
+	return "unknown"
 }
 
 var regexpFirstNum = regexp.MustCompile(`^\d`)

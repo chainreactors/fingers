@@ -42,7 +42,7 @@ func (e *NmapEngine) WebMatch(content []byte) common.Frameworks {
 }
 
 // ServiceMatch 实现Service指纹匹配
-func (e *NmapEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+func (e *NmapEngine) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
 	if sender == nil || level <= 0 {
 		return nil
 	}
@@ -55,12 +55,12 @@ func (e *NmapEngine) ServiceMatch(host string, port int, level int, sender commo
 			network = "tls"
 		}
 
-		// 使用ServiceSender发送数据
-		response, err := sender.Send(host, port, data, network)
+		// 直接使用端口字符串，让ServiceSender处理UDP等协议前缀
+		response, err := sender.Send(host, portStr, data, network)
 		if err != nil {
 			// 如果TLS失败，尝试普通TCP
 			if network == "tls" {
-				response, err = sender.Send(host, port, data, "tcp")
+				response, err = sender.Send(host, portStr, data, "tcp")
 				if err == nil {
 					return response, false, nil // 成功但不是TLS
 				}
@@ -73,8 +73,12 @@ func (e *NmapEngine) ServiceMatch(host string, port int, level int, sender commo
 		return response, actualTLS, nil
 	}
 
+	// 解析端口字符串获取端口号（用于其他逻辑）
+	portNum, _, _ := e.nmap.parsePortString(portStr)
+	
 	// 使用nmap的完整扫描逻辑，但网络发送由外部sender控制
-	status, response := e.nmap.Scan(host, port, level, nmapSender)
+	status, response := e.nmap.Scan(host, portStr, level, nmapSender)
+
 
 	var framework *common.Framework
 
@@ -86,7 +90,7 @@ func (e *NmapEngine) ServiceMatch(host string, port int, level int, sender commo
 		}
 	} else if status == Open {
 		// 端口开放但无法识别服务，使用guess功能猜测服务
-		guessedProtocol := GuessProtocol(port)
+		guessedProtocol := GuessProtocol(portNum)
 		if guessedProtocol != "" && guessedProtocol != "unknown" {
 			// 创建基于猜测的Framework
 			framework = common.NewFramework(FixProtocol(guessedProtocol), common.FrameFromGUESS)

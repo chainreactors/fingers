@@ -50,7 +50,7 @@ func (engine *FaviconsEngine) WebMatch(content []byte) common.Frameworks {
 }
 
 // ServiceMatch 实现Service指纹匹配 - favicon不支持Service指纹
-func (engine *FaviconsEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+func (engine *FaviconsEngine) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
 	// favicon不支持Service指纹识别
 	return nil
 }

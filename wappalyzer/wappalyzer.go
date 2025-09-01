@@ -69,7 +69,7 @@ func (engine *Wappalyze) WebMatch(content []byte) common.Frameworks {
 }
 
 // ServiceMatch 实现Service指纹匹配 - wappalyzer不支持Service指纹
-func (engine *Wappalyze) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+func (engine *Wappalyze) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
 	// wappalyzer不支持Service指纹识别
 	return nil
 }

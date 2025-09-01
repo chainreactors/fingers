@@ -52,7 +52,7 @@ func (engine *GobyEngine) WebMatch(content []byte) common.Frameworks {
 }
 
 // ServiceMatch 实现Service指纹匹配 - goby不支持Service指纹
-func (engine *GobyEngine) ServiceMatch(host string, port int, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
+func (engine *GobyEngine) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
 	// goby不支持Service指纹识别
 	return nil
 }

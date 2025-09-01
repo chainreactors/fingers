@@ -54,6 +54,9 @@ var (
 	//go:embed nmap-service-probes.json.gz
 	NmapServiceProbesData []byte
 
+	//go:embed nmap-services.json.gz
+	NmapServicesData []byte
+
 	CheckSum = map[string]string{
 		"goby":           encode.Md5Hash(GobyData),
 		"fingerprinthub": encode.Md5Hash(Fingerprinthubdata),
@@ -62,6 +65,7 @@ var (
 		"fingers_socket": encode.Md5Hash(FingersSocketData),
 		"wappalyzer":     encode.Md5Hash(WappalyzerData),
 		"nmap":           encode.Md5Hash(NmapServiceProbesData),
+		"nmap_services":  encode.Md5Hash(NmapServicesData),
 		"alias":          encode.Md5Hash(AliasesData),
 		"port":           encode.Md5Hash(PortData),
 	}
