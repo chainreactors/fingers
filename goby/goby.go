@@ -89,8 +89,10 @@ type GobyFinger struct {
 }
 
 func (finger *GobyFinger) Compile() error {
-	for _, r := range finger.Rule {
-		r.Feature = strings.ToLower(r.Feature)
+	for i, r := range finger.Rule {
+		// Fix bug: golang 不支持直接使用 `r.Feature` 的方式修改循环内的值
+		//r.Feature = strings.ToLower(r.Feature)
+		finger.Rule[i].Feature = strings.ToLower(r.Feature)
 	}
 
 	finger.logicExpr = logic.Compile(finger.Logic)
