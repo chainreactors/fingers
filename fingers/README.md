@@ -450,6 +450,155 @@ FingersEngine 实现了 `EngineImpl` 接口，提供以下能力：
 - **多协议支持**: HTTP, TCP, UDP 协议支持
 - **版本识别**: 识别应用程序和服务的具体版本
 
+## 指纹验证
+
+### 命令行验证
+
+使用 `validate` 命令可以快速验证指纹文件格式：
+
+```bash
+# 验证指纹文件
+cd cmd/validate
+go run main.go -engine fingers fingerprints.yaml
+
+# 验证单个指纹
+go run main.go -engine fingers single_finger.json
+```
+
+### 代码验证示例
+
+在代码中验证 fingers 格式指纹：
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "os"
+    
+    "github.com/chainreactors/fingers/fingers"
+    "gopkg.in/yaml.v3"
+)
+
+func validateFingerprintFile(filename string) error {
+    // 读取文件
+    content, err := os.ReadFile(filename)
+    if err != nil {
+        return fmt.Errorf("读取文件失败: %w", err)
+    }
+    
+    // 尝试解析为单个指纹
+    var singleFinger fingers.Finger
+    if err := json.Unmarshal(content, &singleFinger); err == nil {
+        return validateSingleFingerprint(singleFinger)
+    }
+    
+    // 尝试解析为指纹数组 (YAML)
+    var fingerArray []fingers.Finger
+    if err := yaml.Unmarshal(content, &fingerArray); err == nil {
+        return validateFingerprintArray(fingerArray)
+    }
+    
+    return fmt.Errorf("无法解析为有效的指纹格式")
+}
+
+func validateSingleFingerprint(finger fingers.Finger) error {
+    // 验证必填字段
+    if finger.Name == "" {
+        return fmt.Errorf("指纹名称不能为空")
+    }
+    
+    if len(finger.Rules) == 0 {
+        return fmt.Errorf("指纹必须包含至少一个规则")
+    }
+    
+    // 编译指纹以验证语法
+    if err := finger.Compile(false); err != nil {
+        return fmt.Errorf("指纹编译失败: %w", err)
+    }
+    
+    fmt.Printf("✓ 指纹 '%s' 验证通过\n", finger.Name)
+    return nil
+}
+
+func validateFingerprintArray(fingerprints []fingers.Finger) error {
+    if len(fingerprints) == 0 {
+        return fmt.Errorf("指纹数组不能为空")
+    }
+    
+    validCount := 0
+    for i, finger := range fingerprints {
+        if err := validateSingleFingerprint(finger); err != nil {
+            fmt.Printf("✗ 指纹[%d] '%s' 验证失败: %v\n", i, finger.Name, err)
+        } else {
+            validCount++
+        }
+    }
+    
+    fmt.Printf("验证完成: %d/%d 个指纹有效\n", validCount, len(fingerprints))
+    return nil
+}
+
+func main() {
+    if len(os.Args) < 2 {
+        fmt.Println("用法: go run main.go <指纹文件>")
+        return
+    }
+    
+    filename := os.Args[1]
+    if err := validateFingerprintFile(filename); err != nil {
+        fmt.Printf("验证失败: %v\n", err)
+        os.Exit(1)
+    }
+}
+```
+
+### 批量加载和验证
+
+```go
+package main
+
+import (
+    "fmt"
+    
+    "github.com/chainreactors/fingers/fingers"
+)
+
+func main() {
+    // 直接使用 LoadFingers 加载和验证
+    content := []byte(`[
+        {
+            "name": "nginx",
+            "rule": [
+                {
+                    "regexps": {
+                        "header": ["Server: nginx"]
+                    },
+                    "level": 0
+                }
+            ]
+        }
+    ]`)
+    
+    // LoadFingers 会自动验证格式
+    fingerprintList, err := fingers.LoadFingers(content)
+    if err != nil {
+        fmt.Printf("加载失败: %v\n", err)
+        return
+    }
+    
+    // 编译验证每个指纹
+    for _, finger := range fingerprintList {
+        if err := finger.Compile(false); err != nil {
+            fmt.Printf("指纹 '%s' 编译失败: %v\n", finger.Name, err)
+        } else {
+            fmt.Printf("指纹 '%s' 验证通过\n", finger.Name)
+        }
+    }
+}
+```
+
 ## 最佳实践
 
 1. **引擎复用**: 创建引擎实例开销较大，建议在应用中复用引擎实例
