@@ -360,46 +360,89 @@ func TestNmapEngine(t *testing.T) {
 
 多指纹库可能会出现同一个指纹在不同指纹库中存在不同命名的情况. 为了解决这个问题, 实现`alias`转换, 能让不同指纹库中的别名以统一的方式展示, 并且固定product与vendor, 能让没有实现CPE相关功能的指纹库也能支持CPE。
 
-## Alias
+## Alias结构
 
-`alias.yaml`在 https://github.com/chainreactors/fingers/blob/master/alias/aliases.yaml   中配置.
+`alias.yaml`在 https://github.com/chainreactors/fingers/blob/master/alias/aliases.yaml 中配置.
 
 定义:
 
-```
+```go
 type Alias struct {
-	Name           string `json:"name" yaml:"name"`
+	Name           string              `json:"name" yaml:"name"`
 	normalizedName string
 	Vendor         string              `json:"vendor" yaml:"vendor"`
 	Product        string              `json:"product" yaml:"product"`
 	Version        string              `json:"version,omitempty" yaml:"version"`
 	Update         string              `json:"update,omitempty" yaml:"update"`
 	Edition        string              `json:"edition,omitempty" yaml:"edition"`
+	Label          string              `json:"label,omitempty" yaml:"label"`
+	Priority       int                 `json:"priority,omitempty" yaml:"priority"`
+	Target         []string            `json:"target,omitempty" yaml:"target"`
 	AliasMap       map[string][]string `json:"alias" yaml:"alias"`
 	Block          []string            `json:"block,omitempty" yaml:"block"`
 	blocked        map[string]bool
 }
 ```
 
-具体配置以用友NC为例.
+### 新增字段说明
 
-```
-- name: 用友 NC      # 对外展示的名字
-  vendor: yonyou    # 厂商, 对应到CPE的vendor
-  product: NC		# 产品名, 对应到CPE的product
-  alias:            # 别名
-    fingers:        # 指纹库名
-      - 用友NC       # 对应指纹库中的名字
-    ehole:			
-      - 用友NC	   # 可以是多个别名
-      - YONYOU NC
+- **Label**: 逗号分隔的分类标签，用于对指纹进行分类，如 `web,server,proxy`
+- **Priority**: 指纹优先级 (0-5)，用于指示指纹的重要程度或可信度
+- **Target**: 测试目标URL或地址数组，支持URL格式如 `https://example.com` 或 `ip:port` 格式如 `192.168.1.1:80`
+
+具体配置以nginx为例:
+
+```yaml
+- name: nginx               # 对外展示的名字
+  vendor: nginx            # 厂商, 对应到CPE的vendor
+  product: nginx           # 产品名, 对应到CPE的product
+  label: web,server,proxy  # 分类标签
+  priority: 2              # 优先级 (0-5)
+  target:                  # 测试目标
+    - https://nginx.org
+    - nginx.org:80
+  alias:                   # 别名映射
+    fingers:              # 指纹库名
+      - nginx             # 对应指纹库中的名字
+    ehole:
+      - nginx             # 可以是多个别名
     goby:
-      - UFIDA NC
+      - nginx
+    wappalyzer:
+      - Nginx
     fingerprinthub:
-      - yonyou-ufida-nc
+      - nginx
+  block: []               # 需要屏蔽的引擎列表
 ```
 
-默认在`NewEngine`时, 会通过内嵌的aliases.yaml 初始化. 并加载原生指纹库fingers的数据作为基准值. 
+## Alias验证
+
+使用validate工具可以验证alias文件的格式：
+
+```bash
+# 验证alias文件
+cd cmd/validate
+go run main.go -engine alias aliases.yaml
+
+# 输出alias JSON Schema
+go run main.go -schema -engine alias
+```
+
+## Alias测试
+
+使用test工具可以测试alias配置的正确性：
+
+```bash
+# 测试特定alias
+cd cmd/test
+go run main.go -alias aliases.yaml -name nginx_test
+
+# 使用自定义目标覆盖alias配置
+go run main.go -alias aliases.yaml -name nginx_test -target https://custom-nginx.com
+
+# 对所有alias进行测试
+go run main.go -alias aliases.yaml
+``` 
 
 ### Block
 
@@ -648,13 +691,69 @@ func init() {
 
 ## Frameworks
 
-封装了一些较为通用的操作. 
+Frameworks是指纹检测结果的集合类型，提供丰富的操作方法。
 
-```
+```go
 type Frameworks map[string]*Framework
 ```
 
-请查阅代码.
+### 常用操作
+
+```go
+package main
+
+import (
+    "fmt"
+    "net/http"
+    
+    "github.com/chainreactors/fingers"
+)
+
+func main() {
+    engine, err := fingers.NewEngine()
+    if err != nil {
+        panic(err)
+    }
+    
+    resp, err := http.Get("https://example.com")
+    if err != nil {
+        return
+    }
+    
+    frameworks, err := engine.DetectResponse(resp)
+    if err != nil {
+        return
+    }
+    
+    // 获取数量和格式化输出
+    fmt.Printf("检测到 %d 个框架: %s\n", frameworks.Len(), frameworks.String())
+    
+    // 获取特定框架
+    if nginx, exists := frameworks.Get("nginx"); exists {
+        fmt.Printf("找到 Nginx: %s\n", nginx.String())
+    }
+    
+    // 转换为切片进行迭代
+    for _, framework := range frameworks.ToSlice() {
+        fmt.Printf("- %s (来源: %s)\n", framework.Name, framework.From)
+        if framework.CPE() != "" {
+            fmt.Printf("  CPE: %s\n", framework.CPE())
+        }
+    }
+    
+    // 过滤操作
+    webServers := frameworks.Filter(func(f *common.Framework) bool {
+        for _, tag := range f.Tags {
+            if tag == "web-server" {
+                return true
+            }
+        }
+        return false
+    })
+    
+    // 合并其他结果
+    frameworks.Merge(otherFrameworks)
+}
 
 # MoreFingers
 

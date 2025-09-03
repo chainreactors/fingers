@@ -19,10 +19,11 @@ import (
 func main() {
 	var (
 		aliasFile    = flag.String("alias", "", "Path to alias file")
-		target       = flag.String("target", "", "Target URL or address to test")
+		target       = flag.String("target", "", "Target URL or address to test (overrides alias targets if provided)")
+		aliasName    = flag.String("name", "", "Filter to test only specific alias by name")
 		timeout      = flag.Int("timeout", 10, "Request timeout in seconds")
 		verbose      = flag.Bool("verbose", false, "Enable verbose output")
-		detectAll    = flag.Bool("detect-all", false, "Run general fingerprint detection on target (ignores alias filtering)")
+		detectAll    = flag.Bool("detect-all", false, "Run general fingerprint detection on target")
 		help         = flag.Bool("help", false, "Show help information")
 	)
 
@@ -33,9 +34,14 @@ func main() {
 		return
 	}
 
-	if *target == "" {
-		fmt.Println("Error: -target is required")
+	if *target == "" && *aliasFile == "" {
+		fmt.Println("Error: At least one of -target or -alias is required")
 		showHelp()
+		os.Exit(1)
+	}
+
+	if *detectAll && *target == "" {
+		fmt.Println("Error: -detect-all requires -target to be specified")
 		os.Exit(1)
 	}
 
@@ -46,7 +52,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("🎯 Testing target: %s\n", *target)
+	if *target != "" {
+		fmt.Printf("🎯 Testing target: %s\n", *target)
+	}
 
 	// If detect-all flag is set, run general detection
 	if *detectAll {
@@ -73,8 +81,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Printf("📁 Loaded %d aliases from %s\n\n", len(aliases), *aliasFile)
-		testAliasMatching(eng, *target, aliases, *timeout, *verbose)
+		fmt.Printf("📁 Loaded %d aliases from %s\n", len(aliases), *aliasFile)
+		if *aliasName != "" {
+			fmt.Printf("🎯 Filtering for alias: %s\n", *aliasName)
+		}
+		if *target != "" {
+			fmt.Printf("🔄 Using target override: %s\n", *target)
+		}
+		fmt.Println()
+		testAliasMatching(eng, *target, aliases, *aliasName, *timeout, *verbose)
 	}
 }
 
@@ -121,32 +136,30 @@ func runGeneralDetection(eng *fingers.Engine, target string, timeout int, verbos
 	return results
 }
 
-func testAliasMatching(eng *fingers.Engine, target string, aliases []alias.Alias, timeout int, verbose bool) {
+func testAliasMatching(eng *fingers.Engine, target string, aliases []alias.Alias, filterName string, timeout int, verbose bool) {
 	// Test each alias against the target
 	var totalTests, successfulMatches int
 	for _, aliasEntry := range aliases {
-		if len(aliasEntry.Target) == 0 {
+		// Filter by name if specified
+		if filterName != "" && aliasEntry.Name != filterName {
 			if verbose {
-				fmt.Printf("⏭️  Skipping %s - no target URLs defined\n", aliasEntry.Name)
+				fmt.Printf("⏭️  Skipping %s - name filter doesn't match\n", aliasEntry.Name)
 			}
 			continue
 		}
 
-		// Check if current target matches any of the alias targets
-		targetMatched := false
-		for _, aliasTarget := range aliasEntry.Target {
-			if matchesTarget(target, aliasTarget) {
-				targetMatched = true
-				break
+		// Determine target to test
+		testTarget := target
+		if target == "" {
+			// Use alias targets if no target override provided
+			if len(aliasEntry.Target) == 0 {
+				if verbose {
+					fmt.Printf("⏭️  Skipping %s - no target URLs defined\n", aliasEntry.Name)
+				}
+				continue
 			}
-		}
-
-		if !targetMatched {
-			if verbose {
-				fmt.Printf("⏭️  Skipping %s - target doesn't match [%s]\n", 
-					aliasEntry.Name, strings.Join(aliasEntry.Target, ", "))
-			}
-			continue
+			// Use first target from alias
+			testTarget = aliasEntry.Target[0]
 		}
 
 		totalTests++
@@ -154,9 +167,16 @@ func testAliasMatching(eng *fingers.Engine, target string, aliases []alias.Alias
 		if aliasEntry.Label != "" {
 			fmt.Printf("   📝 Labels: %s\n", aliasEntry.Label)
 		}
+		
+		// Show target being used
+		if target != "" {
+			fmt.Printf("   🎯 Using override target: %s\n", testTarget)
+		} else {
+			fmt.Printf("   🎯 Using alias target: %s\n", testTarget)
+		}
 
 		// Test fingerprint detection
-		results := testFingerprintDetection(eng, target, aliasEntry, timeout, verbose)
+		results := testFingerprintDetection(eng, testTarget, aliasEntry, timeout, verbose)
 		
 		if len(results) > 0 {
 			successfulMatches++
@@ -183,15 +203,17 @@ func showHelp() {
 	fmt.Println("Fingers Alias Tester")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("  test -target <target_url> [options]")
+	fmt.Println("  test [options]")
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -alias string")
-	fmt.Println("        Path to alias YAML file (optional)")
+	fmt.Println("        Path to alias YAML file")
 	fmt.Println("  -target string")
-	fmt.Println("        Target URL or address to test (e.g., https://example.com or 192.168.1.1:80)")
+	fmt.Println("        Target URL or address to test (overrides alias targets if provided)")
+	fmt.Println("  -name string")
+	fmt.Println("        Filter to test only specific alias by name")
 	fmt.Println("  -detect-all")
-	fmt.Println("        Run general fingerprint detection on target (ignores alias filtering)")
+	fmt.Println("        Run general fingerprint detection on target")
 	fmt.Println("  -timeout int")
 	fmt.Println("        Request timeout in seconds (default 10)")
 	fmt.Println("  -verbose")
@@ -203,11 +225,14 @@ func showHelp() {
 	fmt.Println("  # Run general fingerprint detection")
 	fmt.Println("  test -target https://nginx.org -detect-all")
 	fmt.Println()
-	fmt.Println("  # Test a single target against aliases")
-	fmt.Println("  test -target https://nginx.org -alias aliases.yaml")
+	fmt.Println("  # Test specific alias with override target")
+	fmt.Println("  test -alias aliases.yaml -name nginx_test -target https://custom-nginx.com")
 	fmt.Println()
-	fmt.Println("  # Test with verbose output")
-	fmt.Println("  test -target 192.168.1.100:80 -alias aliases.yaml -verbose")
+	fmt.Println("  # Test all aliases using their defined targets")
+	fmt.Println("  test -alias aliases.yaml")
+	fmt.Println()
+	fmt.Println("  # Test specific alias using its defined target")
+	fmt.Println("  test -alias aliases.yaml -name github_test -verbose")
 }
 
 func loadAliasFile(filename string) ([]alias.Alias, error) {
