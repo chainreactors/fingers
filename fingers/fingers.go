@@ -12,17 +12,18 @@ var (
 )
 
 type Finger struct {
-	Name        string   `yaml:"name" json:"name" jsonschema:"required,title=Fingerprint Name,description=Unique identifier for the fingerprint,example=nginx"`
-	Vendor      string   `yaml:"vendor,omitempty" json:"vendor,omitempty" jsonschema:"title=Vendor,description=Vendor or organization name,example=nginx"`
-	Product     string   `yaml:"product,omitempty" json:"product,omitempty" jsonschema:"title=Product,description=Product or software name,example=nginx"`
-	Protocol    string   `yaml:"protocol,omitempty" json:"protocol" jsonschema:"title=Protocol,description=Network protocol type,enum=http,enum=tcp,enum=udp,default=http,example=http"`
-	Link        string   `yaml:"link,omitempty" json:"link,omitempty" jsonschema:"title=Link,description=Reference URL for the software,format=uri,example=https://nginx.org"`
-	DefaultPort []string `yaml:"default_port,omitempty" json:"default_port,omitempty" jsonschema:"title=Default Ports,description=Default ports used by this service,example=80,example=443"`
-	Focus       bool     `yaml:"focus,omitempty" json:"focus,omitempty" jsonschema:"title=Focus,description=Whether this is a high-priority fingerprint,default=false"`
-	Rules       Rules    `yaml:"rule,omitempty" json:"rule,omitempty" jsonschema:"required,title=Rules,description=Matching rules for fingerprint detection"`
-	Tags        []string `yaml:"tag,omitempty" json:"tag,omitempty" jsonschema:"title=Tags,description=Category tags for classification,example=web,example=server"`
-	Opsec       bool     `yaml:"opsec,omitempty" json:"opsec,omitempty" jsonschema:"title=OPSEC,description=Whether this fingerprint uses operational security measures,default=false"`
-	IsActive    bool     `yaml:"-" json:"-"`
+	Name        string            `yaml:"name" json:"name" jsonschema:"required,title=Fingerprint Name,description=Unique identifier for the fingerprint,example=nginx"`
+	Attributes  common.Attributes `json:",inline"`
+	Author      string            `yaml:"author,omitempty" json:"author" jsonschema:"title=Author,description= Finger template author"`
+	Description string            `yaml:"description,omitempty" json:"description" jsonschema:"title=Description,description= Finger template description"`
+	Protocol    string            `yaml:"protocol,omitempty" json:"protocol" jsonschema:"title=Protocol,description=Network protocol type,enum=http,enum=tcp,enum=udp,default=http,example=http"`
+	Link        string            `yaml:"link,omitempty" json:"link,omitempty" jsonschema:"title=Link,description=Reference URL for the software,format=uri,example=https://nginx.org"`
+	DefaultPort []string          `yaml:"default_port,omitempty" json:"default_port,omitempty" jsonschema:"title=Default Ports,description=Default ports used by this service,example=80,example=443"`
+	Focus       bool              `yaml:"focus,omitempty" json:"focus,omitempty" jsonschema:"title=Focus,description=Whether this is a high-priority fingerprint,default=false"`
+	Rules       Rules             `yaml:"rule,omitempty" json:"rule,omitempty" jsonschema:"required,title=Rules,description=Matching rules for fingerprint detection"`
+	Tags        []string          `yaml:"tag,omitempty" json:"tag,omitempty" jsonschema:"title=Tags,description=Category tags for classification,example=web,example=server"`
+	Opsec       bool              `yaml:"opsec,omitempty" json:"opsec,omitempty" jsonschema:"title=OPSEC,description=Whether this fingerprint uses operational security measures,default=false"`
+	IsActive    bool              `yaml:"-" json:"-"`
 }
 
 func (finger *Finger) Compile(caseSensitive bool) error {
@@ -80,8 +81,8 @@ func (finger *Finger) ToResult(hasFrame, hasVuln bool, ver string, index int) (f
 		}
 	}
 
-	frame.Vendor = finger.Vendor
-	frame.Product = finger.Product
+	frame.Vendor = finger.Attributes.Vendor
+	frame.Product = finger.Attributes.Product
 	return frame, vuln
 }
 
