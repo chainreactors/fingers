@@ -91,16 +91,16 @@ func (as *Aliases) FindFramework(frame *common.Framework) (*Alias, bool) {
 }
 
 type Alias struct {
-	Name           string              `json:"name" yaml:"name" jsonschema:"required,title=Alias Name,description=Unique identifier for the alias,example=nginx"`
+	Name           string `json:"name" yaml:"name" jsonschema:"required,title=Alias Name,description=Unique identifier for the alias,example=nginx"`
 	normalizedName string
 	Vendor         string              `json:"vendor" yaml:"vendor" jsonschema:"title=Vendor,description=Vendor or organization name,example=nginx"`
 	Product        string              `json:"product" yaml:"product" jsonschema:"title=Product,description=Product or software name,example=nginx"`
 	Version        string              `json:"version,omitempty" yaml:"version" jsonschema:"title=Version,description=Version information,example=1.18.0"`
 	Update         string              `json:"update,omitempty" yaml:"update" jsonschema:"title=Update,description=Update information"`
 	Edition        string              `json:"edition,omitempty" yaml:"edition" jsonschema:"title=Edition,description=Edition information"`
-	Label          string              `json:"label,omitempty" yaml:"label" jsonschema:"title=Label,description=Comma-separated labels for categorization,example=web,server,proxy"`
+	Categories     string              `json:"categories,omitempty" yaml:"categories" jsonschema:"title=Categories,description=Comma-separated labels for categorization,example=web,server,proxy"`
 	Priority       int                 `json:"priority,omitempty" yaml:"priority" jsonschema:"title=Priority,description=Priority level (0-5),minimum=0,maximum=5,default=0,example=1"`
-	Target         []string            `json:"target,omitempty" yaml:"target" jsonschema:"title=Target,description=Test target URLs or addresses for validation,example=https://example.com,example=192.168.1.1:8080"`
+	Link           []string            `json:"link,omitempty" yaml:"link" jsonschema:"title=Alias,description=Test target URLs or addresses for validation,example=https://example.com,example=192.168.1.1:8080"`
 	AliasMap       map[string][]string `json:"alias" yaml:"alias" jsonschema:"required,title=Alias Map,description=Mapping of engine names to their alias strings"`
 	Block          []string            `json:"block,omitempty" yaml:"block" jsonschema:"title=Block List,description=List of engines to block this alias from"`
 	blocked        map[string]bool
