@@ -10,21 +10,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/alias"
 	"github.com/chainreactors/fingers/common"
-	"github.com/chainreactors/fingers"
 	"gopkg.in/yaml.v3"
 )
 
 func main() {
 	var (
-		aliasFile    = flag.String("alias", "", "Path to alias file")
-		target       = flag.String("target", "", "Target URL or address to test (overrides alias targets if provided)")
-		aliasName    = flag.String("name", "", "Filter to test only specific alias by name")
-		timeout      = flag.Int("timeout", 10, "Request timeout in seconds")
-		verbose      = flag.Bool("verbose", false, "Enable verbose output")
-		detectAll    = flag.Bool("detect-all", false, "Run general fingerprint detection on target")
-		help         = flag.Bool("help", false, "Show help information")
+		aliasFile = flag.String("alias", "", "Path to alias file")
+		target    = flag.String("target", "", "Target URL or address to test (overrides alias targets if provided)")
+		aliasName = flag.String("name", "", "Filter to test only specific alias by name")
+		timeout   = flag.Int("timeout", 10, "Request timeout in seconds")
+		verbose   = flag.Bool("verbose", false, "Enable verbose output")
+		detectAll = flag.Bool("detect-all", false, "Run general fingerprint detection on target")
+		help      = flag.Bool("help", false, "Show help information")
 	)
 
 	flag.Parse()
@@ -60,7 +60,7 @@ func main() {
 	if *detectAll {
 		fmt.Println("🔍 Running general fingerprint detection...\n")
 		allResults := runGeneralDetection(eng, *target, *timeout, *verbose)
-		
+
 		fmt.Printf("📊 General Detection Results:\n")
 		if len(allResults) > 0 {
 			fmt.Printf("   Found %d fingerprints:\n", len(allResults))
@@ -152,22 +152,22 @@ func testAliasMatching(eng *fingers.Engine, target string, aliases []alias.Alias
 		testTarget := target
 		if target == "" {
 			// Use alias targets if no target override provided
-			if len(aliasEntry.Target) == 0 {
+			if len(aliasEntry.Link) == 0 {
 				if verbose {
 					fmt.Printf("⏭️  Skipping %s - no target URLs defined\n", aliasEntry.Name)
 				}
 				continue
 			}
 			// Use first target from alias
-			testTarget = aliasEntry.Target[0]
+			testTarget = aliasEntry.Link[0]
 		}
 
 		totalTests++
 		fmt.Printf("🔍 Testing alias: %s (priority: %d)\n", aliasEntry.Name, aliasEntry.Priority)
-		if aliasEntry.Label != "" {
-			fmt.Printf("   📝 Labels: %s\n", aliasEntry.Label)
+		if aliasEntry.Categories != "" {
+			fmt.Printf("   📝 Categories: %s\n", aliasEntry.Categories)
 		}
-		
+
 		// Show target being used
 		if target != "" {
 			fmt.Printf("   🎯 Using override target: %s\n", testTarget)
@@ -177,7 +177,7 @@ func testAliasMatching(eng *fingers.Engine, target string, aliases []alias.Alias
 
 		// Test fingerprint detection
 		results := testFingerprintDetection(eng, testTarget, aliasEntry, timeout, verbose)
-		
+
 		if len(results) > 0 {
 			successfulMatches++
 			fmt.Printf("   ✅ Found %d matching fingerprints:\n", len(results))
@@ -260,10 +260,10 @@ func matchesTarget(currentTarget, aliasTarget string) bool {
 	// Extract domain/IP from URLs for comparison
 	currentClean := extractHostFromTarget(currentTarget)
 	aliasClean := extractHostFromTarget(aliasTarget)
-	
-	return strings.EqualFold(currentClean, aliasClean) || 
-		   strings.Contains(strings.ToLower(currentTarget), strings.ToLower(aliasTarget)) ||
-		   strings.Contains(strings.ToLower(aliasTarget), strings.ToLower(currentTarget))
+
+	return strings.EqualFold(currentClean, aliasClean) ||
+		strings.Contains(strings.ToLower(currentTarget), strings.ToLower(aliasTarget)) ||
+		strings.Contains(strings.ToLower(aliasTarget), strings.ToLower(currentTarget))
 }
 
 func extractHostFromTarget(target string) string {
@@ -273,12 +273,12 @@ func extractHostFromTarget(target string) string {
 	} else if strings.HasPrefix(target, "https://") {
 		target = target[8:]
 	}
-	
+
 	// Remove path if present
 	if idx := strings.Index(target, "/"); idx != -1 {
 		target = target[:idx]
 	}
-	
+
 	return target
 }
 
@@ -330,15 +330,15 @@ func testFingerprintDetection(eng *fingers.Engine, target string, aliasEntry ali
 func isExpectedFramework(framework common.Framework, aliasEntry alias.Alias) bool {
 	// Check if this framework matches any of the expected aliases
 	engineName := framework.From.String()
-	
+
 	if expectedNames, exists := aliasEntry.AliasMap[engineName]; exists {
 		for _, expectedName := range expectedNames {
 			if strings.EqualFold(framework.Name, expectedName) ||
-			   strings.Contains(strings.ToLower(framework.Name), strings.ToLower(expectedName)) {
+				strings.Contains(strings.ToLower(framework.Name), strings.ToLower(expectedName)) {
 				return true
 			}
 		}
 	}
-	
+
 	return false
 }
