@@ -3,6 +3,7 @@ package alias
 import (
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/utils/iutils"
 	"gopkg.in/yaml.v3"
 	"strings"
 )
@@ -31,38 +32,36 @@ type Aliases struct {
 }
 
 func (as *Aliases) AppendAliases(other []*Alias) {
-	err := as.Compile(other)
-	if err != nil {
-		return
+	for _, alias := range other {
+		as.Append(alias)
 	}
 }
 
 func (as *Aliases) Compile(aliases []*Alias) error {
 	for _, alias := range aliases {
-		alias.Name = strings.ToLower(alias.Name)
-		alias.normalizedName = resources.NormalizeString(alias.Name)
-		alias.blocked = make(map[string]bool)
-		_, originalAS, ok := as.FindAny(alias.Name)
-		if ok {
-			alias.Pocs = originalAS.Pocs
-		}
-		as.Aliases[alias.Name] = alias
-		for _, block := range alias.Block {
-			alias.blocked[block] = true
-		}
+		alias.Compile()
+		as.Append(alias)
+	}
+	return nil
+}
 
-		// 生成映射表
-		for engine, engineMap := range alias.AliasMap {
-			if _, ok := as.Map[engine]; !ok {
-				as.Map[engine] = make(map[string]string)
-			}
-			for _, name := range engineMap {
-				as.Map[engine][resources.NormalizeString(name)] = alias.Name
-			}
-		}
+func (as *Aliases) Append(alias *Alias) {
+	// 保留已存在 alias 的 Pocs
+	if original, exists := as.Aliases[alias.Name]; exists {
+		alias.Pocs = iutils.StringsUnique(append(original.Pocs, alias.Pocs...))
 	}
 
-	return nil
+	as.Aliases[alias.Name] = alias
+
+	// 生成映射表
+	for engine, engineMap := range alias.AliasMap {
+		if _, ok := as.Map[engine]; !ok {
+			as.Map[engine] = make(map[string]string)
+		}
+		for _, name := range engineMap {
+			as.Map[engine][resources.NormalizeString(name)] = alias.Name
+		}
+	}
 }
 
 func (as *Aliases) Find(engine, name string) (*Alias, bool) {
@@ -94,44 +93,26 @@ func (as *Aliases) FindFramework(frame *common.Framework) (*Alias, bool) {
 	return as.Find(frame.From.String(), resources.NormalizeString(frame.Name))
 }
 
-func (as *Aliases) UpdatePocs(name string, pocs []string) bool {
-	alias, ok := as.Find(common.FrameFromFingers.String(), name)
-	if !ok {
-		return ok
-	}
-	alias.Pocs = pocs
-	return ok
-}
-
-func (as *Aliases) Update(newAlias *Alias) bool {
-	if engineMap, ok := as.Map[common.FrameFromFingers.String()]; ok {
-		name := resources.NormalizeString(newAlias.Name)
-		if aliasName, ok := engineMap[name]; ok {
-			if _, ok := as.Aliases[aliasName]; ok {
-				as.Aliases[aliasName] = newAlias
-				return true
-			}
-			return false
-		}
-	}
-	return false
-}
-
 type Alias struct {
-	Name           string `json:"name" yaml:"name" jsonschema:"required,title=Alias Name,description=Unique identifier for the alias,example=nginx"`
-	normalizedName string
-	Vendor         string              `json:"vendor" yaml:"vendor" jsonschema:"title=Vendor,description=Vendor or organization name,example=nginx"`
-	Product        string              `json:"product" yaml:"product" jsonschema:"title=Product,description=Product or software name,example=nginx"`
-	Version        string              `json:"version,omitempty" yaml:"version" jsonschema:"title=Version,description=Version information,example=1.18.0"`
-	Update         string              `json:"update,omitempty" yaml:"update" jsonschema:"title=Update,description=Update information"`
-	Edition        string              `json:"edition,omitempty" yaml:"edition" jsonschema:"title=Edition,description=Edition information"`
-	Categories     string              `json:"categories,omitempty" yaml:"categories" jsonschema:"title=Categories,description=Comma-separated labels for categorization,example=web,server,proxy"`
-	Priority       int                 `json:"priority,omitempty" yaml:"priority" jsonschema:"title=Priority,description=Priority level (0-5),minimum=0,maximum=5,default=0,example=1"`
-	Link           []string            `json:"link,omitempty" yaml:"link" jsonschema:"title=Alias,description=Test target URLs or addresses for validation,example=https://example.com,example=192.168.1.1:8080"`
-	AliasMap       map[string][]string `json:"alias" yaml:"alias" jsonschema:"required,title=Alias Map,description=Mapping of engine names to their alias strings"`
-	Block          []string            `json:"block,omitempty" yaml:"block" jsonschema:"title=Block List,description=List of engines to block this alias from"`
-	blocked        map[string]bool
-	Pocs           []string `json:"-" yaml:"-"`
+	Name              string `json:"name" yaml:"name" jsonschema:"required,title=Alias Name,description=Unique identifier for the alias,example=nginx"`
+	normalizedName    string
+	common.Attributes `yaml:",inline" json:",inline"`
+	Categories        string              `json:"categories,omitempty" yaml:"categories" jsonschema:"title=Categories,description=Comma-separated labels for categorization,example=web,server,proxy"`
+	Priority          int                 `json:"priority,omitempty" yaml:"priority" jsonschema:"title=Priority,description=Priority level (0-5),minimum=0,maximum=5,default=0,example=1"`
+	Link              []string            `json:"link,omitempty" yaml:"link" jsonschema:"title=Alias,description=Test target URLs or addresses for validation,example=https://example.com,example=192.168.1.1:8080"`
+	AliasMap          map[string][]string `json:"alias" yaml:"alias" jsonschema:"required,title=Alias Map,description=Mapping of engine names to their alias strings"`
+	Block             []string            `json:"block,omitempty" yaml:"block" jsonschema:"title=Block List,description=List of engines to block this alias from"`
+	blocked           map[string]bool
+	Pocs              []string `json:"pocs,omitempty" yaml:"pocs,omitempty" jsonschema:"title=POCs,description=List of POC identifiers associated with this alias"`
+}
+
+func (a *Alias) Compile() {
+	a.Name = strings.ToLower(a.Name)
+	a.normalizedName = resources.NormalizeString(a.Name)
+	a.blocked = make(map[string]bool)
+	for _, block := range a.Block {
+		a.blocked[block] = true
+	}
 }
 
 func (a *Alias) IsBlocked(key string) bool {
@@ -143,12 +124,6 @@ func (a *Alias) FuzzyMatch(s string) bool {
 }
 
 func (a *Alias) ToWFN() *common.Attributes {
-	return &common.Attributes{
-		Part:    "a",
-		Vendor:  a.Vendor,
-		Product: a.Product,
-		Version: a.Version,
-		Update:  a.Update,
-		Edition: a.Edition,
-	}
+	a.Part = "a"
+	return &a.Attributes
 }
