@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"runtime/pprof"
+	"strconv"
 	"testing"
 	"time"
 
@@ -307,7 +308,7 @@ func TestServiceEngine(t *testing.T) {
 
 	ports := []int{80, 443, 445, 135, 1080, 3306, 1433, 1521}
 	for _, port := range ports {
-		results, err := engine.DetectService("127.0.0.1", ItoA, 9, testSender, nil)
+		results, err := engine.DetectService("127.0.0.1", strconv.Itoa(port), 9, testSender, nil)
 		if err != nil {
 			t.Logf("DetectService error: %v", err)
 		}
