@@ -42,6 +42,10 @@ func (as *Aliases) Compile(aliases []*Alias) error {
 		alias.Name = strings.ToLower(alias.Name)
 		alias.normalizedName = resources.NormalizeString(alias.Name)
 		alias.blocked = make(map[string]bool)
+		_, originalAS, ok := as.FindAny(alias.Name)
+		if ok {
+			alias.Pocs = originalAS.Pocs
+		}
 		as.Aliases[alias.Name] = alias
 		for _, block := range alias.Block {
 			alias.blocked[block] = true
@@ -90,6 +94,29 @@ func (as *Aliases) FindFramework(frame *common.Framework) (*Alias, bool) {
 	return as.Find(frame.From.String(), resources.NormalizeString(frame.Name))
 }
 
+func (as *Aliases) UpdatePocs(name string, pocs []string) bool {
+	alias, ok := as.Find(common.FrameFromFingers.String(), name)
+	if !ok {
+		return ok
+	}
+	alias.Pocs = pocs
+	return ok
+}
+
+func (as *Aliases) Update(newAlias *Alias) bool {
+	if engineMap, ok := as.Map[common.FrameFromFingers.String()]; ok {
+		name := resources.NormalizeString(newAlias.Name)
+		if aliasName, ok := engineMap[name]; ok {
+			if _, ok := as.Aliases[aliasName]; ok {
+				as.Aliases[aliasName] = newAlias
+				return true
+			}
+			return false
+		}
+	}
+	return false
+}
+
 type Alias struct {
 	Name           string `json:"name" yaml:"name" jsonschema:"required,title=Alias Name,description=Unique identifier for the alias,example=nginx"`
 	normalizedName string
@@ -104,6 +131,7 @@ type Alias struct {
 	AliasMap       map[string][]string `json:"alias" yaml:"alias" jsonschema:"required,title=Alias Map,description=Mapping of engine names to their alias strings"`
 	Block          []string            `json:"block,omitempty" yaml:"block" jsonschema:"title=Block List,description=List of engines to block this alias from"`
 	blocked        map[string]bool
+	Pocs           []string `json:"-" yaml:"-"`
 }
 
 func (a *Alias) IsBlocked(key string) bool {
