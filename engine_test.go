@@ -252,7 +252,7 @@ func TestNmapEngine(t *testing.T) {
 		}
 	}
 
-	result := nmapEngine.ServiceMatch("127.0.0.1", 80, 1, testServiceSender, testServiceCallback)
+	result := nmapEngine.ServiceMatch("127.0.0.1", "80", 1, testServiceSender, testServiceCallback)
 	if result != nil && result.Framework != nil {
 		t.Logf("service result: %s", result.Framework.String())
 	}
@@ -307,7 +307,7 @@ func TestServiceEngine(t *testing.T) {
 
 	ports := []int{80, 443, 445, 135, 1080, 3306, 1433, 1521}
 	for _, port := range ports {
-		results, err := engine.DetectService("127.0.0.1", port, 9, testSender, nil)
+		results, err := engine.DetectService("127.0.0.1", ItoA, 9, testSender, nil)
 		if err != nil {
 			t.Logf("DetectService error: %v", err)
 		}
