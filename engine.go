@@ -123,9 +123,8 @@ func (engine *Engine) Compile() error {
 	if impl := engine.Fingers(); impl != nil {
 		for _, finger := range impl.HTTPFingers {
 			aliases = append(aliases, &alias.Alias{
-				Name:    finger.Name,
-				Vendor:  finger.Attributes.Vendor,
-				Product: finger.Attributes.Product,
+				Name:       finger.Name,
+				Attributes: finger.Attributes,
 				AliasMap: map[string][]string{
 					"fingers": []string{finger.Name},
 				},
