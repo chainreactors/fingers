@@ -97,13 +97,16 @@ type Alias struct {
 	Name              string `json:"name" yaml:"name" jsonschema:"required,title=Alias Name,description=Unique identifier for the alias,example=nginx"`
 	normalizedName    string
 	common.Attributes `yaml:",inline" json:",inline"`
-	Categories        string              `json:"categories,omitempty" yaml:"categories" jsonschema:"title=Categories,description=Comma-separated labels for categorization,example=web,server,proxy"`
+	Type              string              `json:"type,omitempty" yaml:"type" jsonschema:"title=Type,description=Type of the technology or service,example=web-server"`
+	Category          string              `json:"category,omitempty" yaml:"category" jsonschema:"title=Category,description=Primary category classification,example=web"`
+	Tags              []string            `json:"tags,omitempty" yaml:"tags" jsonschema:"title=Tags,description=List of tags for categorization and search"`
 	Priority          int                 `json:"priority,omitempty" yaml:"priority" jsonschema:"title=Priority,description=Priority level (0-5),minimum=0,maximum=5,default=0,example=1"`
 	Link              []string            `json:"link,omitempty" yaml:"link" jsonschema:"title=Alias,description=Test target URLs or addresses for validation,example=https://example.com,example=192.168.1.1:8080"`
 	AliasMap          map[string][]string `json:"alias" yaml:"alias" jsonschema:"required,title=Alias Map,description=Mapping of engine names to their alias strings"`
 	Block             []string            `json:"block,omitempty" yaml:"block" jsonschema:"title=Block List,description=List of engines to block this alias from"`
 	blocked           map[string]bool
 	Pocs              []string `json:"pocs,omitempty" yaml:"pocs,omitempty" jsonschema:"title=POCs,description=List of POC identifiers associated with this alias"`
+	allTags           []string
 }
 
 func (a *Alias) Compile() {
@@ -113,6 +116,36 @@ func (a *Alias) Compile() {
 	for _, block := range a.Block {
 		a.blocked[block] = true
 	}
+
+	var tags []string
+
+	if a.Vendor != "" {
+		tags = append(tags, strings.ToLower(a.Vendor))
+	}
+
+	if a.Product != "" {
+		tags = append(tags, strings.ToLower(a.Product))
+	}
+
+	if a.Category != "" {
+		tags = append(tags, strings.ToLower(a.Category))
+	}
+
+	if a.Type != "" {
+		tags = append(tags, strings.ToLower(a.Type))
+	}
+
+	for _, tag := range a.Tags {
+		if tag != "" {
+			tags = append(tags, strings.ToLower(tag))
+		}
+	}
+
+	a.allTags = iutils.StringsUnique(tags)
+}
+
+func (a *Alias) AllTags() []string {
+	return a.allTags
 }
 
 func (a *Alias) IsBlocked(key string) bool {
