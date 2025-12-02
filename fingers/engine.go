@@ -71,6 +71,20 @@ func (engine *FingersEngine) Len() int {
 	return len(engine.HTTPFingers) + len(engine.SocketFingers)
 }
 
+// addToSocketGroup 将指纹添加到SocketGroup中
+func (engine *FingersEngine) addToSocketGroup(f *Finger) {
+	if engine.SocketGroup == nil {
+		engine.SocketGroup = make(FingerMapper)
+	}
+	if f.DefaultPort != nil {
+		for _, port := range resources.PrePort.ParsePortSlice(f.DefaultPort) {
+			engine.SocketGroup[port] = append(engine.SocketGroup[port], f)
+		}
+	} else {
+		engine.SocketGroup["0"] = append(engine.SocketGroup["0"], f)
+	}
+}
+
 func (engine *FingersEngine) Compile() error {
 	var err error
 	if engine.HTTPFingers == nil {
@@ -106,8 +120,8 @@ func (engine *FingersEngine) Compile() error {
 			if err != nil {
 				return err
 			}
+			engine.addToSocketGroup(finger)
 		}
-		engine.SocketGroup = engine.SocketFingers.GroupByPort()
 	}
 	return nil
 }
@@ -125,6 +139,7 @@ func (engine *FingersEngine) Append(fingers Fingers) error {
 			}
 		} else if f.Protocol == TCPProtocol {
 			engine.SocketFingers = append(engine.SocketFingers, f)
+			engine.addToSocketGroup(f)
 		}
 	}
 	return nil
