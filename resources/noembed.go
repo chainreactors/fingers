@@ -13,16 +13,16 @@ var AliasesData []byte
 var PortData []byte // json format
 var PrePort *utils.PortPreset
 
-func LoadPorts() error {
+func LoadPorts() (*utils.PortPreset, error) {
 	var ports []*utils.PortConfig
 	var err error
 	err = json.Unmarshal(PortData, &ports)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	PrePort = utils.NewPortPreset(ports)
-	return nil
+	return PrePort, nil
 }
 
 // engine
