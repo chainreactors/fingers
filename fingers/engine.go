@@ -5,6 +5,7 @@ import (
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/favicon"
 	"github.com/chainreactors/fingers/resources"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -143,6 +144,22 @@ func (engine *FingersEngine) Append(fingers Fingers) error {
 		}
 	}
 	return nil
+}
+
+// LoadFromYAML loads fingerprints from YAML file or URL and appends them to the engine
+// This method only supports YAML format for custom fingerprints
+func (engine *FingersEngine) LoadFromYAML(path string) error {
+	content, err := resources.LoadFingersFromYAML(path)
+	if err != nil {
+		return err
+	}
+
+	var fingers Fingers
+	if err := yaml.Unmarshal(content, &fingers); err != nil {
+		return err
+	}
+
+	return engine.Append(fingers)
 }
 
 func (engine *FingersEngine) SocketMatch(content []byte, port string, level int, sender Sender, callback Callback) (*common.Framework, *common.Vuln) {
