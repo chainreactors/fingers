@@ -8,18 +8,18 @@ import (
 )
 
 type Regexps struct {
-	Body                  []string         `yaml:"body,omitempty" json:"body,omitempty" jsonschema:"title=Body Patterns,description=String patterns to match in HTTP response body,example=<title>nginx</title>"`
-	MD5                   []string         `yaml:"md5,omitempty" json:"md5,omitempty" jsonschema:"title=MD5 Hashes,description=MD5 hashes of response bodies to match,pattern=^[a-f0-9]{32}$,example=d41d8cd98f00b204e9800998ecf8427e"`
-	MMH3                  []string         `yaml:"mmh3,omitempty" json:"mmh3,omitempty" jsonschema:"title=MMH3 Hashes,description=MurmurHash3 hashes for favicon matching,example=116323821"`
-	Regexp                []string         `yaml:"regexp,omitempty" json:"regexp,omitempty" jsonschema:"title=Regular Expressions,description=Regex patterns for advanced matching,example=nginx/([\\d\\.]+)"`
-	Version               []string         `yaml:"version,omitempty" json:"version,omitempty" jsonschema:"title=Version Patterns,description=Regex patterns to extract version information,example=([\\d\\.]+)"`
-	Cert                  []string         `yaml:"cert,omitempty" json:"cert,omitempty" jsonschema:"title=Certificate Patterns,description=Patterns to match in SSL certificates,example=nginx"`
+	Body                  []string         `yaml:"body,omitempty" json:"body,omitempty" jsonschema:"title=Body Patterns,description=String patterns to match in HTTP response body,nullable,example=<title>nginx</title>"`
+	MD5                   []string         `yaml:"md5,omitempty" json:"md5,omitempty" jsonschema:"title=MD5 Hashes,description=MD5 hashes of response bodies to match,nullable,pattern=^[a-f0-9]{32}$,example=d41d8cd98f00b204e9800998ecf8427e"`
+	MMH3                  []string         `yaml:"mmh3,omitempty" json:"mmh3,omitempty" jsonschema:"title=MMH3 Hashes,description=MurmurHash3 hashes for favicon matching,nullable,example=116323821"`
+	Regexp                []string         `yaml:"regexp,omitempty" json:"regexp,omitempty" jsonschema:"title=Regular Expressions,description=Regex patterns for advanced matching,nullable,example=nginx/([\\d\\.]+)"`
+	Version               []string         `yaml:"version,omitempty" json:"version,omitempty" jsonschema:"title=Version Patterns,description=Regex patterns to extract version information,nullable,example=([\\d\\.]+)"`
+	Cert                  []string         `yaml:"cert,omitempty" json:"cert,omitempty" jsonschema:"title=Certificate Patterns,description=Patterns to match in SSL certificates,nullable,example=nginx"`
 	CompliedRegexp        []*regexp.Regexp `yaml:"-" json:"-"`
 	CompiledVulnRegexp    []*regexp.Regexp `yaml:"-" json:"-"`
 	CompiledVersionRegexp []*regexp.Regexp `yaml:"-" json:"-"`
 	FingerName            string           `yaml:"-" json:"-"`
-	Header                []string         `yaml:"header,omitempty" json:"header,omitempty" jsonschema:"title=Header Patterns,description=Patterns to match in HTTP headers,example=Server: nginx"`
-	Vuln                  []string         `yaml:"vuln,omitempty" json:"vuln,omitempty" jsonschema:"title=Vulnerability Patterns,description=Regex patterns indicating security vulnerabilities,example=admin/config.php"`
+	Header                []string         `yaml:"header,omitempty" json:"header,omitempty" jsonschema:"title=Header Patterns,description=Patterns to match in HTTP headers,nullable,example=Server: nginx"`
+	Vuln                  []string         `yaml:"vuln,omitempty" json:"vuln,omitempty" jsonschema:"title=Vulnerability Patterns,description=Regex patterns indicating security vulnerabilities,nullable,example=admin/config.php"`
 }
 
 func (r *Regexps) Compile(caseSensitive bool) error {
@@ -62,19 +62,19 @@ func (r *Regexps) Compile(caseSensitive bool) error {
 }
 
 type Favicons struct {
-	Path string   `yaml:"path,omitempty" json:"path,omitempty" jsonschema:"title=Favicon Path,description=Path to the favicon file,example=/favicon.ico"`
-	Mmh3 []string `yaml:"mmh3,omitempty" json:"mmh3,omitempty" jsonschema:"title=MMH3 Hashes,description=MurmurHash3 hashes of favicon content,example=116323821"`
-	Md5  []string `yaml:"md5,omitempty" json:"md5,omitempty" jsonschema:"title=MD5 Hashes,description=MD5 hashes of favicon content,pattern=^[a-f0-9]{32}$,example=d41d8cd98f00b204e9800998ecf8427e"`
+	Path string   `yaml:"path,omitempty" json:"path,omitempty" jsonschema:"title=Favicon Path,description=Path to the favicon file,nullable,example=/favicon.ico"`
+	Mmh3 []string `yaml:"mmh3,omitempty" json:"mmh3,omitempty" jsonschema:"title=MMH3 Hashes,description=MurmurHash3 hashes of favicon content,nullable,example=116323821"`
+	Md5  []string `yaml:"md5,omitempty" json:"md5,omitempty" jsonschema:"title=MD5 Hashes,description=MD5 hashes of favicon content,nullable,pattern=^[a-f0-9]{32}$,example=d41d8cd98f00b204e9800998ecf8427e"`
 }
 
 type Rule struct {
-	Version     string    `yaml:"version,omitempty" json:"version,omitempty" jsonschema:"title=Version,description=Version string or extraction pattern,example=1.18.0"`
-	Favicon     *Favicons `yaml:"favicon,omitempty" json:"favicon,omitempty" jsonschema:"title=Favicon Rules,description=Favicon-based matching rules"`
-	Regexps     *Regexps  `yaml:"regexps,omitempty" json:"regexps,omitempty" jsonschema:"title=Regex Rules,description=Regular expression matching rules"`
-	SendDataStr string    `yaml:"send_data,omitempty" json:"send_data,omitempty" jsonschema:"title=Send Data,description=Data to send for active probing,example=GET /admin HTTP/1.1\\r\\nHost: {{Hostname}}\\r\\n\\r\\n"`
+	Version     string    `yaml:"version,omitempty" json:"version,omitempty" jsonschema:"title=Version,description=Version string or extraction pattern,nullable,example=1.18.0"`
+	Favicon     *Favicons `yaml:"favicon,omitempty" json:"favicon,omitempty" jsonschema:"title=Favicon Rules,description=Favicon-based matching rules,nullable"`
+	Regexps     *Regexps  `yaml:"regexps,omitempty" json:"regexps,omitempty" jsonschema:"title=Regex Rules,description=Regular expression matching rules,nullable"`
+	SendDataStr string    `yaml:"send_data,omitempty" json:"send_data,omitempty" jsonschema:"title=Send Data,description=Data to send for active probing,nullable,example=GET /admin HTTP/1.1\\r\\nHost: {{Hostname}}\\r\\n\\r\\n"`
 	SendData    senddata  `yaml:"-" json:"-"`
-	Info        string    `yaml:"info,omitempty" json:"info,omitempty" jsonschema:"title=Information,description=Additional information about the detection,example=Admin panel detected"`
-	Vuln        string    `yaml:"vuln,omitempty" json:"vuln,omitempty" jsonschema:"title=Vulnerability,description=Vulnerability information if detected,example=Default admin credentials"`
+	Info        string    `yaml:"info,omitempty" json:"info,omitempty" jsonschema:"title=Information,description=Additional information about the detection,nullable,example=Admin panel detected"`
+	Vuln        string    `yaml:"vuln,omitempty" json:"vuln,omitempty" jsonschema:"title=Vulnerability,description=Vulnerability information if detected,nullable,example=Default admin credentials"`
 	Level       int       `yaml:"level,omitempty" json:"level,omitempty" jsonschema:"title=Detection Level,description=Active probing level (0=passive 1+=active),minimum=0,maximum=5,default=0,example=1"`
 	FingerName  string    `yaml:"-" json:"-"`
 	IsActive    bool      `yaml:"-" json:"-"`
