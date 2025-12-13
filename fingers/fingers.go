@@ -14,14 +14,14 @@ var (
 type Finger struct {
 	Name        string            `yaml:"name" json:"name" jsonschema:"required,title=Fingerprint Name,description=Unique identifier for the fingerprint,example=nginx"`
 	Attributes  common.Attributes `yaml:",inline" json:",inline"`
-	Author      string            `yaml:"author,omitempty" json:"author,omitempty" jsonschema:"title=Author,description= Finger template author"`
-	Description string            `yaml:"description,omitempty" json:"description,omitempty" jsonschema:"title=Description,description= Finger template description"`
-	Protocol    string            `yaml:"protocol,omitempty" json:"protocol,omitempty" jsonschema:"title=Protocol,description=Network protocol type,enum=http,enum=tcp,enum=udp,default=http,example=http"`
-	Link        string            `yaml:"link,omitempty" json:"link,omitempty" jsonschema:"title=Link,description=Reference URL for the software,format=uri,example=https://nginx.org"`
-	DefaultPort []string          `yaml:"default_port,omitempty" json:"default_port,omitempty" jsonschema:"title=Default Ports,description=Default ports used by this service,example=80,example=443"`
+	Author      string            `yaml:"author,omitempty" json:"author,omitempty" jsonschema:"title=Author,description= Finger template author,nullable"`
+	Description string            `yaml:"description,omitempty" json:"description,omitempty" jsonschema:"title=Description,description= Finger template description,nullable"`
+	Protocol    string            `yaml:"protocol,omitempty" json:"protocol,omitempty" jsonschema:"title=Protocol,description=Network protocol type,nullable,enum=http,enum=tcp,enum=udp,default=http,example=http"`
+	Link        string            `yaml:"link,omitempty" json:"link,omitempty" jsonschema:"title=Link,description=Reference URL for the software,nullable,format=uri,example=https://nginx.org"`
+	DefaultPort []string          `yaml:"default_port,omitempty" json:"default_port,omitempty" jsonschema:"title=Default Ports,description=Default ports used by this service,nullable,example=80,example=443"`
 	Focus       bool              `yaml:"focus,omitempty" json:"focus,omitempty" jsonschema:"title=Focus,description=Whether this is a high-priority fingerprint,default=false"`
 	Rules       Rules             `yaml:"rule,omitempty" json:"rule,omitempty" jsonschema:"required,title=Rules,description=Matching rules for fingerprint detection"`
-	Tags        []string          `yaml:"tag,omitempty" json:"tag,omitempty" jsonschema:"title=Tags,description=Category tags for classification,example=web,example=server"`
+	Tags        []string          `yaml:"tag,omitempty" json:"tag,omitempty" jsonschema:"title=Tags,description=Category tags for classification,nullable,example=web,example=server"`
 	Level       int               `yaml:"level,omitempty" json:"level,omitempty" jsonschema:"title=Level,description=Fingerprint detection level,default=0"`
 	Opsec       bool              `yaml:"opsec,omitempty" json:"opsec,omitempty" jsonschema:"title=OPSEC,description=Whether this fingerprint uses operational security measures,default=false"`
 	IsActive    bool              `yaml:"-" json:"-"`
