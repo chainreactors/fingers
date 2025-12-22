@@ -21,9 +21,9 @@ const (
 	TitleLocation  = "title"
 )
 
-func NewEHoleEngine() (*EHoleEngine, error) {
+func NewEHoleEngine(data []byte) (*EHoleEngine, error) {
 	var engine *EHoleEngine
-	err := resources.UnmarshalData(resources.EholeData, &engine)
+	err := resources.UnmarshalData(data, &engine)
 	if err != nil {
 		return nil, err
 	}

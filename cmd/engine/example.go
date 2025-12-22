@@ -36,12 +36,13 @@ var opts struct {
 	FaviconOnly bool `short:"f" long:"favicon" description:"Only detect favicon"`
 
 	// 资源文件覆盖
-	GobyFile           string `long:"goby" description:"Override goby.json.gz with custom file"`
-	FingerprintHubFile string `long:"fingerprinthub" description:"Override fingerprinthub_v3.json.gz with custom file"`
-	EholeFile          string `long:"ehole" description:"Override ehole.json.gz with custom file"`
-	FingersFile        string `long:"fingers" description:"Override fingers_http.json.gz with custom file"`
-	WappalyzerFile     string `long:"wappalyzer" description:"Override wappalyzer.json.gz with custom file"`
-	AliasesFile        string `long:"aliases" description:"Override aliases.yaml with custom file"`
+	GobyFile                  string `long:"goby" description:"Override goby.json.gz with custom file"`
+	FingerprintHubWebFile     string `long:"fingerprinthub-web" description:"Override fingerprinthub_web.json.gz with custom file"`
+	FingerprintHubServiceFile string `long:"fingerprinthub-service" description:"Override fingerprinthub_service.json.gz with custom file"`
+	EholeFile                 string `long:"ehole" description:"Override ehole.json.gz with custom file"`
+	FingersFile               string `long:"fingers" description:"Override fingers_http.json.gz with custom file"`
+	WappalyzerFile            string `long:"wappalyzer" description:"Override wappalyzer.json.gz with custom file"`
+	AliasesFile               string `long:"aliases" description:"Override aliases.yaml with custom file"`
 }
 
 // 处理资源文件覆盖
@@ -99,12 +100,21 @@ func main() {
 		}
 	}
 
-	if opts.FingerprintHubFile != "" {
-		if data, err := processResourceFile(opts.FingerprintHubFile); err != nil {
+	if opts.FingerprintHubWebFile != "" {
+		if data, err := processResourceFile(opts.FingerprintHubWebFile); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		} else {
-			resources.Fingerprinthubdata = data
+			resources.FingerprinthubWebData = data
+		}
+	}
+
+	if opts.FingerprintHubServiceFile != "" {
+		if data, err := processResourceFile(opts.FingerprintHubServiceFile); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		} else {
+			resources.FingerprinthubServiceData = data
 		}
 	}
 

@@ -21,20 +21,22 @@ func NewFingersEngineWithCustom(httpConfig, socketConfig []byte) (*FingersEngine
 	if socketConfig != nil {
 		resources.FingersSocketData = socketConfig
 	}
-	return NewFingersEngine()
+	return NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData, resources.PortData)
 }
 
-func NewFingersEngine() (*FingersEngine, error) {
+func NewFingersEngine(httpData, socketData, portData []byte) (*FingersEngine, error) {
 	// httpdata must be not nil
 	// socketdata can be nil
-	if resources.PrePort == nil && resources.PortData != nil {
+	if resources.PrePort == nil && portData != nil {
+		// 临时设置 PortData 以供 LoadPorts 使用
+		resources.PortData = portData
 		_, err := resources.LoadPorts()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	httpfs, err := LoadFingers(resources.FingersHTTPData)
+	httpfs, err := LoadFingers(httpData)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +46,7 @@ func NewFingersEngine() (*FingersEngine, error) {
 		Favicons:    favicon.NewFavicons(),
 	}
 
-	engine.SocketFingers, err = LoadFingers(resources.FingersSocketData)
+	engine.SocketFingers, err = LoadFingers(socketData)
 	if err != nil {
 		return nil, err
 	}

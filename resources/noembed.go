@@ -30,7 +30,8 @@ var FingersHTTPData []byte
 var FingersSocketData []byte
 
 var GobyData []byte
-var Fingerprinthubdata []byte
+var FingerprinthubWebData []byte
+var FingerprinthubServiceData []byte
 var EholeData []byte
 var WappalyzerData []byte
 

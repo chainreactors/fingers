@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-func NewGobyEngine() (*GobyEngine, error) {
+func NewGobyEngine(data []byte) (*GobyEngine, error) {
 	var fingers []*GobyFinger
-	err := resources.UnmarshalData(resources.GobyData, &fingers)
+	err := resources.UnmarshalData(data, &fingers)
 	if err != nil {
 		return nil, err
 	}

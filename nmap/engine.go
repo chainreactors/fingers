@@ -9,9 +9,9 @@ type NmapEngine struct {
 }
 
 // NewNmapEngine 创建新的 nmap 引擎实例
-func NewNmapEngine() (*NmapEngine, error) {
-	// 手动初始化nmap实例
-	n := New()
+func NewNmapEngine(probesData, servicesData []byte) (*NmapEngine, error) {
+	// 手动初始化nmap实例，传入数据
+	n := NewWithData(probesData, servicesData)
 
 	return &NmapEngine{
 		nmap: n,

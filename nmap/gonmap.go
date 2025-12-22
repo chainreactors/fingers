@@ -46,6 +46,40 @@ func initNmap() {
 	//输出统计数据状态
 }
 
+// initNmapWithData 使用指定的数据初始化 Nmap 实例
+func initNmapWithData(probesData, servicesData []byte) *Nmap {
+	//初始化NMAP探针库
+	n := &Nmap{
+		exclude:        emptyPortList,
+		probeNameMap:   make(map[string]*Probe),
+		rarityProbeMap: make(map[int][]*Probe),
+		portProbeMap:   make(map[int]ProbeList),
+
+		sslSecondProbeMap: []string{"TCP_TerminalServerCookie", "TCP_TerminalServer"},
+		sslProbeMap:       []string{"TCP_TLSSessionReq", "TCP_SSLSessionReq", "TCP_SSLv23SessionReq"},
+	}
+	for i := 0; i <= 65535; i++ {
+		n.portProbeMap[i] = []string{}
+	}
+
+	// 初始化ServicesData - 从bytes加载
+	n.loadServicesFromBytes(servicesData)
+
+	// 从提供的数据加载探针数据
+	n.loadProbesFromBytes(probesData)
+
+	//修复fallback
+	n.fixFallback()
+
+	// 自定义指纹 (使用实例方法)
+	n.addCustomMatches()
+
+	// 优化探针 (使用实例方法)
+	n.optimizeProbes()
+
+	return n
+}
+
 // loadFromEmbeddedJSON 从嵌入的JSON资源加载探针数据
 func loadFromEmbeddedJSON() bool {
 	// 从resources包加载压缩的nmap数据
@@ -167,6 +201,11 @@ func New() *Nmap {
 	}
 	n := *nmap
 	return &n
+}
+
+// NewWithData 使用指定的数据创建新的 Nmap 实例
+func NewWithData(probesData, servicesData []byte) *Nmap {
+	return initNmapWithData(probesData, servicesData)
 }
 
 func GuessProtocol(port int) string {

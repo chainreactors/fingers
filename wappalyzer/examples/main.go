@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/fingers/wappalyzer"
 )
 
@@ -16,7 +17,7 @@ func main() {
 	}
 	data, _ := io.ReadAll(resp.Body) // Ignoring error for example
 
-	wappalyzerClient, err := wappalyzer.New()
+	wappalyzerClient, err := wappalyzer.NewWappalyzeEngine(resources.WappalyzerData)
 	if err != nil {
 		log.Fatal(err)
 	}

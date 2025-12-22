@@ -16,6 +16,7 @@ import (
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
+	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/utils/httputils"
 )
@@ -102,7 +103,7 @@ func TestFavicon(t *testing.T) {
 }
 
 func TestFingersEngine(t *testing.T) {
-	engine, err := fingers.NewFingersEngine()
+	engine, err := fingers.NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData, resources.PortData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -143,7 +144,7 @@ func TestEngine_MatchWithEngines(t *testing.T) {
 }
 
 func TestFingerPrintHubsEngine(t *testing.T) {
-	engine, err := fingerprinthub.NewFingerPrintHubEngine()
+	engine, err := fingerprinthub.NewFingerPrintHubEngine(resources.FingerprinthubWebData, resources.FingerprinthubServiceData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -153,17 +154,14 @@ func TestFingerPrintHubsEngine(t *testing.T) {
 	}
 
 	content := httputils.ReadRaw(resp)
-	_, body, ok := httputils.SplitHttpRaw(content)
-	if ok {
-		frames := engine.MatchWithHttpAndBody(resp.Header, string(body))
-		for _, frame := range frames {
-			t.Log(frame)
-		}
+	frames := engine.WebMatch(content)
+	for _, frame := range frames {
+		t.Log(frame)
 	}
 }
 
 func TestEHoleEngine(t *testing.T) {
-	engine, err := ehole.NewEHoleEngine()
+	engine, err := ehole.NewEHoleEngine(resources.EholeData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -183,7 +181,7 @@ func TestEHoleEngine(t *testing.T) {
 }
 
 func TestGobyEngine(t *testing.T) {
-	engine, err := goby.NewGobyEngine()
+	engine, err := goby.NewGobyEngine(resources.GobyData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -201,7 +199,7 @@ func TestGobyEngine(t *testing.T) {
 }
 
 func TestEngine_Wappalyzer(t *testing.T) {
-	engine, err := wappalyzer.NewWappalyzeEngine()
+	engine, err := wappalyzer.NewWappalyzeEngine(resources.WappalyzerData)
 	if err != nil {
 		t.Error(err)
 		return

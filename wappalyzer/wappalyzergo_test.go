@@ -3,11 +3,12 @@ package wappalyzer
 import (
 	"testing"
 
+	"github.com/chainreactors/fingers/resources"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCookiesDetect(t *testing.T) {
-	wappalyzer, err := NewWappalyzeEngine()
+	wappalyzer, err := NewWappalyzeEngine(resources.WappalyzerData)
 	require.Nil(t, err, "could not create wappalyzer")
 
 	matches := wappalyzer.Fingerprint(map[string][]string{
@@ -17,7 +18,7 @@ func TestCookiesDetect(t *testing.T) {
 	require.Contains(t, matches, "Microsoft Advertising", "Could not get correct match")
 
 	t.Run("position", func(t *testing.T) {
-		wappalyzerClient, _ := NewWappalyzeEngine()
+		wappalyzerClient, _ := NewWappalyzeEngine(resources.WappalyzerData)
 
 		fingerprints := wappalyzerClient.Fingerprint(map[string][]string{
 			"Set-Cookie": {"path=/; jsessionid=111; path=/, jsessionid=111;"},
@@ -32,7 +33,7 @@ func TestCookiesDetect(t *testing.T) {
 }
 
 func TestHeadersDetect(t *testing.T) {
-	wappalyzer, err := NewWappalyzeEngine()
+	wappalyzer, err := NewWappalyzeEngine(resources.WappalyzerData)
 	require.Nil(t, err, "could not create wappalyzer")
 
 	matches := wappalyzer.Fingerprint(map[string][]string{
@@ -43,7 +44,7 @@ func TestHeadersDetect(t *testing.T) {
 }
 
 func TestBodyDetect(t *testing.T) {
-	wappalyzer, err := NewWappalyzeEngine()
+	wappalyzer, err := NewWappalyzeEngine(resources.WappalyzerData)
 	require.Nil(t, err, "could not create wappalyzer")
 
 	t.Run("meta", func(t *testing.T) {

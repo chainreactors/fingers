@@ -164,8 +164,8 @@ func testAliasMatching(eng *fingers.Engine, target string, aliases []alias.Alias
 
 		totalTests++
 		fmt.Printf("🔍 Testing alias: %s (priority: %d)\n", aliasEntry.Name, aliasEntry.Priority)
-		if aliasEntry.Categories != "" {
-			fmt.Printf("   📝 Categories: %s\n", aliasEntry.Categories)
+		if aliasEntry.Category != "" {
+			fmt.Printf("   📝 Category: %s\n", aliasEntry.Category)
 		}
 
 		// Show target being used
