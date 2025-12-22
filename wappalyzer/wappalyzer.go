@@ -13,15 +13,15 @@ type Wappalyze struct {
 	fingerprints *CompiledFingerprints
 }
 
-// New creates a new tech detection instance
-func NewWappalyzeEngine() (*Wappalyze, error) {
+// NewWappalyzeEngine creates a new tech detection instance
+func NewWappalyzeEngine(data []byte) (*Wappalyze, error) {
 	wappalyze := &Wappalyze{
 		fingerprints: &CompiledFingerprints{
 			Apps: make(map[string]*CompiledFingerprint),
 		},
 	}
 
-	err := wappalyze.loadFingerprints()
+	err := wappalyze.loadFingerprints(data)
 	if err != nil {
 		return nil, err
 	}
@@ -46,9 +46,9 @@ func (engine *Wappalyze) Compile() error {
 }
 
 // loadFingerprints loads the fingerprints and compiles them
-func (engine *Wappalyze) loadFingerprints() error {
+func (engine *Wappalyze) loadFingerprints(data []byte) error {
 	var fingerprintsStruct Fingerprints
-	err := resources.UnmarshalData(resources.WappalyzerData, &fingerprintsStruct)
+	err := resources.UnmarshalData(data, &fingerprintsStruct)
 	if err != nil {
 		return err
 	}

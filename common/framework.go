@@ -75,7 +75,7 @@ func GetFrameFrom(s string) From {
 		return FrameFromGUESS
 	case "redirect":
 		return FrameFromRedirect
-	case "fingerprinthub":
+	case "fingerprinthub", "fingerprinthub_v4": // fingerprinthub_v4 保留用于向后兼容
 		return FrameFromFingerprintHub
 	case "wappalyzer":
 		return FrameFromWappalyzer

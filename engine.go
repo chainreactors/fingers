@@ -12,6 +12,7 @@ import (
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
 	gonmap "github.com/chainreactors/fingers/nmap"
+	"github.com/chainreactors/fingers/resources"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 	"github.com/chainreactors/utils/httputils"
 	"github.com/pkg/errors"
@@ -104,11 +105,7 @@ func (engine *Engine) Compile() error {
 		}
 	}
 
-	if impl := engine.FingerPrintHub(); impl != nil {
-		for hash, name := range impl.FaviconMap {
-			engine.Favicon().Md5Fingers[hash] = name
-		}
-	}
+	// FingerPrintHub (v4) 使用 neutron 内置的 favicon 匹配，不需要单独处理
 
 	if impl := engine.EHole(); impl != nil {
 		for hash, name := range impl.FaviconMap {
@@ -157,17 +154,27 @@ func (engine *Engine) InitEngine(name string) error {
 	if _, ok := engine.EnginesImpl[name]; !ok {
 		switch name {
 		case FingersEngine:
-			impl, err = fingers.NewFingersEngine()
+			impl, err = fingers.NewFingersEngine(
+				resources.FingersHTTPData,
+				resources.FingersSocketData,
+				resources.PortData,
+			)
 		case FingerPrintEngine:
-			impl, err = fingerprinthub.NewFingerPrintHubEngine()
+			impl, err = fingerprinthub.NewFingerPrintHubEngine(
+				resources.FingerprinthubWebData,
+				resources.FingerprinthubServiceData,
+			)
 		case WappalyzerEngine:
-			impl, err = wappalyzer.NewWappalyzeEngine()
+			impl, err = wappalyzer.NewWappalyzeEngine(resources.WappalyzerData)
 		case EHoleEngine:
-			impl, err = ehole.NewEHoleEngine()
+			impl, err = ehole.NewEHoleEngine(resources.EholeData)
 		case GobyEngine:
-			impl, err = goby.NewGobyEngine()
+			impl, err = goby.NewGobyEngine(resources.GobyData)
 		case NmapEngine:
-			impl, err = gonmap.NewNmapEngine()
+			impl, err = gonmap.NewNmapEngine(
+				resources.NmapServiceProbesData,
+				resources.NmapServicesData,
+			)
 		case FaviconEngine:
 			impl = favicon.NewFavicons()
 		default:
@@ -207,9 +214,9 @@ func (engine *Engine) Favicon() *favicon.FaviconsEngine {
 	return nil
 }
 
-func (engine *Engine) FingerPrintHub() *fingerprinthub.FingerPrintHubsEngine {
+func (engine *Engine) FingerPrintHub() *fingerprinthub.FingerPrintHubEngine {
 	if impl, ok := engine.EnginesImpl[FingerPrintEngine]; ok {
-		return impl.(*fingerprinthub.FingerPrintHubsEngine)
+		return impl.(*fingerprinthub.FingerPrintHubEngine)
 	}
 	return nil
 }
@@ -310,7 +317,8 @@ func (engine *Engine) WebMatch(resp *http.Response) common.Frameworks {
 		case WappalyzerEngine:
 			fs = engine.Wappalyzer().Fingerprint(resp.Header, body)
 		case FingerPrintEngine:
-			fs = engine.FingerPrintHub().MatchWithHttpAndBody(resp.Header, string(body))
+			// 新版 fingerprinthub 使用 WebMatch 接口
+			fs = engine.FingerPrintHub().WebMatch(content)
 		case EHoleEngine:
 			fs = engine.EHole().MatchWithHeaderAndBody(string(header), string(body))
 		case GobyEngine:

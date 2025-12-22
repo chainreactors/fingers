@@ -36,8 +36,11 @@ var (
 	//go:embed goby.json.gz
 	GobyData []byte
 
-	//go:embed fingerprinthub_v3.json.gz
-	Fingerprinthubdata []byte
+	//go:embed fingerprinthub_web.json.gz
+	FingerprinthubWebData []byte
+
+	//go:embed fingerprinthub_service.json.gz
+	FingerprinthubServiceData []byte
 
 	//go:embed ehole.json.gz
 	EholeData []byte
@@ -58,10 +61,11 @@ var (
 	NmapServicesData []byte
 
 	CheckSum = map[string]string{
-		"goby":           encode.Md5Hash(GobyData),
-		"fingerprinthub": encode.Md5Hash(Fingerprinthubdata),
-		"ehole":          encode.Md5Hash(EholeData),
-		"fingers":        encode.Md5Hash(FingersHTTPData),
+		"goby":                    encode.Md5Hash(GobyData),
+		"fingerprinthub_web":      encode.Md5Hash(FingerprinthubWebData),
+		"fingerprinthub_service":  encode.Md5Hash(FingerprinthubServiceData),
+		"ehole":                   encode.Md5Hash(EholeData),
+		"fingers":                 encode.Md5Hash(FingersHTTPData),
 		"fingers_socket": encode.Md5Hash(FingersSocketData),
 		"wappalyzer":     encode.Md5Hash(WappalyzerData),
 		"nmap":           encode.Md5Hash(NmapServiceProbesData),
