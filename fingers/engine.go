@@ -2,6 +2,7 @@ package fingers
 
 import (
 	"errors"
+
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/favicon"
 	"github.com/chainreactors/fingers/resources"
@@ -14,14 +15,18 @@ const (
 	UDPProtocol  = "udp"
 )
 
-func NewFingersEngineWithCustom(httpConfig, socketConfig []byte) (*FingersEngine, error) {
-	if httpConfig != nil {
-		resources.FingersHTTPData = httpConfig
+func NewEngine(httpFingers, socketFingers Fingers) (*FingersEngine, error) {
+	engine := &FingersEngine{
+		HTTPFingers:   httpFingers,
+		SocketFingers: socketFingers,
+		Favicons:      favicon.NewFavicons(),
 	}
-	if socketConfig != nil {
-		resources.FingersSocketData = socketConfig
+
+	err := engine.Compile()
+	if err != nil {
+		return nil, err
 	}
-	return NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData, resources.PortData)
+	return engine, nil
 }
 
 func NewFingersEngine(httpData, socketData, portData []byte) (*FingersEngine, error) {
@@ -41,21 +46,12 @@ func NewFingersEngine(httpData, socketData, portData []byte) (*FingersEngine, er
 		return nil, err
 	}
 
-	engine := &FingersEngine{
-		HTTPFingers: httpfs,
-		Favicons:    favicon.NewFavicons(),
-	}
-
-	engine.SocketFingers, err = LoadFingers(socketData)
+	socketfs, err := LoadFingers(socketData)
 	if err != nil {
 		return nil, err
 	}
 
-	err = engine.Compile()
-	if err != nil {
-		return nil, err
-	}
-	return engine, nil
+	return NewEngine(httpfs, socketfs)
 }
 
 type FingersEngine struct {
