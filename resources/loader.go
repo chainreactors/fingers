@@ -2,7 +2,7 @@ package resources
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -14,7 +14,7 @@ import (
 func LoadResource(path string) ([]byte, error) {
 	// Check if it's a local file
 	if _, err := os.Stat(path); err == nil {
-		return os.ReadFile(path)
+		return ioutil.ReadFile(path)
 	}
 
 	// Check if it's a URL
@@ -29,7 +29,7 @@ func LoadResource(path string) ([]byte, error) {
 			return nil, fmt.Errorf("bad status: %s", resp.Status)
 		}
 
-		return io.ReadAll(resp.Body)
+		return ioutil.ReadAll(resp.Body)
 	}
 
 	return nil, fmt.Errorf("invalid resource path: %s (not a file or URL)", path)
