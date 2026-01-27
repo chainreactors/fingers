@@ -122,7 +122,17 @@ type Framework struct {
 	Froms       map[From]bool `json:"froms,omitempty"`
 	Tags        []string      `json:"tags,omitempty"`
 	IsFocus     bool          `json:"is_focus,omitempty"`
+	MatchDetail *MatchDetail  `json:"matcher,omitempty"`
 	*Attributes `json:"attributes,omitempty"`
+}
+
+// MatchDetail describes which rule and matcher produced a hit.
+type MatchDetail struct {
+	RuleIndex    int    `json:"rule_index,omitempty"`
+	MatcherType  string `json:"matcher_type,omitempty"`
+	MatcherIndex int    `json:"matcher_index,omitempty"`
+	MatcherValue string `json:"matcher_value,omitempty"`
+	SendData     string `json:"send_data,omitempty"`
 }
 
 func (f *Framework) String() string {

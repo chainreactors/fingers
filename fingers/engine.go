@@ -60,6 +60,7 @@ type FingersEngine struct {
 	SocketFingers            Fingers
 	SocketGroup              FingerMapper
 	Favicons                 *favicon.FaviconsEngine
+	MatchDetailEnabled       bool
 }
 
 func (engine *FingersEngine) Name() string {
@@ -89,7 +90,9 @@ func (engine *FingersEngine) Compile() error {
 	if engine.HTTPFingers == nil {
 		return errors.New("fingers is nil")
 	}
+	engine.HTTPFingersActiveFingers = nil
 	for _, finger := range engine.HTTPFingers {
+		finger.EnableMatchDetail = engine.MatchDetailEnabled
 		err = finger.Compile(false)
 		if err != nil {
 			return err
@@ -115,6 +118,7 @@ func (engine *FingersEngine) Compile() error {
 
 	if engine.SocketFingers != nil {
 		for _, finger := range engine.SocketFingers {
+			finger.EnableMatchDetail = engine.MatchDetailEnabled
 			err = finger.Compile(true)
 			if err != nil {
 				return err
@@ -127,6 +131,7 @@ func (engine *FingersEngine) Compile() error {
 
 func (engine *FingersEngine) Append(fingers Fingers) error {
 	for _, f := range fingers {
+		f.EnableMatchDetail = engine.MatchDetailEnabled
 		err := f.Compile(false)
 		if err != nil {
 			return err
@@ -142,6 +147,22 @@ func (engine *FingersEngine) Append(fingers Fingers) error {
 		}
 	}
 	return nil
+}
+
+// SetMatchDetailEnabled toggles match detail collection on all fingers.
+func (engine *FingersEngine) SetMatchDetailEnabled(enabled bool) {
+	engine.MatchDetailEnabled = enabled
+	for _, finger := range engine.HTTPFingers {
+		finger.EnableMatchDetail = enabled
+	}
+	for _, finger := range engine.SocketFingers {
+		finger.EnableMatchDetail = enabled
+	}
+}
+
+// EnableMatchDetail enables detailed matcher metadata collection.
+func (engine *FingersEngine) EnableMatchDetail() {
+	engine.SetMatchDetailEnabled(true)
 }
 
 // LoadFromYAML loads fingerprints from YAML file or URL and appends them to the engine

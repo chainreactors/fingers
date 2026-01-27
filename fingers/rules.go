@@ -2,9 +2,11 @@ package fingers
 
 import (
 	"bytes"
-	"github.com/chainreactors/utils/encode"
 	"regexp"
 	"strings"
+
+	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/utils/encode"
 )
 
 type Regexps struct {
@@ -62,7 +64,6 @@ func (r *Regexps) Compile(caseSensitive bool) error {
 }
 
 type Favicons struct {
-	Path string   `yaml:"path,omitempty" json:"path,omitempty" jsonschema:"title=Favicon Path,description=Path to the favicon file,nullable,example=/favicon.ico"`
 	Mmh3 []string `yaml:"mmh3,omitempty" json:"mmh3,omitempty" jsonschema:"title=MMH3 Hashes,description=MurmurHash3 hashes of favicon content,nullable,example=116323821"`
 	Md5  []string `yaml:"md5,omitempty" json:"md5,omitempty" jsonschema:"title=MD5 Hashes,description=MD5 hashes of favicon content,nullable,pattern=^[a-f0-9]{32}$,example=d41d8cd98f00b204e9800998ecf8427e"`
 }
@@ -103,6 +104,50 @@ func (r *Rule) Compile(name string, caseSensitive bool) error {
 	return nil
 }
 
+// ActiveSendDataList selects the active probing payloads based on level:
+// level 0: passive only (no sender)
+// level 1: finger-level send_data
+// level 2+: finger-level send_data AND rule-level send_data
+func (r *Rule) ActiveSendDataList(level int, fingerSendData senddata) []senddata {
+	if level <= 0 {
+		return nil
+	}
+	if r.Level > 0 && level < r.Level {
+		return nil
+	}
+
+	var payloads []senddata
+	if level >= 1 && !fingerSendData.IsNull() {
+		payloads = append(payloads, fingerSendData)
+	}
+	if level >= 2 && !r.SendData.IsNull() {
+		payloads = append(payloads, r.SendData)
+	}
+	return payloads
+}
+
+// ActiveSendData returns the most specific payload for backward compatibility.
+func (r *Rule) ActiveSendData(level int, fingerSendData senddata) (senddata, bool) {
+	payloads := r.ActiveSendDataList(level, fingerSendData)
+	if len(payloads) == 0 {
+		return nil, false
+	}
+	return payloads[len(payloads)-1], true
+}
+
+// ActiveSendDataStr returns the most specific active probing payload string.
+func (r *Rule) ActiveSendDataStr(fingerSendDataStr string) string {
+	if r.SendDataStr != "" {
+		return r.SendDataStr
+	}
+	return fingerSendDataStr
+}
+
+// RefreshActive recomputes whether the rule is active based on send_data presence.
+func (r *Rule) RefreshActive() {
+	r.IsActive = r.SendDataStr != ""
+}
+
 type Rules []*Rule
 
 func (rs Rules) Compile(name string, caseSensitive bool) error {
@@ -115,30 +160,37 @@ func (rs Rules) Compile(name string, caseSensitive bool) error {
 	return nil
 }
 
-func (r *Rule) Match(content, header, body []byte) (bool, bool, string) {
+func (r *Rule) Match(content, header, body []byte) (bool, bool, string, *common.MatchDetail) {
+	newDetail := func(matcherType string, matcherIndex int, matcherValue string) *common.MatchDetail {
+		return &common.MatchDetail{
+			MatcherType:  matcherType,
+			MatcherIndex: matcherIndex,
+			MatcherValue: matcherValue,
+		}
+	}
 	// 漏洞匹配优先
-	for _, reg := range r.Regexps.CompiledVulnRegexp {
+	for i, reg := range r.Regexps.CompiledVulnRegexp {
 		res, ok := compiledMatch(reg, content)
 		if ok {
-			return true, true, res
+			return true, true, res, newDetail("regexp_vuln", i, reg.String())
 		}
 	}
 
 	// 正则匹配
-	for _, reg := range r.Regexps.CompliedRegexp {
+	for i, reg := range r.Regexps.CompliedRegexp {
 		res, ok := compiledMatch(reg, content)
 		if ok {
 			FingerLog.Debugf("%s finger hit, regexp: %q", r.FingerName, reg.String())
-			return true, false, res
+			return true, false, res, newDetail("regexp", i, reg.String())
 		}
 	}
 
 	// http头匹配, http协议特有的匹配
 	if header != nil {
-		for _, headerStr := range r.Regexps.Header {
+		for i, headerStr := range r.Regexps.Header {
 			if bytes.Contains(header, []byte(headerStr)) {
 				FingerLog.Debugf("%s finger hit, header: %s", r.FingerName, headerStr)
-				return true, false, ""
+				return true, false, "", newDetail("header", i, headerStr)
 			}
 		}
 	}
@@ -148,30 +200,30 @@ func (r *Rule) Match(content, header, body []byte) (bool, bool, string) {
 	}
 
 	// body匹配
-	for _, bodyReg := range r.Regexps.Body {
+	for i, bodyReg := range r.Regexps.Body {
 		if bytes.Contains(body, []byte(bodyReg)) {
 			FingerLog.Debugf("%s finger hit, body: %q", r.FingerName, bodyReg)
-			return true, false, ""
+			return true, false, "", newDetail("body", i, bodyReg)
 		}
 	}
 
 	// MD5 匹配
-	for _, md5s := range r.Regexps.MD5 {
+	for i, md5s := range r.Regexps.MD5 {
 		if md5s == encode.Md5Hash(body) {
 			FingerLog.Debugf("%s finger hit, md5: %s", r.FingerName, md5s)
-			return true, false, ""
+			return true, false, "", newDetail("md5", i, md5s)
 		}
 	}
 
 	// mmh3 匹配
-	for _, mmh3s := range r.Regexps.MMH3 {
+	for i, mmh3s := range r.Regexps.MMH3 {
 		if mmh3s == encode.Mmh3Hash32(body) {
 			FingerLog.Debugf("%s finger hit, mmh3: %s", r.FingerName, mmh3s)
-			return true, false, ""
+			return true, false, "", newDetail("mmh3", i, mmh3s)
 		}
 	}
 
-	return false, false, ""
+	return false, false, "", nil
 }
 
 func (r *Rule) MatchCert(content string) bool {

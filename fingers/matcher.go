@@ -3,6 +3,8 @@ package fingers
 import (
 	"regexp"
 	"strings"
+
+	"github.com/chainreactors/fingers/common"
 )
 
 func compileRegexp(s string) (*regexp.Regexp, error) {
@@ -33,20 +35,24 @@ func compiledAllMatch(reg *regexp.Regexp, s string) ([]string, bool) {
 	return matchedes, true
 }
 
-func RuleMatcher(rule *Rule, content *Content, ishttp bool) (bool, bool, string) {
+func RuleMatcher(rule *Rule, content *Content, ishttp bool) (bool, bool, string, *common.MatchDetail) {
 	var hasFrame, hasVuln bool
 	var version string
+	var detail *common.MatchDetail
 	if rule.Regexps == nil {
-		return false, false, ""
+		return false, false, "", nil
 	}
 
-	hasFrame, hasVuln, version = rule.Match(content.Content, content.Header, content.Body)
+	hasFrame, hasVuln, version, detail = rule.Match(content.Content, content.Header, content.Body)
 	if hasFrame || !ishttp {
-		return hasFrame, hasVuln, version
+		return hasFrame, hasVuln, version, detail
 	}
 
 	if content.Cert != "" {
 		hasFrame = rule.MatchCert(content.Cert)
+		if hasFrame && detail == nil {
+			detail = &common.MatchDetail{MatcherType: "cert"}
+		}
 	}
 
 	if version == "" && rule.Regexps.CompiledVersionRegexp != nil {
@@ -54,5 +60,5 @@ func RuleMatcher(rule *Rule, content *Content, ishttp bool) (bool, bool, string)
 			version, _ = compiledMatch(reg, content.Content)
 		}
 	}
-	return hasFrame, hasVuln, version
+	return hasFrame, hasVuln, version, detail
 }
