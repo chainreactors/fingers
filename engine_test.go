@@ -79,7 +79,7 @@ func TestEngine_Match(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get("http://127.0.0.1:8089")
+	resp, err := http.Get("http://nc.scsstjt.com:8090/index.jsp")
 	if err != nil {
 		panic(err)
 	}
@@ -106,21 +106,48 @@ func TestFingersEngine(t *testing.T) {
 	engine, err := fingers.NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData, resources.PortData)
 	if err != nil {
 		t.Error(err)
+		return
 	}
+
+	// 模拟比较真实的浏览器请求头
+	headers := http.Header{
+		"User-Agent": []string{
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+		},
+		"Accept": []string{
+			"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+		},
+		"Accept-Language": []string{"zh-CN,zh;q=0.9,en;q=0.8"},
+		"Accept-Encoding": []string{"gzip, deflate"},
+		"Connection":      []string{"keep-alive"},
+		// 如果目标网站有严格的 referer 检查，可以加上
+		// "Referer": []string{"https://www.google.com/"},
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	resp, err := client.Get("https://218.94.127.25:443")
+
+	req, err := http.NewRequest("GET", "http://nc.scsstjt.com:8090/login/login.php", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 一次性设置所有 header
+	req.Header = headers
+
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Log(err)
 		return
 	}
-	fmt.Println("math")
+	defer resp.Body.Close()
 
 	content := httputils.ReadRaw(resp)
 	frames := engine.WebMatch(content)
+
 	for _, frame := range frames {
 		t.Log(frame)
 	}
