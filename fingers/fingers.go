@@ -5,6 +5,7 @@ import (
 	"github.com/chainreactors/logs"
 	"github.com/chainreactors/utils"
 	"github.com/chainreactors/utils/encode"
+	"github.com/chainreactors/utils/httputils"
 )
 
 var (
@@ -155,22 +156,43 @@ func (finger *Finger) activeProbeAll(level int, sender Sender) (*common.Framewor
 	ishttp := finger.Protocol == HTTPProtocol
 	var firstFrame *common.Framework
 	var firstVuln *common.Vuln
+	type cachedResp struct {
+		resp []byte
+		ok   bool
+	}
+	respCache := make(map[string]cachedResp)
 	for i, rule := range finger.Rules {
 		for _, payload := range rule.ActiveSendDataList(level, finger.SendData) {
+			payloadKey := string(payload)
 			activeContent := &Content{}
-			resp, ok := sender(payload)
-			if !ok {
+			entry, found := respCache[payloadKey]
+			if !found {
+				FingerLog.Debugf("active probe send_data=%q for finger=%s", payloadKey, finger.Name)
+				resp, ok := sender(payload)
+				entry = cachedResp{resp: resp, ok: ok}
+				respCache[payloadKey] = entry
+			}
+			if !entry.ok {
 				continue
 			}
 			if ishttp {
-				activeContent.UpdateContent(resp)
+				activeContent.UpdateContent(entry.resp)
 			} else {
-				activeContent.Content = resp
+				activeContent.Content = entry.resp
+			}
+
+			if ishttp && rule.Favicon != nil {
+				if matched, detail := matchFaviconRule(rule, entry.resp); matched {
+					if firstFrame == nil {
+						firstFrame, firstVuln = finger.buildActiveResult(i, false, "", detail, payloadKey)
+					}
+					continue
+				}
 			}
 
 			hasFrame, hasVuln, ver, detail := RuleMatcher(rule, activeContent, ishttp)
 			if hasFrame && firstFrame == nil {
-				firstFrame, firstVuln = finger.buildActiveResult(i, hasVuln, ver, detail, string(payload))
+				firstFrame, firstVuln = finger.buildActiveResult(i, hasVuln, ver, detail, payloadKey)
 			}
 		}
 	}
@@ -239,4 +261,52 @@ func (finger *Finger) PassiveMatch(content *Content) (*common.Framework, *common
 
 func (finger *Finger) ActiveMatch(level int, sender Sender) (*common.Framework, *common.Vuln, bool) {
 	return finger.activeProbeAll(level, sender)
+}
+
+func matchFaviconRule(rule *Rule, raw []byte) (bool, *common.MatchDetail) {
+	if rule == nil || rule.Favicon == nil {
+		return false, nil
+	}
+
+	body := extractBody(raw)
+	if len(body) == 0 {
+		return false, nil
+	}
+
+	if len(rule.Favicon.Mmh3) > 0 {
+		hash := encode.Mmh3Hash32(body)
+		for _, expected := range rule.Favicon.Mmh3 {
+			if hash == expected {
+				return true, &common.MatchDetail{
+					MatcherType:  "favicon_mmh3",
+					MatcherValue: hash,
+				}
+			}
+		}
+	}
+
+	if len(rule.Favicon.Md5) > 0 {
+		hash := encode.Md5Hash(body)
+		for _, expected := range rule.Favicon.Md5 {
+			if hash == expected {
+				return true, &common.MatchDetail{
+					MatcherType:  "favicon_md5",
+					MatcherValue: hash,
+				}
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func extractBody(raw []byte) []byte {
+	if len(raw) == 0 {
+		return nil
+	}
+	body, _, ok := httputils.SplitHttpRaw(raw)
+	if ok && len(body) > 0 {
+		return body
+	}
+	return raw
 }
