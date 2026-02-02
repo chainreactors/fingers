@@ -1,6 +1,7 @@
 package gonmap
 
 import (
+	"bytes"
 	"errors"
 	"regexp"
 	"strconv"
@@ -28,14 +29,14 @@ type Probe struct {
 	//探针发送协议类型
 	Protocol string `json:"protocol"`
 	//探针发送数据
-	SendRaw string `json:"probe_string"`
+	SendRaw []byte `json:"probe_string"`
 }
 
 // buildRequest 构建探测请求数据
-func (p *Probe) buildRequest(host string) string {
+func (p *Probe) buildRequest(host string) []byte {
 	sendRaw := p.SendRaw
 	// 替换模板变量
-	sendRaw = strings.ReplaceAll(sendRaw, "{Host}", host)
+	sendRaw = bytes.ReplaceAll(sendRaw, []byte("{Host}"), []byte(host))
 	return sendRaw
 }
 
@@ -149,7 +150,7 @@ func (p *Probe) loadProbe(s string) {
 	str = `"` + str + `"`
 	str, _ = strconv.Unquote(str)
 	str = strings.ReplaceAll(str, `${double-quoted}`, `"`)
-	p.SendRaw = str
+	p.SendRaw = []byte(str)
 }
 
 func (p *Probe) loadMatch(s string, soft bool) {

@@ -1,11 +1,12 @@
 package alias
 
 import (
+	"strings"
+
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/iutils"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 func NewAliases(origin ...*Alias) (*Aliases, error) {
