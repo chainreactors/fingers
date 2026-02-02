@@ -28,12 +28,12 @@ func (s Status) String() string {
 }
 
 type Response struct {
-	Raw         string
+	Raw         []byte
 	TLS         bool
 	FingerPrint *FingerPrint
 }
 
-var dnsResponse = Response{Raw: "DnsServer", TLS: false,
+var dnsResponse = Response{Raw: []byte("DnsServer"), TLS: false,
 	FingerPrint: &FingerPrint{
 		Service: "dns",
 	},
