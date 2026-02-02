@@ -4,10 +4,7 @@
 package resources
 
 import (
-	"bytes"
-	"compress/gzip"
 	_ "embed"
-	"io"
 
 	"github.com/chainreactors/utils"
 	"github.com/chainreactors/utils/encode"
@@ -65,27 +62,16 @@ var (
 	NmapServicesData []byte
 
 	CheckSum = map[string]string{
-		"goby":                    encode.Md5Hash(GobyData),
-		"fingerprinthub_web":      encode.Md5Hash(FingerprinthubWebData),
-		"fingerprinthub_service":  encode.Md5Hash(FingerprinthubServiceData),
-		"ehole":                   encode.Md5Hash(EholeData),
-		"fingers":                 encode.Md5Hash(FingersHTTPData),
-		"fingers_socket": encode.Md5Hash(FingersSocketData),
-		"wappalyzer":     encode.Md5Hash(WappalyzerData),
-		"nmap":           encode.Md5Hash(NmapServiceProbesData),
-		"nmap_services":  encode.Md5Hash(NmapServicesData),
-		"alias":          encode.Md5Hash(AliasesData),
-		"port":           encode.Md5Hash(PortData),
+		"goby":                   encode.Md5Hash(GobyData),
+		"fingerprinthub_web":     encode.Md5Hash(FingerprinthubWebData),
+		"fingerprinthub_service": encode.Md5Hash(FingerprinthubServiceData),
+		"ehole":                  encode.Md5Hash(EholeData),
+		"fingers":                encode.Md5Hash(FingersHTTPData),
+		"fingers_socket":         encode.Md5Hash(FingersSocketData),
+		"wappalyzer":             encode.Md5Hash(WappalyzerData),
+		"nmap":                   encode.Md5Hash(NmapServiceProbesData),
+		"nmap_services":          encode.Md5Hash(NmapServicesData),
+		"alias":                  encode.Md5Hash(AliasesData),
+		"port":                   encode.Md5Hash(PortData),
 	}
 )
-
-// DecompressGzip 解压缩gzip格式的数据
-func DecompressGzip(data []byte) ([]byte, error) {
-	reader, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	return io.ReadAll(reader)
-}
