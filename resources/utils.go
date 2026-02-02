@@ -2,11 +2,14 @@ package resources
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"io"
+
+	"strings"
 
 	"github.com/chainreactors/utils/encode"
 	"github.com/mozillazg/go-pinyin"
-	"strings"
 )
 
 var pinyinArgs = pinyin.NewArgs()
@@ -59,4 +62,15 @@ func NormalizeString(s string) string {
 	s = strings.Replace(s, " ", "", -1)
 
 	return s
+}
+
+// DecompressGzip 解压缩gzip格式的数据
+func DecompressGzip(data []byte) ([]byte, error) {
+	reader, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	return io.ReadAll(reader)
 }

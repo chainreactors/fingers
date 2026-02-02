@@ -2,13 +2,9 @@ package fingerprinthub
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/fs"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/chainreactors/fingers/common"
@@ -119,24 +115,11 @@ func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]inte
 	return loadedCount, errors
 }
 
-// LoadFromCompressedJSON 从压缩的 JSON 数据加载指纹
-func (engine *FingerPrintHubEngine) LoadFromCompressedJSON(data []byte) error {
-	// 解压 gzip
-	gr, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("failed to create gzip reader: %w", err)
-	}
-	defer gr.Close()
-
-	// 读取解压后的数据
-	jsonData, err := io.ReadAll(gr)
-	if err != nil {
-		return fmt.Errorf("failed to read gzip data: %w", err)
-	}
-
+// LoadFromJSON 从 JSON 数据加载指纹
+func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 	// 解析 JSON
 	var templateData []map[string]interface{}
-	if err := json.Unmarshal(jsonData, &templateData); err != nil {
+	if err := json.Unmarshal(data, &templateData); err != nil {
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
@@ -199,97 +182,97 @@ func (engine *FingerPrintHubEngine) LoadFromCompressedJSON(data []byte) error {
 }
 
 // LoadFromFS 从文件系统加载模板（用于开发测试）
-func (engine *FingerPrintHubEngine) LoadFromFS(fsys fs.FS, pattern string) error {
-	var loadedCount int
-	var errors []error
-
-	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
-		// 只处理 .yaml 和 .yml 文件
-		ext := filepath.Ext(path)
-		if ext != ".yaml" && ext != ".yml" {
-			return nil
-		}
-
-		// 检查是否匹配 pattern
-		if pattern != "" {
-			matched, _ := filepath.Match(pattern, filepath.Base(path))
-			if !matched {
-				return nil
-			}
-		}
-
-		// 读取文件内容
-		content, err := fs.ReadFile(fsys, path)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to read %s: %w", path, err))
-			return nil // 继续处理其他文件
-		}
-
-		// 解析模板
-		tmpl := &templates.Template{}
-		err = yaml.Unmarshal(content, tmpl)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to unmarshal %s: %w", path, err))
-			return nil
-		}
-
-		// 编译模板
-		// neutron 会自动处理 tcp/udp 字段作为 network 的别名
-		err = tmpl.Compile(engine.executerOptions)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to compile %s: %w", path, err))
-			return nil
-		}
-
-		// 修复 FingerprintHub 指纹中缺少 ReadSize 和 Input.Read 字段的问题
-		// 这个修复在编译后执行，适用于所有 network 请求（包括从 tcp/udp 转换来的）
-		for _, netReq := range tmpl.RequestsNetwork {
-			// 修复 input.Read 字段
-			for _, input := range netReq.Inputs {
-				if input.Read == 0 {
-					input.Read = 1024
-				}
-			}
-			// 修复 ReadSize 字段
-			if netReq.ReadSize == 0 {
-				netReq.ReadSize = 1024
-			}
-		}
-
-		// 根据模板类型添加到对应的列表
-		// web 指纹包含 HTTP 请求，service 指纹包含 network 请求
-		if len(tmpl.RequestsHTTP) > 0 {
-			engine.webTemplates = append(engine.webTemplates, tmpl)
-		} else if len(tmpl.RequestsNetwork) > 0 {
-			engine.serviceTemplates = append(engine.serviceTemplates, tmpl)
-		}
-		loadedCount++
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to walk filesystem: %w", err)
-	}
-
-	if len(errors) > 0 {
-		// 记录所有错误
-		for _, e := range errors {
-			fmt.Printf("Warning: %v\n", e)
-		}
-	}
-
-	fmt.Printf("Loaded %d fingerprint templates from filesystem\n", loadedCount)
-	return nil
-}
+//func (engine *FingerPrintHubEngine) LoadFromFS(fsys fs.FS, pattern string) error {
+//	var loadedCount int
+//	var errors []error
+//
+//	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+//		if err != nil {
+//			return err
+//		}
+//
+//		if d.IsDir() {
+//			return nil
+//		}
+//
+//		// 只处理 .yaml 和 .yml 文件
+//		ext := filepath.Ext(path)
+//		if ext != ".yaml" && ext != ".yml" {
+//			return nil
+//		}
+//
+//		// 检查是否匹配 pattern
+//		if pattern != "" {
+//			matched, _ := filepath.Match(pattern, filepath.Base(path))
+//			if !matched {
+//				return nil
+//			}
+//		}
+//
+//		// 读取文件内容
+//		content, err := fs.ReadFile(fsys, path)
+//		if err != nil {
+//			errors = append(errors, fmt.Errorf("failed to read %s: %w", path, err))
+//			return nil // 继续处理其他文件
+//		}
+//
+//		// 解析模板
+//		tmpl := &templates.Template{}
+//		err = yaml.Unmarshal(content, tmpl)
+//		if err != nil {
+//			errors = append(errors, fmt.Errorf("failed to unmarshal %s: %w", path, err))
+//			return nil
+//		}
+//
+//		// 编译模板
+//		// neutron 会自动处理 tcp/udp 字段作为 network 的别名
+//		err = tmpl.Compile(engine.executerOptions)
+//		if err != nil {
+//			errors = append(errors, fmt.Errorf("failed to compile %s: %w", path, err))
+//			return nil
+//		}
+//
+//		// 修复 FingerprintHub 指纹中缺少 ReadSize 和 Input.Read 字段的问题
+//		// 这个修复在编译后执行，适用于所有 network 请求（包括从 tcp/udp 转换来的）
+//		for _, netReq := range tmpl.RequestsNetwork {
+//			// 修复 input.Read 字段
+//			for _, input := range netReq.Inputs {
+//				if input.Read == 0 {
+//					input.Read = 1024
+//				}
+//			}
+//			// 修复 ReadSize 字段
+//			if netReq.ReadSize == 0 {
+//				netReq.ReadSize = 1024
+//			}
+//		}
+//
+//		// 根据模板类型添加到对应的列表
+//		// web 指纹包含 HTTP 请求，service 指纹包含 network 请求
+//		if len(tmpl.RequestsHTTP) > 0 {
+//			engine.webTemplates = append(engine.webTemplates, tmpl)
+//		} else if len(tmpl.RequestsNetwork) > 0 {
+//			engine.serviceTemplates = append(engine.serviceTemplates, tmpl)
+//		}
+//		loadedCount++
+//
+//		return nil
+//	})
+//
+//	if err != nil {
+//		return fmt.Errorf("failed to walk filesystem: %w", err)
+//	}
+//
+//	if len(errors) > 0 {
+//		// 记录所有错误
+//		for _, e := range errors {
+//			fmt.Printf("Warning: %v\n", e)
+//		}
+//	}
+//
+//	fmt.Printf("Loaded %d fingerprint templates from filesystem\n", loadedCount)
+//	return nil
+//}
 
 // Name 返回引擎名称
 func (engine *FingerPrintHubEngine) Name() string {
