@@ -4,8 +4,8 @@
 package resources
 
 import (
-	"encoding/json"
 	"github.com/chainreactors/utils"
+	"gopkg.in/yaml.v3"
 )
 
 var AliasesData []byte
@@ -16,7 +16,7 @@ var PrePort *utils.PortPreset
 func LoadPorts() (*utils.PortPreset, error) {
 	var ports []*utils.PortConfig
 	var err error
-	err = json.Unmarshal(PortData, &ports)
+	err = yaml.Unmarshal(PortData, &ports)
 	if err != nil {
 		return nil, err
 	}
@@ -34,5 +34,7 @@ var FingerprinthubWebData []byte
 var FingerprinthubServiceData []byte
 var EholeData []byte
 var WappalyzerData []byte
+var NmapServiceProbesData []byte
+var NmapServicesData []byte
 
 var CheckSum = map[string]string{}

@@ -3,6 +3,7 @@ package resources
 import (
 	"bytes"
 	"encoding/json"
+
 	"github.com/chainreactors/utils/encode"
 	"github.com/mozillazg/go-pinyin"
 	"strings"
@@ -10,12 +11,14 @@ import (
 
 var pinyinArgs = pinyin.NewArgs()
 
+// UnmarshalData 自动检测并解压 gzip 数据，然后进行 JSON 反序列化
 func UnmarshalData(data []byte, v interface{}) error {
 	var err error
+	// 自动检测并解压 gzip 数据
 	if bytes.HasPrefix(data, []byte{0x1f, 0x8b}) {
 		data, err = encode.GzipDecompress(data)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 

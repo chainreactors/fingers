@@ -4,7 +4,11 @@
 package resources
 
 import (
+	"bytes"
+	"compress/gzip"
 	_ "embed"
+	"io"
+
 	"github.com/chainreactors/utils"
 	"github.com/chainreactors/utils/encode"
 	"gopkg.in/yaml.v3"
@@ -74,3 +78,14 @@ var (
 		"port":           encode.Md5Hash(PortData),
 	}
 )
+
+// DecompressGzip 解压缩gzip格式的数据
+func DecompressGzip(data []byte) ([]byte, error) {
+	reader, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	return io.ReadAll(reader)
+}

@@ -57,9 +57,12 @@ func (p *Probe) buildRequest(host string) []byte {
 //	return text, tls, err
 //}
 
-func (p *Probe) match(s string) *FingerPrint {
+func (p *Probe) match(data []byte) *FingerPrint {
 	var f = &FingerPrint{}
 	var softFilter string
+
+	// Convert []byte to string for regex matching using safe conversion
+	s := convResponseBytes(data)
 
 	for _, m := range p.MatchGroup {
 		//实现软筛选
@@ -87,6 +90,16 @@ func (p *Probe) match(s string) *FingerPrint {
 		}
 	}
 	return f
+}
+
+// convResponseBytes 将[]byte安全转换为string用于正则匹配
+// 为了适配go语言的正则，将二进制强行转换成UTF-8兼容格式
+func convResponseBytes(b1 []byte) string {
+	var r1 []rune
+	for _, i := range b1 {
+		r1 = append(r1, rune(i))
+	}
+	return string(r1)
 }
 
 var probeExprRegx = regexp.MustCompile("^(UDP|TCP) ([a-zA-Z0-9-_./]+) (?:q\\|([^|]*)\\|)(?:\\s+.*)?$")

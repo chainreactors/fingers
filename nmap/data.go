@@ -1,7 +1,6 @@
 package gonmap
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -9,52 +8,6 @@ import (
 type NmapProbesData struct {
 	Probes   []*Probe          `json:"probes" yaml:"probes"`
 	Services map[string]string `json:"services,omitempty" yaml:"services,omitempty"`
-}
-
-// LoadFromJSON 从 JSON 数据加载探针数据
-func (data *NmapProbesData) LoadFromJSON(jsonData []byte) error {
-	// 这个方法将在后续实现，用于从预处理的 JSON 数据中加载探针
-	// 避免每次都解析原始的 nmap-service-probes 文件
-	return nil
-}
-
-// ExportProbes 导出当前加载的探针数据为可序列化的格式
-func ExportProbes() *NmapProbesData {
-	// 从全局nmap实例导出探针数据
-	probes := make([]*Probe, 0, len(nmap.probeNameMap))
-
-	// 将probeNameMap中的探针转换为数组
-	for _, probe := range nmap.probeNameMap {
-		// 创建探针副本，避免引用问题
-		probeCopy := *probe
-		probes = append(probes, &probeCopy)
-	}
-
-	return &NmapProbesData{
-		Probes:   probes,
-		Services: copyNmapServices(),
-	}
-}
-
-// copyNmapServices 复制nmap服务映射
-func copyNmapServices() map[string]string {
-	services := make(map[string]string)
-
-	// 确保nmap已经初始化
-	if nmap == nil {
-		initNmap()
-	}
-
-	// 将nmapServices数组转换为map格式
-	if nmap.nmapServices != nil {
-		for port, service := range nmap.nmapServices {
-			if service != "" && service != "unknown" {
-				services[fmt.Sprintf("%d", port)] = service
-			}
-		}
-	}
-
-	return services
 }
 
 // TempNmapParser 临时的nmap解析器，用于transform工具

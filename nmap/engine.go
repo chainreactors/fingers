@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/resources"
 )
 
 type NmapEngine struct {
@@ -13,8 +14,21 @@ type NmapEngine struct {
 
 // NewNmapEngine 创建新的 nmap 引擎实例
 func NewNmapEngine(probesData, servicesData []byte) (*NmapEngine, error) {
-	// 手动初始化nmap实例，传入数据
-	n := NewWithData(probesData, servicesData)
+	// 解压缩 gzip 数据
+	decompressedProbes, err := resources.DecompressGzip(probesData)
+	if err != nil {
+		// 如果解压失败，尝试直接使用原始数据（可能已经是解压后的）
+		decompressedProbes = probesData
+	}
+
+	decompressedServices, err := resources.DecompressGzip(servicesData)
+	if err != nil {
+		// 如果解压失败，尝试直接使用原始数据（可能已经是解压后的）
+		decompressedServices = servicesData
+	}
+
+	// 手动初始化nmap实例，传入已解压的数据
+	n := NewWithData(decompressedProbes, decompressedServices)
 
 	return &NmapEngine{
 		nmap: n,
@@ -105,14 +119,14 @@ func (e *NmapEngine) ServiceMatch(host string, portStr string, level int, sender
 		if len(frameworks) > 0 {
 			framework = frameworks[0] // 取第一个Framework作为主要结果
 		}
-	} else if status == Open {
+	} else if status == Open && !common.NoGuess {
 		// 端口开放但无法识别服务，使用guess功能猜测服务
-		guessedProtocol := GuessProtocol(portNum)
+		guessedProtocol := e.nmap.GuessProtocol(portNum)
 		if guessedProtocol != "" && guessedProtocol != "unknown" {
 			// 创建基于猜测的Framework
 			framework = common.NewFramework(FixProtocol(guessedProtocol), common.FrameFromGUESS)
-			// 添加guess标记
-			framework.Tags = append(framework.Tags, "guess")
+			// 添加guess标记（使用AddTag避免重复）
+			framework.AddTag("guess")
 		}
 	}
 	// 如果status是Closed或其他状态，framework保持为nil，表示端口未开放或无法连接
@@ -138,8 +152,7 @@ func (e *NmapEngine) ServiceMatch(host string, portStr string, level int, sender
 func (e *NmapEngine) matchResponse(responseData []byte, host string, port int) *common.Framework {
 	// 使用nmap的指纹匹配逻辑
 	// 调用nmap的核心指纹识别函数，不涉及网络请求
-	responseStr := string(responseData)
-	fingerPrint := e.nmap.getFinger(responseStr, false, "")
+	fingerPrint := e.nmap.getFinger(responseData, false, "")
 
 	if fingerPrint != nil && fingerPrint.Service != "" {
 		frameworks := fingerPrint.ToFrameworks()

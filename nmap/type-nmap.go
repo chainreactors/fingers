@@ -1,12 +1,8 @@
 package gonmap
 
 import (
-	"compress/gzip"
-	"encoding/json"
 	"strconv"
 	"strings"
-
-	"github.com/chainreactors/fingers/resources"
 )
 
 type Nmap struct {
@@ -345,13 +341,13 @@ func (n *Nmap) getResponse(host string, port int, tls bool, sender func(host str
 	}
 
 	response := &Response{
-		Raw:         string(responseData),
+		Raw:         responseData,
 		TLS:         actualTLS,
 		FingerPrint: &FingerPrint{},
 	}
 
 	//若存在返回包，则开始捕获指纹
-	fingerPrint := n.getFinger(string(responseData), actualTLS, p.Name)
+	fingerPrint := n.getFinger(responseData, actualTLS, p.Name)
 	response.FingerPrint = fingerPrint
 
 	if fingerPrint.Service == "" {
@@ -361,11 +357,10 @@ func (n *Nmap) getResponse(host string, port int, tls bool, sender func(host str
 	}
 }
 
-func (n *Nmap) getFinger(responseRaw string, tls bool, requestName string) *FingerPrint {
-	data := n.convResponse(responseRaw)
+func (n *Nmap) getFinger(responseRaw []byte, tls bool, requestName string) *FingerPrint {
 	probe := n.probeNameMap[requestName]
 
-	finger := probe.match(data)
+	finger := probe.match(responseRaw)
 
 	if tls == true {
 		if finger.Service == "http" {
@@ -382,7 +377,7 @@ func (n *Nmap) getFinger(responseRaw string, tls bool, requestName string) *Fing
 	fallback := n.probeNameMap[requestName].Fallback
 	fallbackProbe := n.probeNameMap[fallback]
 	for fallback != "" {
-		finger = fallbackProbe.match(data)
+		finger = fallbackProbe.match(responseRaw)
 		fallback = n.probeNameMap[fallback].Fallback
 		if finger.Service != "" {
 			break
@@ -393,19 +388,11 @@ func (n *Nmap) getFinger(responseRaw string, tls bool, requestName string) *Fing
 	return finger
 }
 
-func (n *Nmap) convResponse(s1 string) string {
-	//为了适配go语言的沙雕正则，只能讲二进制强行转换成UTF-8
-	b1 := []byte(s1)
-	var r1 []rune
-	for _, i := range b1 {
-		r1 = append(r1, rune(i))
-	}
-	s2 := string(r1)
-	return s2
-}
-
 func (n *Nmap) AddMatch(probeName string, expr string) {
 	var probe = n.probeNameMap[probeName]
+	if probe == nil {
+		return // 探针不存在，跳过
+	}
 	probe.loadMatch(expr, false)
 }
 
@@ -429,28 +416,13 @@ func (n *Nmap) GetPortSpecificProbes(port int) ProbeList {
 	return n.getPortSpecificProbes(port)
 }
 
-// initServicesData 初始化ServicesData，参考loadFromEmbeddedJSON的简洁实现
-func (n *Nmap) initServicesData() {
-	// 从embedded资源加载nmap-services.json.gz
-	reader, err := gzip.NewReader(strings.NewReader(string(resources.NmapServicesData)))
-	if err != nil {
-		return // 忽略错误，使用默认值
+// GuessProtocol 根据端口号猜测服务协议
+func (n *Nmap) GuessProtocol(port int) string {
+	// 直接从实例获取服务名称
+	if port >= 0 && port < len(n.nmapServices) {
+		return n.nmapServices[port]
 	}
-	defer reader.Close()
-
-	// 解析JSON数据
-	decoder := json.NewDecoder(reader)
-	var data ServicesData
-	err = decoder.Decode(&data)
-	if err != nil {
-		return // 忽略错误，使用默认值
-	}
-
-	// 保存数据
-	n.servicesData = &data
-
-	// 构建nmapServices数组以保持兼容性
-	n.nmapServices = n.buildNmapServicesArray(&data)
+	return "unknown"
 }
 
 // buildNmapServicesArray 构建原有格式的services数组以保持兼容性
