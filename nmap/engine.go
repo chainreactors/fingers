@@ -1,6 +1,9 @@
 package gonmap
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/chainreactors/fingers/common"
 )
 
@@ -48,15 +51,29 @@ func (e *NmapEngine) ServiceMatch(host string, portStr string, level int, sender
 	}
 
 	// 创建适配器将common.ServiceSender转换为nmap内部sender格式
-	nmapSender := func(host string, port int, data []byte, requestTLS bool) ([]byte, bool, error) {
-		// 根据TLS需求和端口特性选择网络协议
+	// 注意：这个adapter需要支持probe的Protocol字段（TCP/UDP）
+	nmapSender := func(host string, port int, data []byte, requestTLS bool, probeProtocol string) ([]byte, bool, error) {
+		// 根据probe的Protocol字段、TLS需求和端口特性选择网络协议
 		network := "tcp"
-		if requestTLS || isHTTPSPort(port) {
+
+		// 首先检查probe的协议类型
+		if strings.ToUpper(probeProtocol) == "UDP" {
+			network = "udp"
+		} else if requestTLS || isHTTPSPort(port) {
 			network = "tls"
 		}
 
-		// 直接使用端口字符串，让ServiceSender处理UDP等协议前缀
-		response, err := sender.Send(host, portStr, data, network)
+		// 构造正确的端口字符串，UDP需要加U:前缀
+		actualPortStr := portStr
+		if network == "udp" {
+			// 确保UDP端口有U:前缀
+			if !strings.HasPrefix(strings.ToUpper(portStr), "U:") {
+				actualPortStr = fmt.Sprintf("U:%s", portStr)
+			}
+		}
+
+		// 使用ServiceSender发送数据
+		response, err := sender.Send(host, actualPortStr, data, network)
 		if err != nil {
 			// 如果TLS失败，尝试普通TCP
 			if network == "tls" {

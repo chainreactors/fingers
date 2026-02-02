@@ -73,13 +73,13 @@ func (d *DefaultServiceSender) sendTCP(target string, data []byte) ([]byte, erro
 	// 读取响应 - 改进错误处理，即使连接被关闭也要返回已读取的数据
 	buffer := make([]byte, 10240)
 	n, err := conn.Read(buffer)
-	
+
 	// 即使有错误，只要读取到了数据就返回数据
 	// 这对于SMB/RDP等协议很重要，它们可能在发送响应后立即关闭连接
 	if n > 0 {
 		return buffer[:n], nil
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -116,13 +116,13 @@ func (d *DefaultServiceSender) sendTLS(target string, data []byte) ([]byte, erro
 	// 读取响应 - 改进错误处理，即使连接被关闭也要返回已读取的数据
 	buffer := make([]byte, 10240)
 	n, err := conn.Read(buffer)
-	
+
 	// 即使有错误，只要读取到了数据就返回数据
 	// 这对于SMB/RDP等协议很重要，它们可能在发送响应后立即关闭连接
 	if n > 0 {
 		return buffer[:n], nil
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -158,12 +158,12 @@ func (d *DefaultServiceSender) sendUDP(target string, data []byte) ([]byte, erro
 	// 读取响应 - 改进错误处理，即使连接被关闭也要返回已读取的数据
 	buffer := make([]byte, 10240)
 	n, err := conn.Read(buffer)
-	
+
 	// 即使有错误，只要读取到了数据就返回数据
 	if n > 0 {
 		return buffer[:n], nil
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -175,20 +175,20 @@ func (d *DefaultServiceSender) sendUDP(target string, data []byte) ([]byte, erro
 func (d *DefaultServiceSender) parsePortString(portStr string, defaultNetwork string) (port int, network string) {
 	portStr = strings.TrimSpace(portStr)
 	network = defaultNetwork // 默认使用传入的网络类型
-	
+
 	// 检查UDP标记 (U:139)
 	if strings.HasPrefix(strings.ToUpper(portStr), "U:") {
 		portStr = portStr[2:] // 移除"U:"前缀
 		network = "udp"       // 强制使用UDP
 	}
-	
+
 	// 解析端口号
 	portNum, err := strconv.Atoi(portStr)
 	if err != nil {
 		// 如果解析失败，返回默认端口80
 		return 80, network
 	}
-	
+
 	return portNum, network
 }
 

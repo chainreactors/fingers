@@ -162,6 +162,10 @@ func customNMAPMatch() {
 	nmap.AddMatch("TCP_NULL", `ftp m|^220 H3C Small-FTP Server Version ([\d.]+).* | p/H3C Small-FTP/ v/$1/`)
 	nmap.AddMatch("TCP_NULL", `ftp m|^421[- ]Service not available..*|`)
 	nmap.AddMatch("TCP_NULL", `ftp m|^220[- ].*filezilla.*|i p/FileZilla/`)
+
+	// Add DCERPC/MSRPC match for TCP_NULL probe - matches the bind_ack response
+	nmap.AddMatch("TCP_NULL", `msrpc m|^\x05\x00\x0d\x03|s p/Microsoft Windows RPC/`)
+
 	nmap.AddMatch("TCP_TerminalServerCookie", `ms-wbt-server m|^\x03\0\0\x13\x0e\xd0\0\0\x124\0\x02.*\0\x02\0\0\0| p/Microsoft Terminal Services/ o/Windows/ cpe:/o:microsoft:windows/a`)
 	nmap.AddMatch("TCP_redis-server", `redis m|^.*redis_version:([.\d]+)\n|s p/Redis key-value store/ v/$1/ cpe:/a:redislabs:redis:$1/`)
 	nmap.AddMatch("TCP_redis-server", `redis m|^-NOAUTH Authentication required.|s p/Redis key-value store/`)
@@ -169,6 +173,7 @@ func customNMAPMatch() {
 
 func optimizeNMAPProbes() {
 	nmap.probeNameMap["TCP_GenericLines"].SSLPorts = nmap.probeNameMap["TCP_GenericLines"].SSLPorts.append(993, 994, 456, 995)
+
 	//优化检测逻辑，及端口对应的默认探针
 	nmap.portProbeMap[993] = append([]string{"TCP_GenericLines"}, nmap.portProbeMap[993]...)
 	nmap.portProbeMap[994] = append([]string{"TCP_GenericLines"}, nmap.portProbeMap[994]...)

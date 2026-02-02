@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"runtime/pprof"
 	"strconv"
 	"testing"
 	"time"
@@ -22,13 +21,6 @@ import (
 )
 
 func TestEngine(t *testing.T) {
-	// 创建内存分析文件
-	memProfileFile, err := os.Create("memprofile.out")
-	if err != nil {
-		t.Fatal("could not create memory profile: ", err)
-	}
-	defer memProfileFile.Close()
-
 	// 在检测 `DetectContent` 前进行内存分析
 
 	// Your test code
@@ -64,9 +56,6 @@ func TestEngine(t *testing.T) {
 	// 打印执行时间
 	//println("耗时: " + time.Since(start).String())
 	fmt.Println(frames.String())
-
-	// 在检测 `DetectContent` 后进行内存分析
-	pprof.WriteHeapProfile(memProfileFile)
 
 	// 打印内存分配
 	for _, f := range frames {

@@ -58,7 +58,7 @@ func (n *Nmap) shouldSkipUDPScan(port int) bool {
 }
 
 // scanUDPPort UDP端口扫描逻辑
-func (n *Nmap) scanUDPPort(ip string, port int, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
+func (n *Nmap) scanUDPPort(ip string, port int, level int, sender func(host string, port int, data []byte, tls bool, protocol string) ([]byte, bool, error)) (status Status, response *Response) {
 	localProbeUsed := make(ProbeList, 0)
 	
 	// 筛选适用的UDP探针
@@ -105,7 +105,7 @@ func (n *Nmap) handleNetworkError(err error, protocol string) (Status, *Response
 	return NotMatched, nil
 }
 
-func (n *Nmap) Scan(ip string, portStr string, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
+func (n *Nmap) Scan(ip string, portStr string, level int, sender func(host string, port int, data []byte, tls bool, protocol string) ([]byte, bool, error)) (status Status, response *Response) {
 	// 解析端口字符串
 	port, _, isUDP := n.parsePortString(portStr)
 	if port == 0 {
@@ -123,9 +123,9 @@ func (n *Nmap) Scan(ip string, portStr string, level int, sender func(host strin
 }
 
 // scanTCPPort TCP端口扫描的分层策略
-func (n *Nmap) scanTCPPort(ip string, port int, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
+func (n *Nmap) scanTCPPort(ip string, port int, level int, sender func(host string, port int, data []byte, tls bool, protocol string) ([]byte, bool, error)) (status Status, response *Response) {
 	localProbeUsed := make(ProbeList, 0)
-	
+
 	// 定义扫描层次
 	scanLayers := []struct {
 		name   string
@@ -163,7 +163,7 @@ func (n *Nmap) scanTCPPort(ip string, port int, level int, sender func(host stri
 			return rarityProbes.removeDuplicate()
 		}},
 	}
-	
+
 	// 按层次依次执行扫描
 	for _, layer := range scanLayers {
 		probes := layer.probes()
@@ -174,7 +174,7 @@ func (n *Nmap) scanTCPPort(ip string, port int, level int, sender func(host stri
 			}
 		}
 	}
-	
+
 	return NotMatched, nil
 }
 
@@ -244,7 +244,7 @@ func (n *Nmap) getPortCategoryProbes(port int) ProbeList {
 }
 
 // getResponseByProbes 使用外部sender和本地probeUsed进行扫描
-func (n *Nmap) getResponseByProbes(host string, port int, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error), localProbeUsed *ProbeList, probes ...string) (status Status, response *Response) {
+func (n *Nmap) getResponseByProbes(host string, port int, level int, sender func(host string, port int, data []byte, tls bool, protocol string) ([]byte, bool, error), localProbeUsed *ProbeList, probes ...string) (status Status, response *Response) {
 	var responseNotMatch *Response
 	for _, requestName := range probes {
 		if localProbeUsed.exist(requestName) {
@@ -254,6 +254,7 @@ func (n *Nmap) getResponseByProbes(host string, port int, level int, sender func
 		p := n.probeNameMap[requestName]
 
 		status, response = n.getResponse(host, port, p.SSLPorts.exist(port), sender, p)
+
 		if status == Closed {
 			return Closed, nil
 		}
@@ -279,7 +280,7 @@ func (n *Nmap) getResponseByProbes(host string, port int, level int, sender func
 }
 
 // getSSLSecondProbes SSL二次探测
-func (n *Nmap) getSSLSecondProbes(host string, port int, level int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error), localProbeUsed *ProbeList) (status Status, response *Response) {
+func (n *Nmap) getSSLSecondProbes(host string, port int, level int, sender func(host string, port int, data []byte, tls bool, protocol string) ([]byte, bool, error), localProbeUsed *ProbeList) (status Status, response *Response) {
 	// 直接使用SSL二次探测的探针（不需要额外过滤，已在主扫描中过滤）
 	status, response = n.getResponseByProbes(host, port, level, sender, localProbeUsed, n.sslSecondProbeMap...)
 	if status != Matched || response.FingerPrint.Service == "ssl" {
@@ -295,13 +296,13 @@ func (n *Nmap) getSSLSecondProbes(host string, port int, level int, sender func(
 }
 
 // getResponseByHTTPS 处理HTTPS
-func (n *Nmap) getResponseByHTTPS(host string, port int, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error)) (status Status, response *Response) {
+func (n *Nmap) getResponseByHTTPS(host string, port int, sender func(host string, port int, data []byte, tls bool, protocol string) ([]byte, bool, error)) (status Status, response *Response) {
 	var httpRequest = n.probeNameMap["TCP_GetRequest"]
 	return n.getResponse(host, port, true, sender, httpRequest)
 }
 
 // getResponse 使用外部sender进行网络通信的核心方法
-func (n *Nmap) getResponse(host string, port int, tls bool, sender func(host string, port int, data []byte, tls bool) ([]byte, bool, error), p *Probe) (Status, *Response) {
+func (n *Nmap) getResponse(host string, port int, tls bool, sender func(host string, port int, data []byte, tls bool, protocol string) ([]byte, bool, error), p *Probe) (Status, *Response) {
 	//if port == 53 {
 	//	if DnsScan(host, port) {
 	//		return Matched, &dnsResponse
@@ -312,9 +313,8 @@ func (n *Nmap) getResponse(host string, port int, tls bool, sender func(host str
 
 	// 使用外部sender发送探测数据
 	probeData := []byte(p.buildRequest(host)) // 构建探测请求数据
-	responseData, actualTLS, err := sender(host, port, probeData, tls)
 
-	// Debug output can be enabled here if needed for troubleshooting
+	responseData, actualTLS, err := sender(host, port, probeData, tls, p.Protocol)
 
 	if err != nil {
 		// 根据错误类型判断端口状态
