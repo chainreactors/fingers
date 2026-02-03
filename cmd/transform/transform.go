@@ -884,12 +884,27 @@ func transformFingersYAML(repoDir, fingerprintType, outputFile string) error {
 		return fmt.Errorf("找不到目录: %s，请先下载", repoDir)
 	}
 
+	// 根据类型确定扫描目录
+	var scanDir string
+	if fingerprintType == "http" {
+		scanDir = filepath.Join(repoDir, "fingers", "http")
+	} else if fingerprintType == "socket" {
+		scanDir = filepath.Join(repoDir, "fingers", "socket")
+	} else {
+		return fmt.Errorf("不支持的指纹类型: %s", fingerprintType)
+	}
+
+	if !fileExists(scanDir) {
+		return fmt.Errorf("找不到目录: %s", scanDir)
+	}
+
 	fmt.Printf("正在收集 %s 类型的指纹...\n", fingerprintType)
+	fmt.Printf("扫描目录: %s\n", scanDir)
 
 	var fingerprints []map[string]interface{}
 
 	// 递归遍历目录
-	err := filepath.Walk(repoDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(scanDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -915,22 +930,15 @@ func transformFingersYAML(repoDir, fingerprintType, outputFile string) error {
 		// 尝试解析为对象
 		var dataMap map[string]interface{}
 		if err := yaml.Unmarshal(content, &dataMap); err == nil {
-			// 根据类型过滤
-			if shouldIncludeFingerprint(dataMap, fingerprintType) {
-				fingerprints = append(fingerprints, dataMap)
-			}
+			fingerprints = append(fingerprints, dataMap)
 			return nil
 		}
 
 		// 尝试解析为数组
 		var dataArray []map[string]interface{}
 		if err := yaml.Unmarshal(content, &dataArray); err == nil {
-			// 遍历数组中的每个元素
-			for _, item := range dataArray {
-				if shouldIncludeFingerprint(item, fingerprintType) {
-					fingerprints = append(fingerprints, item)
-				}
-			}
+			// 将数组中的每个元素添加到指纹列表
+			fingerprints = append(fingerprints, dataArray...)
 			return nil
 		}
 
@@ -957,6 +965,16 @@ func transformFingersYAML(repoDir, fingerprintType, outputFile string) error {
 
 // shouldIncludeFingerprint 判断指纹是否应该包含在指定类型中
 func shouldIncludeFingerprint(data map[string]interface{}, fingerprintType string) bool {
+	// 检查 protocol 字段（fingers 格式）
+	if protocol, ok := data["protocol"].(string); ok {
+		if fingerprintType == "http" {
+			return protocol == "http" || protocol == "https"
+		} else if fingerprintType == "socket" {
+			return protocol == "tcp" || protocol == "udp"
+		}
+	}
+
+	// 兼容 neutron/nuclei 格式
 	if fingerprintType == "http" {
 		// HTTP 指纹包含 http 或 requests 字段
 		if _, hasHTTP := data["http"]; hasHTTP {
