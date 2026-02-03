@@ -1,7 +1,11 @@
 package fingers
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/favicon"
@@ -281,6 +285,56 @@ func (engine *FingersEngine) HTTPMatch(content []byte, cert string) (common.Fram
 	return engine.HTTPFingers.PassiveMatch(NewContent(content, cert, true), false)
 }
 
-func (engine *FingersEngine) HTTPActiveMatch(level int, sender Sender, callback Callback) (common.Frameworks, common.Vulns) {
+func (engine *FingersEngine) HTTPActiveMatch(baseURL string, level int, transport http.RoundTripper, callback Callback) (common.Frameworks, common.Vulns) {
+	// 将 http.RoundTripper 适配为 Sender
+	sender := roundTripperToSender(transport, baseURL)
 	return engine.HTTPFingersActiveFingers.ActiveMatch(level, sender, callback, false)
+}
+
+// roundTripperToSender 将 http.RoundTripper 适配为 Sender
+// 这样可以让内部的 ActiveMatch 继续使用 Sender 接口，同时对外统一使用 http.RoundTripper
+func roundTripperToSender(transport http.RoundTripper, baseURL string) Sender {
+	return func(data []byte) ([]byte, bool) {
+		// data 是路径，例如 "/admin" 或 "/api/version"
+		path := string(data)
+
+		// 构造完整 URL
+		fullURL := baseURL + path
+
+		// 创建 http.Request
+		req, err := http.NewRequest("GET", fullURL, nil)
+		if err != nil {
+			return nil, false
+		}
+
+		// 通过 RoundTripper 发送请求
+		resp, err := transport.RoundTrip(req)
+		if err != nil {
+			return nil, false
+		}
+		defer resp.Body.Close()
+
+		// 读取响应并序列化为字节流
+		var buf bytes.Buffer
+
+		// 写入状态行
+		fmt.Fprintf(&buf, "%s %s\r\n", resp.Proto, resp.Status)
+
+		// 写入 headers
+		for key, values := range resp.Header {
+			for _, value := range values {
+				fmt.Fprintf(&buf, "%s: %s\r\n", key, value)
+			}
+		}
+
+		// 空行分隔 headers 和 body
+		buf.WriteString("\r\n")
+
+		// 写入 body
+		if resp.Body != nil {
+			io.Copy(&buf, resp.Body)
+		}
+
+		return buf.Bytes(), true
+	}
 }

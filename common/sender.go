@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -194,3 +195,48 @@ func (d *DefaultServiceSender) parsePortString(portStr string, defaultNetwork st
 
 // Service指纹检测的回调函数
 type ServiceCallback func(*ServiceResult)
+
+// DefaultHTTPSender 默认的 HTTP RoundTripper 实现
+// 提供标准的 HTTP 请求发送能力，支持超时和 TLS 配置
+type DefaultHTTPSender struct {
+	client *http.Client
+}
+
+// NewHTTPSender 创建默认的 HTTP Sender (http.RoundTripper)
+// timeout: 请求超时时间
+// 默认跳过 TLS 证书验证（insecureSkipVerify = true）
+func NewHTTPSender(timeout time.Duration) http.RoundTripper {
+	if timeout <= 0 {
+		timeout = 10 * time.Second // 默认10秒超时
+	}
+
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // 默认跳过证书验证
+		},
+		DialContext: (&net.Dialer{
+			Timeout:   timeout,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   timeout,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	return &DefaultHTTPSender{
+		client: &http.Client{
+			Transport: transport,
+			Timeout:   timeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				// 默认不跟随重定向，让调用者自己处理
+				return http.ErrUseLastResponse
+			},
+		},
+	}
+}
+
+// RoundTrip 实现 http.RoundTripper 接口
+func (d *DefaultHTTPSender) RoundTrip(req *http.Request) (*http.Response, error) {
+	return d.client.Transport.RoundTrip(req)
+}
