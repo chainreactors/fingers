@@ -84,6 +84,8 @@ github.com/chainreactors/files v0.0.0-20240716182835-7884ee1e77f0 h1:cU3sGEODXZs
 github.com/chainreactors/files v0.0.0-20240716182835-7884ee1e77f0/go.mod h1:NSxGNMRWryAyrDzZpVwmujI22wbGw6c52bQOd5zEvyU=
 github.com/chainreactors/logs v0.0.0-20241030063019-8ca66a3ee307 h1:gZuBqpqwbn9WR8f/vfn8lf6tjeWcM+ajLXAL3SkOtQs=
 github.com/chainreactors/logs v0.0.0-20241030063019-8ca66a3ee307/go.mod h1:6Mv6W70JrtL6VClulZhmMRZnoYpcTahcDTKLMNEjK0o=
+github.com/chainreactors/neutron v0.0.0-20260203032004-95c9e8431214 h1:jCYHc6bfMhmXZYcwlkCLO5HAmNxEfnNHKnph7/Pd6iE=
+github.com/chainreactors/neutron v0.0.0-20260203032004-95c9e8431214/go.mod h1:CktNFh1I1sNwFI9Ml+t0X/uuEoO4eAW5Dmb/cuzV8BY=
 github.com/chainreactors/utils v0.0.0-20240716182459-e85f2b01ee16/go.mod h1:LajXuvESQwP+qCMAvlcoSXppQCjuLlBrnQpu9XQ1HtU=
 github.com/chainreactors/utils v0.0.0-20250831165528-f06246b0f311 h1:kyN5csx/tbAJ426vrLswXpOKeVVTVrDpYyAxT1+WrZE=
 github.com/chainreactors/utils v0.0.0-20250831165528-f06246b0f311/go.mod h1:LajXuvESQwP+qCMAvlcoSXppQCjuLlBrnQpu9XQ1HtU=
