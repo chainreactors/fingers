@@ -11,7 +11,7 @@ require (
 
 require (
 	github.com/chainreactors/files v0.0.0-20240716182835-7884ee1e77f0 // indirect
-	github.com/chainreactors/neutron v0.0.0-20251216154716-7c28cb6fdf03
+	github.com/chainreactors/neutron v0.0.0-20260110190404-ab49252d61d5
 	github.com/chainreactors/words v0.0.0-20241002061906-25d8893158d9
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/facebookincubator/nvdtools v0.1.5
@@ -22,5 +22,3 @@ require (
 	github.com/pkg/errors v0.9.1
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/chainreactors/neutron => ../neutron
