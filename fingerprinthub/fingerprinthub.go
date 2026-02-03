@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/logs"
 	"github.com/chainreactors/neutron/protocols"
 	http2 "github.com/chainreactors/neutron/protocols/http"
 	"github.com/chainreactors/neutron/templates"
@@ -16,6 +19,72 @@ import (
 	"github.com/chainreactors/utils/httputils"
 	"gopkg.in/yaml.v3"
 )
+
+var (
+	FingerprintHubLog = logs.Log
+)
+
+// CachedResponse 存储缓存的 HTTP 响应
+type CachedResponse struct {
+	Response *http.Response // 响应对象（Body 为 nil）
+	Body     []byte         // 响应体内容
+}
+
+// CachedTransport 实现带缓存的 http.RoundTripper
+// 通过 path 去重，避免重复请求
+type CachedTransport struct {
+	transport http.RoundTripper
+	cache     map[string]*CachedResponse
+	mu        sync.Mutex
+}
+
+// RoundTrip 实现 http.RoundTripper 接口，带缓存功能
+func (c *CachedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// 使用 path 作为缓存键
+	cacheKey := req.URL.Path
+	if cacheKey == "" {
+		cacheKey = "/"
+	}
+
+	// 检查缓存
+	c.mu.Lock()
+	if cached, ok := c.cache[cacheKey]; ok {
+		c.mu.Unlock()
+		// 复制响应对象，使用缓存的 Body
+		resp := *cached.Response
+		resp.Body = io.NopCloser(bytes.NewReader(cached.Body))
+		resp.Request = req
+		return &resp, nil
+	}
+	c.mu.Unlock()
+
+	// 缓存未命中，发送实际请求
+	resp, err := c.transport.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// 读取响应体
+	bodyBytes, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// 保存到缓存（复制响应对象，Body 设为 nil）
+	cachedResp := *resp
+	cachedResp.Body = nil
+	c.mu.Lock()
+	c.cache[cacheKey] = &CachedResponse{
+		Response: &cachedResp,
+		Body:     bodyBytes,
+	}
+	c.mu.Unlock()
+
+	// 返回响应（使用缓存的 Body）
+	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	return resp, nil
+}
 
 // FingerPrintHubEngine 基于 neutron 的 FingerprintHub 引擎
 type FingerPrintHubEngine struct {
@@ -56,11 +125,11 @@ func NewFingerPrintHubEngine(webData, serviceData []byte) (*FingerPrintHubEngine
 	allErrors := append(webErrors, serviceErrors...)
 	if len(allErrors) > 0 && len(allErrors) < 10 {
 		for _, e := range allErrors {
-			fmt.Printf("Warning: %v\n", e)
+			FingerprintHubLog.Warn(e)
 		}
 	}
 
-	fmt.Printf("Loaded %d fingerprint templates (%d web, %d service)\n", webCount+serviceCount, webCount, serviceCount)
+	FingerprintHubLog.Infof("Loaded %d fingerprint templates (%d web, %d service)", webCount+serviceCount, webCount, serviceCount)
 
 	return engine, nil
 }
@@ -174,7 +243,7 @@ func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 
 	if len(errors) > 0 && len(errors) < 10 {
 		for _, e := range errors {
-			fmt.Printf("Warning: %v\n", e)
+			FingerprintHubLog.Warn(e)
 		}
 	}
 
@@ -435,6 +504,93 @@ func (engine *FingerPrintHubEngine) matchRequest(req *http2.Request, event proto
 	}
 
 	return false
+}
+
+// HTTPActiveMatch 实现 HTTP 主动指纹匹配
+// 使用 http.RoundTripper 进行主动探测，统一发包逻辑
+// transport: 自定义的 HTTP 传输层，用于发送请求
+func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, transport http.RoundTripper, callback func(*common.Framework, *common.Vuln)) (common.Frameworks, common.Vulns) {
+	if baseURL == "" || transport == nil {
+		return nil, nil
+	}
+
+	// 初始化结果集 map
+	allFrameworks := make(common.Frameworks)
+	allVulns := make(common.Vulns)
+
+	// 创建带缓存的 transport，通过 path 去重
+	cachedTransport := &CachedTransport{
+		transport: transport,
+		cache:     make(map[string]*CachedResponse),
+	}
+
+	// 使用带缓存的 transport 创建 HTTP client
+	httpClient := &http.Client{
+		Transport: cachedTransport,
+	}
+
+	// 创建扫描上下文
+	scanCtx := &protocols.ScanContext{
+		Input: baseURL,
+	}
+
+	// 遍历所有 web 模板
+	for _, tmpl := range engine.webTemplates {
+		// 跳过没有 HTTP 请求的模板
+		if len(tmpl.RequestsHTTP) == 0 {
+			continue
+		}
+
+		// 执行模板的所有 HTTP 请求
+		// neutron 会使用我们注入的 CachedHTTPClient
+		// 相同的请求会自动从缓存返回，不会重复发送
+		for _, httpReq := range tmpl.RequestsHTTP {
+			// 为每个请求设置使用自定义的 client
+			// 使用 SetHTTPClient 方法注入我们的 transport
+			originalClient := httpReq.GetHTTPClient()
+			httpReq.SetHTTPClient(httpClient)
+
+			err := httpReq.ExecuteWithResults(scanCtx, nil, nil, func(event *protocols.InternalWrappedEvent) {
+				// 检查是否匹配
+				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
+					// 构建 Framework
+					name := tmpl.Info.Name
+					if name == "" {
+						name = tmpl.Id
+					}
+					frame := common.NewFramework(name, common.FrameFromFingerprintHub)
+
+					// 添加元数据
+					if tmpl.Info.Metadata != nil {
+						if vendor, ok := tmpl.Info.Metadata["vendor"].(string); ok {
+							frame.Attributes.Vendor = vendor
+						}
+						if product, ok := tmpl.Info.Metadata["product"].(string); ok {
+							frame.Attributes.Product = product
+						}
+					}
+
+					// 添加到结果集
+					allFrameworks.Add(frame)
+
+					// 调用回调
+					if callback != nil {
+						callback(frame, nil)
+					}
+				}
+			})
+
+			// 恢复原始 client
+			httpReq.SetHTTPClient(originalClient)
+
+			if err != nil {
+				// 忽略错误继续尝试其他指纹
+				continue
+			}
+		}
+	}
+
+	return allFrameworks, allVulns
 }
 
 // ServiceMatch 实现 Service 指纹匹配
