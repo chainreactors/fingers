@@ -1,0 +1,71 @@
+name: Update Fingerprint Resources
+
+on:
+  push:
+    tags:
+      - 'v*'  # 触发格式: v1.0.0, v1.1.1, v2.0.0 等
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  update-fingerprints:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Create refer directory and clone templates
+        run: |
+          mkdir -p refer
+          git clone --depth 1 https://github.com/chainreactors/templates refer/templates
+          echo "✓ Templates repository cloned"
+
+      - name: Download and transform all fingerprints
+        run: |
+          echo "Starting fingerprint update process..."
+          go run cmd/transform/transform.go update
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git diff --quiet resources/ || echo "changes=true" >> $GITHUB_OUTPUT
+          git status resources/
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add resources/*.gz
+          git commit -m "chore: update fingerprint resources
+
+          Auto-updated by GitHub Actions
+          - nmap-service-probes
+          - nmap-services
+          - fingerprinthub v4 (web & service)
+          - wappalyzer
+          - ehole
+          - goby
+          - fingers (http & socket)
+
+          Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          git push
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Fingerprint Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Updated Resources" >> $GITHUB_STEP_SUMMARY
+          ls -lh resources/*.gz | awk '{print "- " $9 ": " $5}' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Update completed at: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

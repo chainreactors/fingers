@@ -10,12 +10,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	gonmap "github.com/chainreactors/fingers/nmap"
+	"gopkg.in/yaml.v3"
 )
 
 // DataSource 定义数据源接口
@@ -64,6 +67,156 @@ func (s *ServicesDataSource) Transform() error {
 	return transformServices(s.CacheFileName(), s.OutputFileName())
 }
 
+// FingerprintHubWebDataSource fingerprinthub web指纹数据源
+type FingerprintHubWebDataSource struct{}
+
+func (f *FingerprintHubWebDataSource) Name() string { return "fingerprinthub-web" }
+func (f *FingerprintHubWebDataSource) URL() string {
+	return "https://github.com/0x727/FingerprintHub/releases/latest/download/web_fingerprint_v4.json"
+}
+func (f *FingerprintHubWebDataSource) CacheFileName() string { return "fingerprinthub-web.json" }
+func (f *FingerprintHubWebDataSource) OutputFileName() string {
+	return "resources/fingerprinthub_web.json.gz"
+}
+
+func (f *FingerprintHubWebDataSource) Download(client *http.Client) error {
+	// 优先使用本地 refer 目录的文件
+	localFile := "refer/FingerprintHub/web_fingerprint_v4.json"
+	if fileExists(localFile) {
+		fmt.Printf("使用本地文件: %s\n", localFile)
+		return copyFile(localFile, f.CacheFileName())
+	}
+	return downloadFile(client, f.URL(), f.CacheFileName())
+}
+
+func (f *FingerprintHubWebDataSource) Transform() error {
+	return transformJSON(f.CacheFileName(), f.OutputFileName())
+}
+
+// FingerprintHubServiceDataSource fingerprinthub service指纹数据源
+type FingerprintHubServiceDataSource struct{}
+
+func (f *FingerprintHubServiceDataSource) Name() string { return "fingerprinthub-service" }
+func (f *FingerprintHubServiceDataSource) URL() string {
+	return "https://github.com/0x727/FingerprintHub/releases/latest/download/service_fingerprint_v4.json"
+}
+func (f *FingerprintHubServiceDataSource) CacheFileName() string {
+	return "fingerprinthub-service.json"
+}
+func (f *FingerprintHubServiceDataSource) OutputFileName() string {
+	return "resources/fingerprinthub_service.json.gz"
+}
+
+func (f *FingerprintHubServiceDataSource) Download(client *http.Client) error {
+	// 优先使用本地 refer 目录的文件
+	localFile := "refer/FingerprintHub/service_fingerprint_v4.json"
+	if fileExists(localFile) {
+		fmt.Printf("使用本地文件: %s\n", localFile)
+		return copyFile(localFile, f.CacheFileName())
+	}
+	return downloadFile(client, f.URL(), f.CacheFileName())
+}
+
+func (f *FingerprintHubServiceDataSource) Transform() error {
+	return transformJSON(f.CacheFileName(), f.OutputFileName())
+}
+
+// WappalyzerDataSource wappalyzer数据源
+type WappalyzerDataSource struct{}
+
+func (w *WappalyzerDataSource) Name() string { return "wappalyzer" }
+func (w *WappalyzerDataSource) URL() string {
+	return "https://raw.githubusercontent.com/projectdiscovery/wappalyzergo/main/fingerprints_data.json"
+}
+func (w *WappalyzerDataSource) CacheFileName() string  { return "wappalyzer.json" }
+func (w *WappalyzerDataSource) OutputFileName() string { return "resources/wappalyzer.json.gz" }
+
+func (w *WappalyzerDataSource) Download(client *http.Client) error {
+	// 优先使用本地 refer 目录的文件
+	localFile := "refer/wappalyzergo/fingerprints_data.json"
+	if fileExists(localFile) {
+		fmt.Printf("使用本地文件: %s\n", localFile)
+		return copyFile(localFile, w.CacheFileName())
+	}
+	return downloadFile(client, w.URL(), w.CacheFileName())
+}
+
+func (w *WappalyzerDataSource) Transform() error {
+	return transformJSON(w.CacheFileName(), w.OutputFileName())
+}
+
+// EholeDataSource ehole数据源
+type EholeDataSource struct{}
+
+func (e *EholeDataSource) Name() string { return "ehole" }
+func (e *EholeDataSource) URL() string {
+	return "https://raw.githubusercontent.com/EdgeSecurityTeam/EHole/master/finger.json"
+}
+func (e *EholeDataSource) CacheFileName() string  { return "ehole.json" }
+func (e *EholeDataSource) OutputFileName() string { return "resources/ehole.json.gz" }
+
+func (e *EholeDataSource) Download(client *http.Client) error {
+	return downloadFile(client, e.URL(), e.CacheFileName())
+}
+
+func (e *EholeDataSource) Transform() error {
+	return transformJSON(e.CacheFileName(), e.OutputFileName())
+}
+
+// GobyDataSource goby数据源
+type GobyDataSource struct{}
+
+func (g *GobyDataSource) Name() string { return "goby" }
+func (g *GobyDataSource) URL() string {
+	return "https://raw.githubusercontent.com/chainreactors/templates/master/goby.json"
+}
+func (g *GobyDataSource) CacheFileName() string  { return "goby.json" }
+func (g *GobyDataSource) OutputFileName() string { return "resources/goby.json.gz" }
+
+func (g *GobyDataSource) Download(client *http.Client) error {
+	return downloadFile(client, g.URL(), g.CacheFileName())
+}
+
+func (g *GobyDataSource) Transform() error {
+	return transformJSON(g.CacheFileName(), g.OutputFileName())
+}
+
+// FingersHTTPDataSource fingers HTTP指纹数据源
+type FingersHTTPDataSource struct{}
+
+func (f *FingersHTTPDataSource) Name() string { return "fingers-http" }
+func (f *FingersHTTPDataSource) URL() string {
+	return "https://github.com/chainreactors/templates"
+}
+func (f *FingersHTTPDataSource) CacheFileName() string  { return "refer/templates" }
+func (f *FingersHTTPDataSource) OutputFileName() string { return "resources/fingers_http.json.gz" }
+
+func (f *FingersHTTPDataSource) Download(client *http.Client) error {
+	return cloneOrPullRepo(f.URL(), f.CacheFileName())
+}
+
+func (f *FingersHTTPDataSource) Transform() error {
+	return transformFingersYAML(f.CacheFileName(), "http", f.OutputFileName())
+}
+
+// FingersSocketDataSource fingers Socket指纹数据源
+type FingersSocketDataSource struct{}
+
+func (f *FingersSocketDataSource) Name() string { return "fingers-socket" }
+func (f *FingersSocketDataSource) URL() string {
+	return "https://github.com/chainreactors/templates"
+}
+func (f *FingersSocketDataSource) CacheFileName() string  { return "refer/templates" }
+func (f *FingersSocketDataSource) OutputFileName() string { return "resources/fingers_socket.json.gz" }
+
+func (f *FingersSocketDataSource) Download(client *http.Client) error {
+	return cloneOrPullRepo(f.URL(), f.CacheFileName())
+}
+
+func (f *FingersSocketDataSource) Transform() error {
+	return transformFingersYAML(f.CacheFileName(), "socket", f.OutputFileName())
+}
+
 // DataManager 数据管理器
 type DataManager struct {
 	sources map[string]DataSource
@@ -80,6 +233,13 @@ func NewDataManager(proxyURL string) *DataManager {
 	// 注册数据源
 	dm.RegisterSource(&ProbesDataSource{})
 	dm.RegisterSource(&ServicesDataSource{})
+	dm.RegisterSource(&FingerprintHubWebDataSource{})
+	dm.RegisterSource(&FingerprintHubServiceDataSource{})
+	dm.RegisterSource(&WappalyzerDataSource{})
+	dm.RegisterSource(&EholeDataSource{})
+	dm.RegisterSource(&GobyDataSource{})
+	dm.RegisterSource(&FingersHTTPDataSource{})
+	dm.RegisterSource(&FingersSocketDataSource{})
 
 	return dm
 }
@@ -136,21 +296,55 @@ func (dm *DataManager) Update(sourceName string) error {
 
 // DownloadAll 下载所有数据源
 func (dm *DataManager) DownloadAll() error {
+	var errors []string
+	successCount := 0
+
 	for name := range dm.sources {
 		if err := dm.Download(name); err != nil {
-			return fmt.Errorf("下载 %s 失败: %v", name, err)
+			errMsg := fmt.Sprintf("下载 %s 失败: %v", name, err)
+			fmt.Println("⚠ " + errMsg)
+			errors = append(errors, errMsg)
+		} else {
+			successCount++
 		}
 	}
+
+	fmt.Printf("\n下载完成: 成功 %d 个, 失败 %d 个\n", successCount, len(errors))
+
+	if len(errors) > 0 {
+		fmt.Println("\n失败的数据源:")
+		for _, err := range errors {
+			fmt.Println("  - " + err)
+		}
+	}
+
 	return nil
 }
 
 // TransformAll 转换所有数据源
 func (dm *DataManager) TransformAll() error {
+	var errors []string
+	successCount := 0
+
 	for name := range dm.sources {
 		if err := dm.Transform(name); err != nil {
-			return fmt.Errorf("转换 %s 失败: %v", name, err)
+			errMsg := fmt.Sprintf("转换 %s 失败: %v", name, err)
+			fmt.Println("⚠ " + errMsg)
+			errors = append(errors, errMsg)
+		} else {
+			successCount++
 		}
 	}
+
+	fmt.Printf("\n转换完成: 成功 %d 个, 失败 %d 个\n", successCount, len(errors))
+
+	if len(errors) > 0 {
+		fmt.Println("\n失败的数据源:")
+		for _, err := range errors {
+			fmt.Println("  - " + err)
+		}
+	}
+
 	return nil
 }
 
@@ -249,13 +443,15 @@ func printUsage() {
 	fmt.Println("  update [sources...]    更新指定数据源（不指定则更新所有）")
 	fmt.Println("  list                   列出所有可用数据源")
 	fmt.Println()
-	fmt.Println("可用数据源: probes, services")
+	fmt.Println("可用数据源: probes, services, fingerprinthub-web, fingerprinthub-service, wappalyzer, ehole, goby, fingers-http, fingers-socket")
 	fmt.Println()
 	fmt.Println("示例:")
 	fmt.Println("  go run cmd/transform/transform.go list")
 	fmt.Println("  go run cmd/transform/transform.go -proxy http://127.0.0.1:1080 download probes")
 	fmt.Println("  go run cmd/transform/transform.go update services")
 	fmt.Println("  go run cmd/transform/transform.go -proxy http://127.0.0.1:1080 update")
+	fmt.Println("  go run cmd/transform/transform.go download fingerprinthub-web fingerprinthub-service")
+	fmt.Println("  go run cmd/transform/transform.go transform fingers-http fingers-socket")
 }
 
 // createHTTPClientWithProxy 创建支持代理的HTTP客户端
@@ -352,6 +548,22 @@ func writeGzipJSON(data interface{}, filename string) error {
 func fileExists(filename string) bool {
 	_, err := os.Stat(filename)
 	return !os.IsNotExist(err)
+}
+
+// copyFile 复制文件
+func copyFile(src, dst string) error {
+	sourceData, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("读取源文件失败: %v", err)
+	}
+
+	err = os.WriteFile(dst, sourceData, 0644)
+	if err != nil {
+		return fmt.Errorf("写入目标文件失败: %v", err)
+	}
+
+	fmt.Printf("✓ 文件复制完成: %s -> %s\n", src, dst)
+	return nil
 }
 
 // Service 代表一个服务条目
@@ -554,4 +766,218 @@ func applyCustomNMAPMatch(data *gonmap.NmapProbesData) {
 	addCustomMatch("TCP_NULL", `telnet m|^Connection failed.  Windows CE Telnet Service cannot accept anymore concurrent users.|s o/Windows/`)
 	addCustomMatch("TCP_NULL", `telnet m|^\x0d\x0a\x0d\x0aWelcome to the host.\x0d\x0a.*|s o/Windows/`)
 	addCustomMatch("TCP_NULL", `telnet m|^.*Welcome Visiting Huawei Home Gateway\x0d\x0aCopyright by Huawei Technologies Co., Ltd.*Login:|s p/Huawei/`)
+}
+
+// transformJSON 转换JSON数据（直接压缩）
+func transformJSON(cacheFile, outputFile string) error {
+	if !fileExists(cacheFile) {
+		return fmt.Errorf("找不到文件: %s，请先下载", cacheFile)
+	}
+
+	fmt.Printf("使用本地缓存文件: %s\n", cacheFile)
+	content, err := os.ReadFile(cacheFile)
+	if err != nil {
+		return fmt.Errorf("读取本地文件失败: %v", err)
+	}
+
+	// 验证JSON格式
+	var data interface{}
+	if err := json.Unmarshal(content, &data); err != nil {
+		return fmt.Errorf("JSON格式验证失败: %v", err)
+	}
+
+	// 确保输出目录存在
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0755); err != nil {
+		return fmt.Errorf("创建输出目录失败: %v", err)
+	}
+
+	// 创建gzip压缩文件
+	outFile, err := os.Create(outputFile)
+	if err != nil {
+		return fmt.Errorf("创建输出文件失败: %v", err)
+	}
+	defer outFile.Close()
+
+	// 创建gzip写入器
+	gzipWriter := gzip.NewWriter(outFile)
+	defer gzipWriter.Close()
+
+	// 写入压缩数据
+	_, err = gzipWriter.Write(content)
+	if err != nil {
+		return fmt.Errorf("写入压缩数据失败: %v", err)
+	}
+
+	fmt.Printf("✓ 转换完成: %s\n", outputFile)
+
+	// 显示文件大小
+	if outputStat, err := os.Stat(outputFile); err == nil {
+		fmt.Printf("  - 文件大小: %d bytes (%.2f KB)\n", outputStat.Size(), float64(outputStat.Size())/1024)
+	}
+
+	return nil
+}
+
+// cloneOrPullRepo 克隆或更新Git仓库
+func cloneOrPullRepo(repoURL, targetDir string) error {
+	// 检查目录是否存在
+	if fileExists(targetDir) {
+		fmt.Printf("仓库已存在，正在更新: %s\n", targetDir)
+		// 使用 exec.Command 并设置工作目录
+		cmd := exec.Command("git", "pull")
+		cmd.Dir = targetDir
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("更新仓库失败: %v: %s", err, string(output))
+		}
+		if len(output) > 0 {
+			fmt.Printf("%s\n", string(output))
+		}
+		fmt.Printf("✓ 仓库更新完成: %s\n", targetDir)
+	} else {
+		fmt.Printf("正在克隆仓库: %s\n", repoURL)
+		// 确保父目录存在
+		parentDir := filepath.Dir(targetDir)
+		if err := os.MkdirAll(parentDir, 0755); err != nil {
+			return fmt.Errorf("创建目录失败: %v", err)
+		}
+		// 执行 git clone --depth 1
+		cmd := exec.Command("git", "clone", "--depth", "1", repoURL, targetDir)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("克隆仓库失败: %v: %s", err, string(output))
+		}
+		if len(output) > 0 {
+			fmt.Printf("%s\n", string(output))
+		}
+		fmt.Printf("✓ 仓库克隆完成: %s\n", targetDir)
+	}
+	return nil
+}
+
+// executeCommand 执行shell命令
+func executeCommand(cmd string) error {
+	fmt.Printf("执行命令: %s\n", cmd)
+	// 使用 os/exec 执行命令
+	var shellCmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		shellCmd = exec.Command("cmd", "/C", cmd)
+	} else {
+		shellCmd = exec.Command("sh", "-c", cmd)
+	}
+
+	output, err := shellCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, string(output))
+	}
+
+	if len(output) > 0 {
+		fmt.Printf("%s\n", string(output))
+	}
+
+	return nil
+}
+
+// transformFingersYAML 转换Fingers YAML指纹数据
+func transformFingersYAML(repoDir, fingerprintType, outputFile string) error {
+	if !fileExists(repoDir) {
+		return fmt.Errorf("找不到目录: %s，请先下载", repoDir)
+	}
+
+	fmt.Printf("正在收集 %s 类型的指纹...\n", fingerprintType)
+
+	var fingerprints []map[string]interface{}
+
+	// 递归遍历目录
+	err := filepath.Walk(repoDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 跳过目录
+		if info.IsDir() {
+			return nil
+		}
+
+		// 只处理 .yaml 和 .yml 文件
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+
+		// 读取文件
+		content, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Printf("警告: 读取文件失败 %s: %v\n", path, err)
+			return nil
+		}
+
+		// 尝试解析为对象
+		var dataMap map[string]interface{}
+		if err := yaml.Unmarshal(content, &dataMap); err == nil {
+			// 根据类型过滤
+			if shouldIncludeFingerprint(dataMap, fingerprintType) {
+				fingerprints = append(fingerprints, dataMap)
+			}
+			return nil
+		}
+
+		// 尝试解析为数组
+		var dataArray []map[string]interface{}
+		if err := yaml.Unmarshal(content, &dataArray); err == nil {
+			// 遍历数组中的每个元素
+			for _, item := range dataArray {
+				if shouldIncludeFingerprint(item, fingerprintType) {
+					fingerprints = append(fingerprints, item)
+				}
+			}
+			return nil
+		}
+
+		// 两种格式都解析失败
+		fmt.Printf("警告: 解析YAML失败 %s\n", path)
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("遍历目录失败: %v", err)
+	}
+
+	fmt.Printf("收集到 %d 个 %s 指纹\n", len(fingerprints), fingerprintType)
+
+	// 写入 gzip 压缩的 JSON
+	if err := writeGzipJSON(fingerprints, outputFile); err != nil {
+		return err
+	}
+
+	fmt.Printf("  - 指纹数量: %d\n", len(fingerprints))
+	return nil
+}
+
+// shouldIncludeFingerprint 判断指纹是否应该包含在指定类型中
+func shouldIncludeFingerprint(data map[string]interface{}, fingerprintType string) bool {
+	if fingerprintType == "http" {
+		// HTTP 指纹包含 http 或 requests 字段
+		if _, hasHTTP := data["http"]; hasHTTP {
+			return true
+		}
+		if _, hasRequests := data["requests"]; hasRequests {
+			return true
+		}
+		return false
+	} else if fingerprintType == "socket" {
+		// Socket 指纹包含 network, tcp, udp 字段
+		if _, hasNetwork := data["network"]; hasNetwork {
+			return true
+		}
+		if _, hasTCP := data["tcp"]; hasTCP {
+			return true
+		}
+		if _, hasUDP := data["udp"]; hasUDP {
+			return true
+		}
+		return false
+	}
+	return false
 }
