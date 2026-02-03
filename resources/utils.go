@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"io"
+	"io/ioutil"
 
 	"strings"
 
@@ -72,5 +72,5 @@ func DecompressGzip(data []byte) ([]byte, error) {
 	}
 	defer reader.Close()
 
-	return io.ReadAll(reader)
+	return ioutil.ReadAll(reader)
 }
