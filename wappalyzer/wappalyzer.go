@@ -159,6 +159,7 @@ func (engine *Wappalyze) FingerprintWithInfo(headers map[string][]string, body [
 				Description: fingerprint.description,
 				Website:     fingerprint.website,
 				CPE:         fingerprint.cpe,
+				Icon:        fingerprint.icon,
 			}
 		}
 	}

@@ -30,17 +30,17 @@ func TestEngine(t *testing.T) {
 	}
 	fmt.Println(engine.String())
 
-	//client := &http.Client{
+	// client := &http.Client{
 	//	Transport: &http.Transport{
 	//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	//	},
-	//}
-	//resp, err := client.Get("https://boce.aliyun.com/detect/http")
-	//if err != nil {
+	// }
+	// resp, err := client.Get("https://boce.aliyun.com/detect/http")
+	// if err != nil {
 	//	panic(err)
-	//}
-	//start := time.Now()
-	//content := httputils.ReadRaw(resp)
+	// }
+	// start := time.Now()
+	// content := httputils.ReadRaw(resp)
 
 	// 调用 DetectContent
 
@@ -54,7 +54,7 @@ func TestEngine(t *testing.T) {
 	}
 
 	// 打印执行时间
-	//println("耗时: " + time.Since(start).String())
+	// println("耗时: " + time.Since(start).String())
 	fmt.Println(frames.String())
 
 	// 打印内存分配
@@ -220,7 +220,7 @@ func TestEngine_Wappalyzer(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	resp, err := http.Get("http://127.0.0.1:8000")
+	resp, err := http.Get("https://www.thinkphp.cn/")
 	if err != nil {
 		return
 	}

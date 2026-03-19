@@ -1,6 +1,7 @@
 package wappalyzer
 
 import (
+	"encoding/json"
 	"github.com/chainreactors/fingers/common"
 	"regexp"
 	"strconv"
@@ -13,21 +14,46 @@ type Fingerprints struct {
 	Apps map[string]*Fingerprint `json:"apps"`
 }
 
+// UnmarshalJSON supports both normalized (apps) and upstream (technologies) keys.
+func (f *Fingerprints) UnmarshalJSON(data []byte) error {
+	var payload struct {
+		Apps         map[string]*Fingerprint `json:"apps"`
+		Technologies map[string]*Fingerprint `json:"technologies"`
+	}
+
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+
+	switch {
+	case len(payload.Apps) > 0:
+		f.Apps = payload.Apps
+	case len(payload.Technologies) > 0:
+		f.Apps = payload.Technologies
+	default:
+		f.Apps = map[string]*Fingerprint{}
+	}
+
+	return nil
+}
+
 // Fingerprint is a single piece of information about a tech validated and normalized
 type Fingerprint struct {
-	Cats        []int               `json:"cats"`
-	CSS         []string            `json:"css"`
-	Cookies     map[string]string   `json:"cookies"`
-	JS          []string            `json:"js"`
-	Headers     map[string]string   `json:"headers"`
-	HTML        []string            `json:"html"`
-	Script      []string            `json:"scripts"`
-	ScriptSrc   []string            `json:"scriptSrc"`
-	Meta        map[string][]string `json:"meta"`
-	Implies     []string            `json:"implies"`
-	Description string              `json:"description"`
-	Website     string              `json:"website"`
-	CPE         string              `json:"cpe"`
+	Cats        []int                             `json:"cats"`
+	CSS         []string                          `json:"css"`
+	Cookies     map[string]string                 `json:"cookies"`
+	Dom         map[string]map[string]interface{} `json:"dom"`
+	JS          map[string]string                 `json:"js"`
+	Headers     map[string]string                 `json:"headers"`
+	HTML        []string                          `json:"html"`
+	Script      []string                          `json:"scripts"`
+	ScriptSrc   []string                          `json:"scriptSrc"`
+	Meta        map[string][]string               `json:"meta"`
+	Implies     []string                          `json:"implies"`
+	Description string                            `json:"description"`
+	Website     string                            `json:"website"`
+	CPE         string                            `json:"cpe"`
+	Icon        string                            `json:"icon"`
 }
 
 // CompiledFingerprints contains a map of fingerprints for tech detection
@@ -47,6 +73,8 @@ type CompiledFingerprint struct {
 	description string
 	// website contains a URL associated with the fingerprint
 	website string
+	// icon contains icon identifier from fingerprint source
+	icon string
 	// cookies contains fingerprints for target cookies
 	cookies map[string]*versionRegex
 	// js contains fingerprints for the js file
@@ -81,6 +109,7 @@ type AppInfo struct {
 	Description string
 	Website     string
 	CPE         string
+	Icon        string
 }
 
 // CatsInfo contains basic information about an App.
@@ -128,6 +157,7 @@ func (v *versionRegex) MatchString(value string) (bool, string) {
 	if v.skipRegex {
 		return true, ""
 	}
+	value = strings.ToLower(value)
 	matches := v.regex.FindAllStringSubmatch(value, -1)
 	if len(matches) == 0 {
 		return false, ""
@@ -163,6 +193,7 @@ func compileFingerprint(app string, fingerprint *Fingerprint) *CompiledFingerpri
 		implies:     fingerprint.Implies,
 		description: fingerprint.Description,
 		website:     fingerprint.Website,
+		icon:        fingerprint.Icon,
 		cookies:     make(map[string]*versionRegex),
 		js:          make([]*versionRegex, 0, len(fingerprint.JS)),
 		headers:     make(map[string]*versionRegex),
@@ -181,7 +212,10 @@ func compileFingerprint(app string, fingerprint *Fingerprint) *CompiledFingerpri
 		compiled.cookies[header] = fingerprint
 	}
 
-	for _, pattern := range fingerprint.JS {
+	for property, pattern := range fingerprint.JS {
+		if pattern == "" {
+			pattern = regexp.QuoteMeta(property)
+		}
 		fingerprint, err := newVersionRegex(pattern)
 		if err != nil {
 			continue
