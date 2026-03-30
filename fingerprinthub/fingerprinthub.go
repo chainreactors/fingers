@@ -141,6 +141,8 @@ func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]inte
 	var errors []error
 
 	for _, rawTemplate := range templateData {
+		sanitizeTemplateForTinyGo(rawTemplate)
+
 		// 将 map 转为 YAML bytes (neutron 使用 YAML unmarshaler)
 		yamlBytes, err := yaml.Marshal(rawTemplate)
 		if err != nil {
@@ -198,6 +200,8 @@ func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 	var errors []error
 
 	for _, rawTemplate := range templateData {
+		sanitizeTemplateForTinyGo(rawTemplate)
+
 		// 将 map 转为 YAML bytes (neutron 使用 YAML unmarshaler)
 		yamlBytes, err := yaml.Marshal(rawTemplate)
 		if err != nil {
