@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
 	github.com/chainreactors/files v0.0.0-20240716182835-7884ee1e77f0 // indirect
 	github.com/chainreactors/neutron v0.0.0-20260203032004-95c9e8431214
 	github.com/chainreactors/words v0.0.0-20241002061906-25d8893158d9
