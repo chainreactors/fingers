@@ -21,10 +21,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	FingerprintHubLog = logs.Log
-)
-
 // CachedResponse 存储缓存的 HTTP 响应
 type CachedResponse struct {
 	Response *http.Response // 响应对象（Body 为 nil）
@@ -126,11 +122,11 @@ func NewFingerPrintHubEngine(webData, serviceData []byte) (*FingerPrintHubEngine
 	allErrors := append(webErrors, serviceErrors...)
 	if len(allErrors) > 0 && len(allErrors) < 10 {
 		for _, e := range allErrors {
-			FingerprintHubLog.Warn(e)
+			logs.Log.Warn(e)
 		}
 	}
 
-	FingerprintHubLog.Infof("Loaded %d fingerprint templates (%d web, %d service)", webCount+serviceCount, webCount, serviceCount)
+	logs.Log.Infof("resources type=fingerprints source=fingerprinthub templates=%d web=%d service=%d", webCount+serviceCount, webCount, serviceCount)
 
 	return engine, nil
 }
@@ -248,7 +244,7 @@ func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 
 	if len(errors) > 0 && len(errors) < 10 {
 		for _, e := range errors {
-			FingerprintHubLog.Warn(e)
+			logs.Log.Warn(e)
 		}
 	}
 
