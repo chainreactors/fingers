@@ -3,16 +3,15 @@ module github.com/chainreactors/fingers
 go 1.16
 
 require (
-	github.com/chainreactors/logs v0.0.0-20241030063019-8ca66a3ee307
-	github.com/chainreactors/utils v0.0.0-20250831165528-f06246b0f311
+	github.com/chainreactors/logs v0.0.0-20260508055944-c678762ed15c
+	github.com/chainreactors/utils v0.0.0-20260507101628-fd69d955ae21
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/net v0.21.0
 )
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
-	github.com/chainreactors/files v0.0.0-20240716182835-7884ee1e77f0 // indirect
-	github.com/chainreactors/neutron v0.0.0-20260203032004-95c9e8431214
+	github.com/chainreactors/neutron v0.0.0-20260517173800-28516c3539a3
 	github.com/chainreactors/words v0.0.0-20241002061906-25d8893158d9
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/facebookincubator/nvdtools v0.1.5
