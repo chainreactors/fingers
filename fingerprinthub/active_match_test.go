@@ -1,3 +1,5 @@
+//go:build active
+
 package fingerprinthub
 
 import (
