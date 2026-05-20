@@ -93,6 +93,88 @@ func TestACPassiveMatch_Consistency(t *testing.T) {
 	}
 }
 
+func make1MBResponse() []byte {
+	header := "HTTP/1.1 200 OK\r\nServer: nginx/1.18.0\r\nContent-Type: text/html\r\n\r\n"
+	bodySize := 1*1024*1024 - len(header)
+	body := make([]byte, bodySize)
+	for i := range body {
+		body[i] = 'a' + byte(i%26)
+	}
+	return append([]byte(header), body...)
+}
+
+func BenchmarkPassiveMatch_1MB_Baseline(b *testing.B) {
+	httpfs, _ := LoadFingers(resources.FingersHTTPData)
+	for _, f := range httpfs {
+		f.Compile(false)
+	}
+	input := NewContent(make1MBResponse(), "", true)
+	b.SetBytes(int64(len(input.Content)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		httpfs.PassiveMatch(input, false)
+	}
+}
+
+func BenchmarkPassiveMatch_1MB_WithAC(b *testing.B) {
+	httpfs, _ := LoadFingers(resources.FingersHTTPData)
+	for _, f := range httpfs {
+		f.Compile(false)
+	}
+	idx := NewKeywordIndex(httpfs)
+	input := NewContent(make1MBResponse(), "", true)
+	b.SetBytes(int64(len(input.Content)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		httpfs.ACPassiveMatch(input, idx, false)
+	}
+}
+
+// 只收集有正则的 finger，对比正则暴力匹配 vs AC 预过滤
+func filterRegexFingers(fs Fingers) Fingers {
+	var out Fingers
+	for _, f := range fs {
+		for _, rule := range f.Rules {
+			if rule.Regexps != nil && (len(rule.Regexps.CompliedRegexp) > 0 || len(rule.Regexps.CompiledVulnRegexp) > 0) {
+				out = append(out, f)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func BenchmarkRegexMatch_1MB_Baseline(b *testing.B) {
+	httpfs, _ := LoadFingers(resources.FingersHTTPData)
+	for _, f := range httpfs {
+		f.Compile(false)
+	}
+	regexFs := filterRegexFingers(httpfs)
+	input := NewContent(make1MBResponse(), "", true)
+	b.Logf("Regex fingers: %d / %d total", len(regexFs), len(httpfs))
+	b.SetBytes(int64(len(input.Content)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		regexFs.PassiveMatch(input, false)
+	}
+}
+
+func BenchmarkRegexMatch_1MB_WithAC(b *testing.B) {
+	httpfs, _ := LoadFingers(resources.FingersHTTPData)
+	for _, f := range httpfs {
+		f.Compile(false)
+	}
+	regexFs := filterRegexFingers(httpfs)
+	idx := NewKeywordIndex(regexFs)
+	input := NewContent(make1MBResponse(), "", true)
+	b.Logf("Regex fingers: %d / %d total, fast-path: %d", len(regexFs), len(httpfs), len(idx.fastPath))
+	b.SetBytes(int64(len(input.Content)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		regexFs.ACPassiveMatch(input, idx, false)
+	}
+}
+
 func BenchmarkPassiveMatch_Baseline(b *testing.B) {
 	httpfs, err := LoadFingers(resources.FingersHTTPData)
 	if err != nil {
