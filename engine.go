@@ -14,6 +14,7 @@ import (
 	gonmap "github.com/chainreactors/fingers/nmap"
 	"github.com/chainreactors/fingers/resources"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
+	xrayengine "github.com/chainreactors/fingers/xray"
 	"github.com/chainreactors/utils/httputils"
 	"github.com/pkg/errors"
 	"net/http"
@@ -28,10 +29,11 @@ const (
 	EHoleEngine       = "ehole"
 	GobyEngine        = "goby"
 	NmapEngine        = "nmap"
+	XrayEngine        = "xray"
 )
 
 var (
-	AllEngines           = []string{FingersEngine, FingerPrintEngine, WappalyzerEngine, EHoleEngine, GobyEngine, NmapEngine, FaviconEngine}
+	AllEngines           = []string{FingersEngine, FingerPrintEngine, WappalyzerEngine, EHoleEngine, GobyEngine, NmapEngine, XrayEngine, FaviconEngine}
 	DefaultEnableEngines = AllEngines
 
 	NotFoundEngine = errors.New("engine not found")
@@ -175,6 +177,8 @@ func (engine *Engine) InitEngine(name string) error {
 				resources.NmapServiceProbesData,
 				resources.NmapServicesData,
 			)
+		case XrayEngine:
+			impl, err = xrayengine.NewXrayEngine(resources.XrayWebData)
 		case FaviconEngine:
 			impl = favicon.NewFavicons()
 		default:
@@ -238,6 +242,13 @@ func (engine *Engine) EHole() *ehole.EHoleEngine {
 func (engine *Engine) Goby() *goby.GobyEngine {
 	if impl, ok := engine.EnginesImpl[GobyEngine]; ok {
 		return impl.(*goby.GobyEngine)
+	}
+	return nil
+}
+
+func (engine *Engine) Xray() *xrayengine.XrayEngine {
+	if impl, ok := engine.EnginesImpl[XrayEngine]; ok {
+		return impl.(*xrayengine.XrayEngine)
 	}
 	return nil
 }

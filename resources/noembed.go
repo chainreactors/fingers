@@ -36,5 +36,6 @@ var EholeData []byte
 var WappalyzerData []byte
 var NmapServiceProbesData []byte
 var NmapServicesData []byte
+var XrayWebData []byte
 
 var CheckSum = map[string]string{}
