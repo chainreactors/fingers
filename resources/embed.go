@@ -40,6 +40,9 @@ var (
 	//go:embed fingerprinthub_web.json.gz
 	FingerprinthubWebData []byte
 
+	//go:embed fingerprinthub_xray_web.json.gz
+	XrayWebData []byte
+
 	//go:embed fingerprinthub_service.json.gz
 	FingerprinthubServiceData []byte
 
@@ -64,6 +67,7 @@ var (
 	CheckSum = map[string]string{
 		"goby":                   encode.Md5Hash(GobyData),
 		"fingerprinthub_web":     encode.Md5Hash(FingerprinthubWebData),
+		"xray_web":              encode.Md5Hash(XrayWebData),
 		"fingerprinthub_service": encode.Md5Hash(FingerprinthubServiceData),
 		"ehole":                  encode.Md5Hash(EholeData),
 		"fingers":                encode.Md5Hash(FingersHTTPData),
