@@ -65,6 +65,7 @@ type FingersEngine struct {
 	SocketGroup              FingerMapper
 	Favicons                 *favicon.FaviconsEngine
 	MatchDetailEnabled       bool
+	httpKeywordIndex         *KeywordIndex
 }
 
 func (engine *FingersEngine) Name() string {
@@ -120,6 +121,8 @@ func (engine *FingersEngine) Compile() error {
 		}
 	}
 
+	engine.httpKeywordIndex = NewKeywordIndex(engine.HTTPFingers)
+
 	if engine.SocketFingers != nil {
 		for _, finger := range engine.SocketFingers {
 			finger.EnableMatchDetail = engine.MatchDetailEnabled
@@ -150,6 +153,7 @@ func (engine *FingersEngine) Append(fingers Fingers) error {
 			engine.addToSocketGroup(f)
 		}
 	}
+	engine.httpKeywordIndex = NewKeywordIndex(engine.HTTPFingers)
 	return nil
 }
 
@@ -279,10 +283,11 @@ func (engine *FingersEngine) Capability() common.EngineCapability {
 }
 
 func (engine *FingersEngine) HTTPMatch(content []byte, cert string) (common.Frameworks, common.Vulns) {
-	// input map[string]interface{}
-	// content: []byte
-	// cert: string
-	return engine.HTTPFingers.PassiveMatch(NewContent(content, cert, true), false)
+	input := NewContent(content, cert, true)
+	if engine.httpKeywordIndex != nil {
+		return engine.HTTPFingers.ACPassiveMatch(input, engine.httpKeywordIndex, false)
+	}
+	return engine.HTTPFingers.PassiveMatch(input, false)
 }
 
 func (engine *FingersEngine) HTTPActiveMatch(baseURL string, level int, transport http.RoundTripper, callback Callback) (common.Frameworks, common.Vulns) {
