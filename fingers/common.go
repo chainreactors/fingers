@@ -82,6 +82,27 @@ func (fs Fingers) ACPassiveMatch(input *Content, idx *KeywordIndex, stopAtFirst 
 	candidates := idx.MatchCandidates(input.Header, input.Body)
 	for fi := range candidates {
 		finger := fs[fi]
+
+		if idx.IsFastPath(fi) {
+			frame, vuln := finger.ToResult(true, finger.Rules[0].Vuln != "", "", 0)
+			if frame != nil {
+				if finger.Focus {
+					frame.IsFocus = true
+				}
+				for _, tag := range finger.Tags {
+					frame.AddTag(tag)
+				}
+				frames.Add(frame)
+				if vuln != nil {
+					vulns[vuln.Name] = vuln
+				}
+				if stopAtFirst {
+					break
+				}
+			}
+			continue
+		}
+
 		frame, vuln, ok := finger.PassiveMatch(input)
 		if ok {
 			frames.Add(frame)
