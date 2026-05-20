@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/chainreactors/logs v0.0.0-20260508055944-c678762ed15c
-	github.com/chainreactors/utils v0.0.0-20260520013422-17d44b97430a
+	github.com/chainreactors/utils v0.0.0-20260520090033-cfefcb28cc6f
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.21.0
 	sigs.k8s.io/yaml v1.6.0

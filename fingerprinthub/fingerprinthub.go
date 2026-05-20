@@ -88,6 +88,7 @@ type FingerPrintHubEngine struct {
 	webTemplates     []*templates.Template // Web 指纹模板
 	serviceTemplates []*templates.Template // Service 指纹模板
 	executerOptions  *protocols.ExecuterOptions
+	webTemplateIndex *TemplateKeywordIndex // AC keyword index for web template prefiltering
 }
 
 // NewFingerPrintHubEngine 创建新的引擎实例
@@ -127,6 +128,8 @@ func NewFingerPrintHubEngine(webData, serviceData []byte) (*FingerPrintHubEngine
 	}
 
 	logs.Log.Infof("resources type=fingerprints source=fingerprinthub templates=%d web=%d service=%d", webCount+serviceCount, webCount, serviceCount)
+
+	engine.webTemplateIndex = NewTemplateKeywordIndex(engine.webTemplates)
 
 	return engine, nil
 }
@@ -384,48 +387,53 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 
 	frames := make(common.Frameworks)
 
-	// 遍历所有 web 模板进行匹配
-	for _, tmpl := range engine.webTemplates {
-		// 跳过没有 HTTP 请求的模板
+	headerStr, _ := event["all_headers"].(string)
+	mr := engine.webTemplateIndex.Match(headerStr, bodyStr)
+
+	// Fast path: AC keyword hit directly resolves these templates.
+	// All matchers are Word type with OR condition — AC match = matched.
+	for ti := range mr.Matched {
+		engine.addFramework(frames, engine.webTemplates[ti])
+	}
+
+	// Slow path: templates needing full matchRequest (regex, AND, fallback).
+	for ti := range mr.NeedsCheck {
+		tmpl := engine.webTemplates[ti]
 		requests := tmpl.GetRequests()
 		if len(requests) == 0 {
 			continue
 		}
 
-		// 检查每个请求的 matchers
 		for _, req := range requests {
 			if req.Matchers == nil || len(req.Matchers) == 0 {
 				continue
 			}
 
-			// 使用 neutron 的 Match 方法进行匹配
-			// 这里复用了 neutron 的完整匹配逻辑
-			matched := engine.matchRequest(req, event)
-			if matched {
-				// 创建 framework
-				name := tmpl.Info.Name
-				if name == "" {
-					name = tmpl.Id
-				}
-				frame := common.NewFramework(name, common.FrameFromFingerprintHub)
-
-				// 添加元数据
-				if tmpl.Info.Metadata != nil {
-					if vendor, ok := tmpl.Info.Metadata["vendor"].(string); ok {
-						frame.Attributes.Vendor = vendor
-					}
-					if product, ok := tmpl.Info.Metadata["product"].(string); ok {
-						frame.Attributes.Product = product
-					}
-				}
-
-				frames.Add(frame)
-				break // 找到匹配后跳出
+			if engine.matchRequest(req, event) {
+				engine.addFramework(frames, tmpl)
+				break
 			}
 		}
 	}
 
 	return frames
+}
+
+func (engine *FingerPrintHubEngine) addFramework(frames common.Frameworks, tmpl *templates.Template) {
+	name := tmpl.Info.Name
+	if name == "" {
+		name = tmpl.Id
+	}
+	frame := common.NewFramework(name, common.FrameFromFingerprintHub)
+	if tmpl.Info.Metadata != nil {
+		if vendor, ok := tmpl.Info.Metadata["vendor"].(string); ok {
+			frame.Attributes.Vendor = vendor
+		}
+		if product, ok := tmpl.Info.Metadata["product"].(string); ok {
+			frame.Attributes.Product = product
+		}
+	}
+	frames.Add(frame)
 }
 
 // buildInternalEvent 构建 neutron 的 InternalEvent
