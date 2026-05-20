@@ -377,18 +377,22 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 		return make(common.Frameworks)
 	}
 
-	// 读取 body
-	body := bytes.ToLower(httputils.ReadBody(resp))
-	bodyStr := string(body)
+	// 读取 body — 保留原始大小写给 DSL/regex matcher 使用
+	rawBody := httputils.ReadBody(resp)
+	rawBodyStr := string(rawBody)
 
-	// 构建 neutron 格式的 InternalEvent
-	// 复用 neutron 的数据结构，避免重复实现
-	event := engine.buildInternalEvent(resp, bodyStr, len(content))
+	// AC index 使用小写版本做关键词预过滤
+	lowerBodyStr := string(bytes.ToLower(rawBody))
+
+	// 构建 neutron 格式的 InternalEvent — 使用原始大小写 body，
+	// 因为 DSL contains() 和 regex matcher 是 case-sensitive 的，
+	// 而 word matcher 内部已自行做 ToLower 处理。
+	event := engine.buildInternalEvent(resp, rawBodyStr, len(content))
 
 	frames := make(common.Frameworks)
 
 	headerStr, _ := event["all_headers"].(string)
-	mr := engine.webTemplateIndex.Match(headerStr, bodyStr)
+	mr := engine.webTemplateIndex.Match(headerStr, lowerBodyStr)
 
 	// Fast path: AC keyword hit directly resolves these templates.
 	// All matchers are Word type with OR condition — AC match = matched.
