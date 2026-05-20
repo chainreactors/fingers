@@ -2,7 +2,6 @@ package fingers
 
 import (
 	"bytes"
-	"regexp"
 	"strings"
 
 	"github.com/chainreactors/fingers/common"
@@ -16,9 +15,9 @@ type Regexps struct {
 	Regexp                []string         `yaml:"regexp,omitempty" json:"regexp,omitempty" jsonschema:"title=Regular Expressions,description=Regex patterns for advanced matching,nullable,example=nginx/([\\d\\.]+)"`
 	Version               []string         `yaml:"version,omitempty" json:"version,omitempty" jsonschema:"title=Version Patterns,description=Regex patterns to extract version information,nullable,example=([\\d\\.]+)"`
 	Cert                  []string         `yaml:"cert,omitempty" json:"cert,omitempty" jsonschema:"title=Certificate Patterns,description=Patterns to match in SSL certificates,nullable,example=nginx"`
-	CompliedRegexp        []*regexp.Regexp `yaml:"-" json:"-"`
-	CompiledVulnRegexp    []*regexp.Regexp `yaml:"-" json:"-"`
-	CompiledVersionRegexp []*regexp.Regexp `yaml:"-" json:"-"`
+	CompliedRegexp        []CompiledRegexp `yaml:"-" json:"-"`
+	CompiledVulnRegexp    []CompiledRegexp `yaml:"-" json:"-"`
+	CompiledVersionRegexp []CompiledRegexp `yaml:"-" json:"-"`
 	FingerName            string           `yaml:"-" json:"-"`
 	Header                []string         `yaml:"header,omitempty" json:"header,omitempty" jsonschema:"title=Header Patterns,description=Patterns to match in HTTP headers,nullable,example=Server: nginx"`
 	Vuln                  []string         `yaml:"vuln,omitempty" json:"vuln,omitempty" jsonschema:"title=Vulnerability Patterns,description=Regex patterns indicating security vulnerabilities,nullable,example=admin/config.php"`

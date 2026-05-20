@@ -76,6 +76,26 @@ func (fs Fingers) GroupByMod() (Fingers, Fingers) {
 	return active, passive
 }
 
+func (fs Fingers) ACPassiveMatch(input *Content, idx *KeywordIndex, stopAtFirst bool) (common.Frameworks, common.Vulns) {
+	frames := make(common.Frameworks)
+	vulns := make(common.Vulns)
+	candidates := idx.MatchCandidates(input.Header, input.Body)
+	for fi := range candidates {
+		finger := fs[fi]
+		frame, vuln, ok := finger.PassiveMatch(input)
+		if ok {
+			frames.Add(frame)
+			if vuln != nil {
+				vulns[vuln.Name] = vuln
+			}
+			if stopAtFirst {
+				break
+			}
+		}
+	}
+	return frames, vulns
+}
+
 func (fs Fingers) PassiveMatch(input *Content, stopAtFirst bool) (common.Frameworks, common.Vulns) {
 	frames := make(common.Frameworks)
 	vulns := make(common.Vulns)

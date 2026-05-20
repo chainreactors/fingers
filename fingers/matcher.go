@@ -1,21 +1,12 @@
 package fingers
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/chainreactors/fingers/common"
 )
 
-func compileRegexp(s string) (*regexp.Regexp, error) {
-	reg, err := regexp.Compile(s)
-	if err != nil {
-		return nil, err
-	}
-	return reg, nil
-}
-
-func compiledMatch(reg *regexp.Regexp, s []byte) (string, bool) {
+func compiledMatch(reg CompiledRegexp, s []byte) (string, bool) {
 	matched := reg.FindSubmatch(s)
 	if matched == nil {
 		return "", false
@@ -27,7 +18,7 @@ func compiledMatch(reg *regexp.Regexp, s []byte) (string, bool) {
 	}
 }
 
-func compiledAllMatch(reg *regexp.Regexp, s string) ([]string, bool) {
+func compiledAllMatch(reg CompiledRegexp, s string) ([]string, bool) {
 	matchedes := reg.FindAllString(s, -1)
 	if matchedes == nil {
 		return nil, false
