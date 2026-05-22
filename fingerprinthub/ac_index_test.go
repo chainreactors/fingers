@@ -71,9 +71,9 @@ func (engine *FingerPrintHubEngine) webMatchBaseline(content []byte) common.Fram
 		return make(common.Frameworks)
 	}
 
-	body := bytes.ToLower(httputils.ReadBody(resp))
-	bodyStr := string(body)
-	event := engine.buildInternalEvent(resp, bodyStr, len(content))
+	rawBody := httputils.ReadBody(resp)
+	rawBodyStr := string(rawBody)
+	event := engine.buildInternalEvent(resp, rawBodyStr, len(content))
 	frames := make(common.Frameworks)
 
 	for _, tmpl := range engine.webTemplates {

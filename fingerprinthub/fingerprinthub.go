@@ -156,6 +156,16 @@ func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]inte
 			continue
 		}
 
+		// 强制所有 word matcher 为 case-insensitive，
+		// 使 word matcher 内部自行处理大小写，不依赖外部对 body/header 做 ToLower
+		for _, req := range tmpl.GetRequests() {
+			for _, matcher := range req.Matchers {
+				if matcher.Type == "word" {
+					matcher.CaseInsensitive = true
+				}
+			}
+		}
+
 		// 编译模板
 		if err := tmpl.Compile(engine.executerOptions); err != nil {
 			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
@@ -377,18 +387,20 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 		return make(common.Frameworks)
 	}
 
-	// 读取 body
-	body := bytes.ToLower(httputils.ReadBody(resp))
-	bodyStr := string(body)
+	// 读取原始 body，保留大小写给 DSL/regex matcher
+	rawBody := httputils.ReadBody(resp)
+	rawBodyStr := string(rawBody)
 
-	// 构建 neutron 格式的 InternalEvent
-	// 复用 neutron 的数据结构，避免重复实现
-	event := engine.buildInternalEvent(resp, bodyStr, len(content))
+	// 构建 neutron 格式的 InternalEvent（使用原始大小写）
+	event := engine.buildInternalEvent(resp, rawBodyStr, len(content))
 
 	frames := make(common.Frameworks)
 
+	// AC index 使用小写版本做关键词预过滤
+	lowerBodyStr := strings.ToLower(rawBodyStr)
 	headerStr, _ := event["all_headers"].(string)
-	mr := engine.webTemplateIndex.Match(headerStr, bodyStr)
+	lowerHeaderStr := strings.ToLower(headerStr)
+	mr := engine.webTemplateIndex.Match(lowerHeaderStr, lowerBodyStr)
 
 	// Fast path: AC keyword hit directly resolves these templates.
 	// All matchers are Word type with OR condition — AC match = matched.
@@ -463,14 +475,14 @@ func (engine *FingerPrintHubEngine) buildInternalEvent(resp *http.Response, body
 }
 
 // buildHeaderString 构建 header 字符串
-// 复用 neutron 的格式：小写的 "key: value\n" 格式
+// key 统一小写（HTTP 规范 key 是 case-insensitive），value 保留原始大小写
 func (engine *FingerPrintHubEngine) buildHeaderString(header http.Header) string {
 	var builder strings.Builder
 	for key, values := range header {
 		for _, value := range values {
 			builder.WriteString(strings.ToLower(key))
 			builder.WriteString(": ")
-			builder.WriteString(strings.ToLower(value))
+			builder.WriteString(value)
 			builder.WriteString("\n")
 		}
 	}
