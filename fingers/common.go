@@ -83,7 +83,7 @@ func (fs Fingers) ACPassiveMatch(input *Content, idx *KeywordIndex, stopAtFirst 
 	for fi := range candidates {
 		finger := fs[fi]
 
-		if idx.IsFastPath(fi) {
+		if idx.IsFastPath(fi) && !finger.EnableMatchDetail {
 			frame, vuln := finger.ToResult(true, finger.Rules[0].Vuln != "", "", 0)
 			if frame != nil {
 				if finger.Focus {
