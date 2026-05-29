@@ -61,31 +61,48 @@ func TestFingerPrintHubEngine_WebMatch(t *testing.T) {
 }
 
 // ============================================================================
-// DSL case-sensitivity regression test
+// CaseInsensitive 开关测试
 // ============================================================================
 
-func TestWebMatch_DSLCaseSensitivity(t *testing.T) {
-	engine := &FingerPrintHubEngine{
+func newTestEngine(caseInsensitive bool) *FingerPrintHubEngine {
+	return &FingerPrintHubEngine{
+		CaseInsensitive: caseInsensitive,
 		webTemplates:    make([]*templates.Template, 0),
 		executerOptions: &protocols.ExecuterOptions{Options: &protocols.Options{Timeout: 10}},
 	}
+}
+
+// CaseInsensitive=true（默认）: body 已 ToLower，DSL 字面量用小写
+func TestWebMatch_CaseInsensitive(t *testing.T) {
+	engine := newTestEngine(true)
 
 	tmplData := []map[string]interface{}{
 		{
-			"id": "test-dsl-case",
-			"info": map[string]interface{}{
-				"name":     "Test DSL Case",
-				"severity": "info",
-			},
+			"id": "test-ci-dsl",
+			"info": map[string]interface{}{"name": "Test CI DSL", "severity": "info"},
 			"http": []interface{}{
 				map[string]interface{}{
-					"method":             "GET",
-					"path":               []interface{}{"{{BaseURL}}/"},
+					"method": "GET", "path": []interface{}{"{{BaseURL}}/"},
 					"matchers-condition": "and",
 					"matchers": []interface{}{
 						map[string]interface{}{
 							"type": "dsl",
-							"dsl":  []interface{}{`contains(body, "<title>Nacos") && contains(body, "console-ui/public/js/xml.js")`},
+							"dsl":  []interface{}{`contains(body, "<title>nacos")`},
+						},
+					},
+				},
+			},
+		},
+		{
+			"id": "test-ci-word",
+			"info": map[string]interface{}{"name": "Test CI Word", "severity": "info"},
+			"http": []interface{}{
+				map[string]interface{}{
+					"method": "GET", "path": []interface{}{"{{BaseURL}}/"},
+					"matchers": []interface{}{
+						map[string]interface{}{
+							"type":  "word",
+							"words": []interface{}{"<title>Nacos"},
 						},
 					},
 				},
@@ -94,20 +111,76 @@ func TestWebMatch_DSLCaseSensitivity(t *testing.T) {
 	}
 
 	count, errs := engine.loadTemplates(tmplData, true)
-	if count == 0 {
-		t.Fatalf("loadTemplates returned 0; errors: %v", errs)
+	if count != 2 {
+		t.Fatalf("loadTemplates: loaded=%d, errors: %v", count, errs)
 	}
 	engine.webTemplateIndex = NewTemplateKeywordIndex(engine.webTemplates)
 
 	raw := "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" +
-		"<html><head><title>Nacos</title></head><body>" +
-		"<script src=\"console-ui/public/js/xml.js\"></script></body></html>"
+		"<html><head><title>Nacos</title></head></html>"
 
 	frames := engine.WebMatch([]byte(raw))
-	if len(frames) == 0 {
-		t.Fatal("expected DSL matcher to match mixed-case body, got 0 results")
+	if len(frames) != 2 {
+		t.Fatalf("CaseInsensitive=true: expected 2 matches, got %d: %v", len(frames), frameworkNames(frames))
 	}
-	t.Logf("matched: %v", frameworkNames(frames))
+	t.Logf("CaseInsensitive=true matched: %v", frameworkNames(frames))
+}
+
+// CaseInsensitive=false: body 保留原始大小写，DSL 字面量可用混合大小写
+func TestWebMatch_CaseSensitive(t *testing.T) {
+	engine := newTestEngine(false)
+
+	tmplData := []map[string]interface{}{
+		{
+			"id": "test-cs-dsl-match",
+			"info": map[string]interface{}{"name": "CS DSL Match", "severity": "info"},
+			"http": []interface{}{
+				map[string]interface{}{
+					"method": "GET", "path": []interface{}{"{{BaseURL}}/"},
+					"matchers": []interface{}{
+						map[string]interface{}{
+							"type": "dsl",
+							"dsl":  []interface{}{`contains(body, "<title>Nacos")`},
+						},
+					},
+				},
+			},
+		},
+		{
+			"id": "test-cs-dsl-nomatch",
+			"info": map[string]interface{}{"name": "CS DSL NoMatch", "severity": "info"},
+			"http": []interface{}{
+				map[string]interface{}{
+					"method": "GET", "path": []interface{}{"{{BaseURL}}/"},
+					"matchers": []interface{}{
+						map[string]interface{}{
+							"type": "dsl",
+							"dsl":  []interface{}{`contains(body, "<title>NACOS")`},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	count, errs := engine.loadTemplates(tmplData, true)
+	if count != 2 {
+		t.Fatalf("loadTemplates: loaded=%d, errors: %v", count, errs)
+	}
+	engine.webTemplateIndex = NewTemplateKeywordIndex(engine.webTemplates)
+
+	raw := "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" +
+		"<html><head><title>Nacos</title></head></html>"
+
+	frames := engine.WebMatch([]byte(raw))
+	names := frameworkNames(frames)
+	if len(frames) != 1 {
+		t.Fatalf("CaseSensitive: expected 1 match, got %d: %v", len(frames), names)
+	}
+	if _, ok := frames["cs dsl match"]; !ok {
+		t.Fatalf("CaseSensitive: expected 'cs dsl match', got %v", names)
+	}
+	t.Logf("CaseSensitive matched: %v", names)
 }
 
 // ============================================================================

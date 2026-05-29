@@ -37,11 +37,15 @@ func init() {
 type XrayEngine struct {
 	templates       []*templates.Template
 	executerOptions *protocols.ExecuterOptions
+
+	// CaseInsensitive 控制匹配时是否忽略大小写（默认 true）。
+	CaseInsensitive bool
 }
 
 // NewXrayEngine creates a new xray fingerprint engine from gzipped JSON data.
 func NewXrayEngine(webData []byte) (*XrayEngine, error) {
 	engine := &XrayEngine{
+		CaseInsensitive: true,
 		executerOptions: &protocols.ExecuterOptions{
 			Options: &protocols.Options{Timeout: 10},
 		},
@@ -84,7 +88,7 @@ func (e *XrayEngine) loadTemplates(data []map[string]interface{}) (int, []error)
 			errs = append(errs, fmt.Errorf("unmarshal: %w", err))
 			continue
 		}
-		if err := tmpl.Compile(e.executerOptions); err != nil {
+		if err := e.compileTemplate(tmpl); err != nil {
 			for _, req := range tmpl.GetRequests() {
 				if compileErr := (&req.Operators).Compile(); compileErr != nil {
 					continue
@@ -98,6 +102,19 @@ func (e *XrayEngine) loadTemplates(data []map[string]interface{}) (int, []error)
 		}
 	}
 	return loaded, errs
+}
+
+func (e *XrayEngine) compileTemplate(tmpl *templates.Template) error {
+	if e.CaseInsensitive {
+		for _, req := range tmpl.GetRequests() {
+			for _, matcher := range req.Matchers {
+				if matcher.Type == "word" {
+					matcher.CaseInsensitive = true
+				}
+			}
+		}
+	}
+	return tmpl.Compile(e.executerOptions)
 }
 
 // ---------------------------------------------------------------------------
@@ -119,8 +136,11 @@ func (e *XrayEngine) WebMatch(content []byte) common.Frameworks {
 		return make(common.Frameworks)
 	}
 
-	body := string(bytes.ToLower(httputils.ReadBody(resp)))
-	event := buildEvent(resp, body, len(content))
+	bodyStr := string(httputils.ReadBody(resp))
+	if e.CaseInsensitive {
+		bodyStr = strings.ToLower(bodyStr)
+	}
+	event := e.buildEvent(resp, bodyStr, len(content))
 	frames := make(common.Frameworks)
 
 	for _, tmpl := range e.templates {
@@ -183,7 +203,7 @@ func matchRequest(req *nhttp.Request, event protocols.InternalEvent) bool {
 	return anyMatched
 }
 
-func buildEvent(resp *http.Response, body string, contentLength int) protocols.InternalEvent {
+func (e *XrayEngine) buildEvent(resp *http.Response, body string, contentLength int) protocols.InternalEvent {
 	event := make(protocols.InternalEvent)
 	event["body"] = body
 	event["status_code"] = resp.StatusCode
@@ -193,10 +213,13 @@ func buildEvent(resp *http.Response, body string, contentLength int) protocols.I
 	for k, vals := range resp.Header {
 		joined := strings.Join(vals, " ")
 		norm := strings.ToLower(strings.Replace(strings.TrimSpace(k), "-", "_", -1))
-		event[norm] = strings.ToLower(joined)
+		if e.CaseInsensitive {
+			joined = strings.ToLower(joined)
+		}
+		event[norm] = joined
 		hdrBuilder.WriteString(norm)
 		hdrBuilder.WriteString(": ")
-		hdrBuilder.WriteString(strings.ToLower(joined))
+		hdrBuilder.WriteString(joined)
 		hdrBuilder.WriteString("\n")
 	}
 	event["all_headers"] = hdrBuilder.String()

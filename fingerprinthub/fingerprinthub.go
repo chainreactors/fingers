@@ -88,11 +88,17 @@ type FingerPrintHubEngine struct {
 	serviceTemplates []*templates.Template // Service 指纹模板
 	executerOptions  *protocols.ExecuterOptions
 	webTemplateIndex *TemplateKeywordIndex // AC keyword index for web template prefiltering
+
+	// CaseInsensitive 控制匹配时是否忽略大小写（默认 true）。
+	// 开启时 event 中的 body/header 统一 ToLower，word matcher keywords 也在编译时 ToLower。
+	// DSL/Regex 模板中的字面量需使用小写以配合此模式。
+	CaseInsensitive bool
 }
 
 // NewFingerPrintHubEngine 创建新的引擎实例
 func NewFingerPrintHubEngine(webData, serviceData []byte) (*FingerPrintHubEngine, error) {
 	engine := &FingerPrintHubEngine{
+		CaseInsensitive:  true,
 		webTemplates:     make([]*templates.Template, 0),
 		serviceTemplates: make([]*templates.Template, 0),
 		executerOptions: &protocols.ExecuterOptions{
@@ -155,17 +161,7 @@ func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]inte
 			continue
 		}
 
-		// 强制所有 word matcher 为 case-insensitive，
-		// 使 word matcher 内部自行处理大小写，不依赖外部对 body/header 做 ToLower
-		for _, req := range tmpl.GetRequests() {
-			for _, matcher := range req.Matchers {
-				if matcher.Type == "word" {
-					matcher.CaseInsensitive = true
-				}
-			}
-		}
-
-		if err := tmpl.Compile(engine.executerOptions); err != nil {
+		if err := engine.compileTemplate(tmpl); err != nil {
 			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
 			continue
 		}
@@ -192,6 +188,22 @@ func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]inte
 	}
 
 	return loadedCount, errors
+}
+
+// compileTemplate 编译模板。当 CaseInsensitive 开启时，设置 word matcher
+// 的 CaseInsensitive 标志，使 neutron 在编译时将 keywords ToLower，
+// 匹配时将 corpus ToLower。所有模板加载路径都必须经过此方法。
+func (engine *FingerPrintHubEngine) compileTemplate(tmpl *templates.Template) error {
+	if engine.CaseInsensitive {
+		for _, req := range tmpl.GetRequests() {
+			for _, matcher := range req.Matchers {
+				if matcher.Type == "word" {
+					matcher.CaseInsensitive = true
+				}
+			}
+		}
+	}
+	return tmpl.Compile(engine.executerOptions)
 }
 
 // LoadFromJSON 从 JSON 数据加载指纹
@@ -224,8 +236,7 @@ func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 			continue
 		}
 
-		err = tmpl.Compile(engine.executerOptions)
-		if err != nil {
+		if err = engine.compileTemplate(tmpl); err != nil {
 			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
 			continue
 		}
@@ -384,19 +395,27 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 		return make(common.Frameworks)
 	}
 
-	// 读取原始 body，保留大小写给 DSL/regex matcher
 	rawBody := httputils.ReadBody(resp)
-	rawBodyStr := string(rawBody)
+	bodyStr := string(rawBody)
 
-	// 构建 neutron 格式的 InternalEvent（使用原始大小写）
-	event := engine.buildInternalEvent(resp, rawBodyStr, len(content))
+	// AC index 始终使用小写进行关键词预过滤
+	lowerBodyStr := strings.ToLower(bodyStr)
+
+	// CaseInsensitive 开启时，event 中的 body/header 使用小写，
+	// 使 word/DSL/regex 等所有 matcher 统一在小写上匹配
+	if engine.CaseInsensitive {
+		bodyStr = lowerBodyStr
+	}
+
+	event := engine.buildInternalEvent(resp, bodyStr, len(content))
 
 	frames := make(common.Frameworks)
 
-	// AC index 使用小写版本做关键词预过滤
-	lowerBodyStr := strings.ToLower(rawBodyStr)
 	headerStr, _ := event["all_headers"].(string)
-	lowerHeaderStr := strings.ToLower(headerStr)
+	lowerHeaderStr := headerStr
+	if !engine.CaseInsensitive {
+		lowerHeaderStr = strings.ToLower(headerStr)
+	}
 	mr := engine.webTemplateIndex.Match(lowerHeaderStr, lowerBodyStr)
 
 	// Fast path: AC keyword hit directly resolves these templates.
@@ -471,15 +490,19 @@ func (engine *FingerPrintHubEngine) buildInternalEvent(resp *http.Response, body
 	return event
 }
 
-// buildHeaderString 构建 header 字符串
-// key 统一小写（HTTP 规范 key 是 case-insensitive），value 保留原始大小写
+// buildHeaderString 构建 header 字符串。
+// key 始终小写（HTTP 规范）；value 根据 CaseInsensitive 开关决定。
 func (engine *FingerPrintHubEngine) buildHeaderString(header http.Header) string {
 	var builder strings.Builder
 	for key, values := range header {
 		for _, value := range values {
 			builder.WriteString(strings.ToLower(key))
 			builder.WriteString(": ")
-			builder.WriteString(value)
+			if engine.CaseInsensitive {
+				builder.WriteString(strings.ToLower(value))
+			} else {
+				builder.WriteString(value)
+			}
 			builder.WriteString("\n")
 		}
 	}
