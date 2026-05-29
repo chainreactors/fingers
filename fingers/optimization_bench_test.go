@@ -333,6 +333,9 @@ func (idx *acIndex) matchKeywords(header, body []byte) []acMatchResult {
 // ──────────────────────────────────────────────────────────────
 
 func TestBaselineVsAC_Keywords(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping heavy performance comparison in short mode")
+	}
 	engine := newPerfEngine(t)
 
 	sites := generateSyntheticResponses()
@@ -398,6 +401,9 @@ func TestBaselineVsAC_Keywords(t *testing.T) {
 // ──────────────────────────────────────────────────────────────
 
 func TestBaselineVsRE2_Regex(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping heavy performance comparison in short mode")
+	}
 	engine := newPerfEngine(t)
 
 	// Collect all compiled regexps from HTTP fingers
@@ -449,6 +455,9 @@ func TestBaselineVsRE2_Regex(t *testing.T) {
 // ──────────────────────────────────────────────────────────────
 
 func TestFullEngineMatch_BaselineVsACPrefilter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping heavy performance comparison in short mode")
+	}
 	engine := newPerfEngine(t)
 	acIdx := buildACIndex(engine.HTTPFingers)
 
@@ -652,6 +661,9 @@ func BenchmarkFullMatch_ACPrefilter(b *testing.B) {
 // ──────────────────────────────────────────────────────────────
 
 func TestContentSizeScaling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping heavy performance comparison in short mode")
+	}
 	engine := newPerfEngine(t)
 	acIdx := buildACIndex(engine.HTTPFingers)
 
@@ -740,6 +752,9 @@ func TestACBuildCost(t *testing.T) {
 // ──────────────────────────────────────────────────────────────
 
 func TestGoRegexpVsRE2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping heavy performance comparison in short mode")
+	}
 	engine := newPerfEngine(t)
 
 	type patternPair struct {
@@ -863,6 +878,9 @@ func BenchmarkRegexp_RE2(b *testing.B) {
 // ──────────────────────────────────────────────────────────────
 
 func TestCombinedOptimization(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping heavy performance comparison in short mode")
+	}
 	engine := newPerfEngine(t)
 	acIdx := buildACIndex(engine.HTTPFingers)
 
