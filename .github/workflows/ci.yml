@@ -96,8 +96,32 @@ jobs:
           go-version: '1.22.x'
           cache: true
 
-      - name: Prepare vendor tree
-        run: go mod vendor
+      - name: Prepare Go 1.11 vendor tree
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export GO111MODULE=on
+          export GOPATH="${RUNNER_TEMP}/gopath"
+          src="${GOPATH}/src/github.com/chainreactors/fingers"
+          mkdir -p "$(dirname "${src}")"
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '.claude' \
+            --exclude 'dist' \
+            --exclude 'vendor' \
+            --exclude 'cmd' \
+            . "${src}/"
+
+          cd "${src}"
+          go mod vendor
+
+          # golang.org/x/text ships multiple tables*.go files gated by
+          # //go:build go1.X — a syntax Go 1.11 does not understand, so
+          # all files compile and symbols clash.  Keep only the highest
+          # Unicode-version table per package (the one without a version
+          # suffix) and delete the rest.
+          find vendor/golang.org/x/text -name 'tables[0-9]*.go' -delete 2>/dev/null || true
 
       - name: Setup Go 1.11
         uses: actions/setup-go@v5
@@ -110,8 +134,5 @@ jobs:
           CGO_ENABLED: '0'
         run: |
           export GOPATH="${RUNNER_TEMP}/gopath"
-          src="${GOPATH}/src/github.com/chainreactors/fingers"
-          mkdir -p "$(dirname "${src}")"
-          cp -a . "${src}"
-          cd "${src}"
+          cd "${GOPATH}/src/github.com/chainreactors/fingers"
           go build -tags="noembed goregexp" ${COMPAT_PKGS}
