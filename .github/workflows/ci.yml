@@ -111,16 +111,17 @@ jobs:
             --exclude 'dist' \
             --exclude 'vendor' \
             --exclude 'cmd' \
+            --exclude 'nmap' \
             . "${src}/"
 
           cd "${src}"
           go mod vendor
 
-          # golang.org/x/text ships versioned *N.N.N.go files gated by
-          # //go:build go1.X — a syntax Go 1.11 does not understand, so
-          # all files compile and symbols clash.  Keep only the *10.0.0.go
-          # variant (Go 1.10–1.12) and delete the rest.
-          find vendor/golang.org/x/text -regex '.*[0-9]+\.[0-9]+\.[0-9]+\.go' ! -name '*10.0.0.go' -delete 2>/dev/null || true
+          # golang.org/x/{text,net} ship versioned *N.N.N.go files gated
+          # by //go:build go1.X — a syntax Go 1.11 does not understand,
+          # so all files compile and symbols clash.  Keep only *10.0.0.go
+          # (the Go 1.10–1.12 variant) and delete the rest.
+          find vendor/golang.org/x -regex '.*[0-9]+\.[0-9]+\.[0-9]+\.go' ! -name '*10.0.0.go' -delete 2>/dev/null || true
 
       - name: Setup Go 1.11
         uses: actions/setup-go@v5
@@ -134,7 +135,7 @@ jobs:
         run: |
           export GOPATH="${RUNNER_TEMP}/gopath"
           cd "${GOPATH}/src/github.com/chainreactors/fingers"
-          # nmap uses strings.ReplaceAll (Go 1.12+), exclude it
+          # nmap excluded (uses strings.ReplaceAll, Go 1.12+); cmd excluded
           go build -tags="noembed goregexp" \
             github.com/chainreactors/fingers \
             github.com/chainreactors/fingers/alias \
