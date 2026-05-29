@@ -431,6 +431,17 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 	return frames
 }
 
+func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{}, len(a)+len(b))
+	for k, v := range a {
+		result[k] = v
+	}
+	for k, v := range b {
+		result[k] = v
+	}
+	return result
+}
+
 func (engine *FingerPrintHubEngine) addFramework(frames common.Frameworks, tmpl *templates.Template) {
 	name := tmpl.Info.Name
 	if name == "" {
@@ -563,45 +574,31 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 		}
 
 		templateVars := tmpl.Variables.Evaluate(map[string]interface{}{})
+		previous := make(map[string]interface{})
 		for _, httpReq := range tmpl.RequestsHTTP {
 			originalClient := httpReq.GetHTTPClient()
 			httpReq.SetHTTPClient(httpClient)
 
-			err := httpReq.ExecuteWithResults(scanCtx, templateVars, make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
-				// 检查是否匹配
-				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
-					// 构建 Framework
-					name := tmpl.Info.Name
-					if name == "" {
-						name = tmpl.Id
-					}
-					frame := common.NewFramework(name, common.FrameFromFingerprintHub)
-
-					// 添加元数据
-					if tmpl.Info.Metadata != nil {
-						if vendor, ok := tmpl.Info.Metadata["vendor"].(string); ok {
-							frame.Attributes.Vendor = vendor
-						}
-						if product, ok := tmpl.Info.Metadata["product"].(string); ok {
-							frame.Attributes.Product = product
+			dynamicValues := mergeMaps(templateVars, previous)
+			err := httpReq.ExecuteWithResults(scanCtx, dynamicValues, previous, func(event *protocols.InternalWrappedEvent) {
+				if event.OperatorsResult != nil {
+					for k, v := range event.OperatorsResult.DynamicValues {
+						if len(v) > 0 {
+							previous[k] = v[0]
 						}
 					}
-
-					// 添加到结果集
-					allFrameworks.Add(frame)
-
-					// 调用回调
-					if callback != nil {
-						callback(frame, nil)
+					if event.OperatorsResult.Matched {
+						engine.addFramework(allFrameworks, tmpl)
+						if callback != nil {
+							callback(allFrameworks.One(), nil)
+						}
 					}
 				}
 			})
 
-			// 恢复原始 client
 			httpReq.SetHTTPClient(originalClient)
 
 			if err != nil {
-				// 忽略错误继续尝试其他指纹
 				continue
 			}
 		}

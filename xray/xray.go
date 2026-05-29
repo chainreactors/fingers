@@ -143,6 +143,17 @@ func (e *XrayEngine) matchTemplatePassive(tmpl *templates.Template, event protoc
 	return false
 }
 
+func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{}, len(a)+len(b))
+	for k, v := range a {
+		result[k] = v
+	}
+	for k, v := range b {
+		result[k] = v
+	}
+	return result
+}
+
 func isRootPath(req *nhttp.Request) bool {
 	if len(req.Path) == 0 {
 		return true
@@ -290,28 +301,29 @@ func (e *XrayEngine) HTTPActiveMatch(baseURL string, level int, transport http.R
 			continue
 		}
 		templateVars := tmpl.Variables.Evaluate(map[string]interface{}{})
+		previous := make(map[string]interface{})
 		for _, httpReq := range tmpl.RequestsHTTP {
 			orig := httpReq.GetHTTPClient()
 			httpReq.SetHTTPClient(client)
 
-			httpReq.ExecuteWithResults(scanCtx, templateVars, make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
-				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
-					name := tmpl.Info.Name
-					if name == "" {
-						name = tmpl.Id
-					}
-					frame := common.NewFramework(name, FrameFromXray)
-					if tmpl.Info.Metadata != nil {
-						if v, ok := tmpl.Info.Metadata["vendor"].(string); ok {
-							frame.Attributes.Vendor = v
-						}
-						if p, ok := tmpl.Info.Metadata["product"].(string); ok {
-							frame.Attributes.Product = p
+			dynamicValues := mergeMaps(templateVars, previous)
+			httpReq.ExecuteWithResults(scanCtx, dynamicValues, previous, func(event *protocols.InternalWrappedEvent) {
+				if event.OperatorsResult != nil {
+					for k, v := range event.OperatorsResult.DynamicValues {
+						if len(v) > 0 {
+							previous[k] = v[0]
 						}
 					}
-					allFrameworks.Add(frame)
-					if callback != nil {
-						callback(frame, nil)
+					if event.OperatorsResult.Matched {
+						e.addFramework(allFrameworks, tmpl)
+						if callback != nil {
+							name := tmpl.Info.Name
+							if name == "" {
+								name = tmpl.Id
+							}
+							frame := common.NewFramework(name, FrameFromXray)
+							callback(frame, nil)
+						}
 					}
 				}
 			})
