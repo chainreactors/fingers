@@ -20,3 +20,4 @@ resources/nmap-service-probes.txt
 /frontend.mhtml
 /CLAUDE.md
 /MIGRATION.md
+vendor/

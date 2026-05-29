@@ -11,22 +11,20 @@ permissions:
 
 jobs:
   test:
+    name: test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.22', '1.23']
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go ${{ matrix.go-version }}
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.22.x'
           cache: true
 
-      - name: Go vet
+      - name: Vet
         run: go vet ./...
 
       - name: Build
@@ -34,3 +32,71 @@ jobs:
 
       - name: Test
         run: go test -short -timeout 300s -race -count=1 ./...
+
+  go117-build:
+    name: Go 1.17 compatibility build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go for vendoring
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+          cache: true
+
+      - name: Prepare vendor tree
+        run: go mod vendor
+
+      - name: Setup Go 1.17
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.17.x'
+
+      - name: Build with Go 1.17
+        env:
+          GO111MODULE: off
+          CGO_ENABLED: '0'
+        run: |
+          export GOPATH="${RUNNER_TEMP}/gopath"
+          src="${GOPATH}/src/github.com/chainreactors/fingers"
+          mkdir -p "$(dirname "${src}")"
+          cp -a . "${src}"
+          cd "${src}"
+          go build -tags="noembed goregexp" ./...
+
+  go111-build:
+    name: Go 1.11 compatibility build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go for vendoring
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+          cache: true
+
+      - name: Prepare vendor tree
+        run: go mod vendor
+
+      - name: Setup Go 1.11
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.11.13'
+
+      - name: Build with Go 1.11
+        env:
+          GO111MODULE: off
+          CGO_ENABLED: '0'
+        run: |
+          export GOPATH="${RUNNER_TEMP}/gopath"
+          src="${GOPATH}/src/github.com/chainreactors/fingers"
+          mkdir -p "$(dirname "${src}")"
+          cp -a . "${src}"
+          cd "${src}"
+          go build -tags="noembed goregexp" ./...
