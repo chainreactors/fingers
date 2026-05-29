@@ -47,6 +47,12 @@ func NewXrayEngine(webData []byte) (*XrayEngine, error) {
 		},
 	}
 
+	// xray data is not embedded; an empty engine is valid (templates are
+	// supplied later via the Provider layer).
+	if len(webData) == 0 {
+		return engine, nil
+	}
+
 	var rawTemplates []map[string]interface{}
 	if err := resources.UnmarshalData(webData, &rawTemplates); err != nil {
 		return nil, fmt.Errorf("unmarshal xray fingerprints: %w", err)

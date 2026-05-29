@@ -40,7 +40,7 @@ var (
 	//go:embed fingerprinthub_web.json.gz
 	FingerprinthubWebData []byte
 
-	//go:embed fingerprinthub_xray_web.json.gz
+	// xray fingerprints are internal data — not embedded; loaded via Provider.
 	XrayWebData []byte
 
 	//go:embed fingerprinthub_service.json.gz
