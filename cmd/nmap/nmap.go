@@ -241,7 +241,7 @@ func parseCIDR(cidr string) (*utils.CIDR, error) {
 	// 解析CIDR
 	ipnet := utils.ParseCIDR(cidr)
 	if ipnet == nil {
-		return nil, fmt.Errorf("无效的CIDR: %s, 错误: %v", cidr)
+		return nil, fmt.Errorf("无效的CIDR: %s", cidr)
 	}
 
 	return ipnet, nil

@@ -12,6 +12,9 @@ import (
 )
 
 func TestNacosFingerprint_RealSite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	const (
 		baseURL         = "https://nacos.lzfzkj.com"
 		fingerSendPath  = "/nacos/"
@@ -105,6 +108,9 @@ func TestNacosFingerprint_RealSite(t *testing.T) {
 }
 
 func TestNacosFingerprint_RealSite_RuleSendDataOnly(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	const (
 		baseURL         = "https://nacos.lzfzkj.com"
 		faviconSendPath = "/nacos/console-ui/public/img/nacos-logo.png"

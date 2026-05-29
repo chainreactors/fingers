@@ -58,7 +58,7 @@ func main() {
 
 	// If detect-all flag is set, run general detection
 	if *detectAll {
-		fmt.Println("🔍 Running general fingerprint detection...\n")
+		fmt.Println("🔍 Running general fingerprint detection...")
 		allResults := runGeneralDetection(eng, *target, *timeout, *verbose)
 
 		fmt.Printf("📊 General Detection Results:\n")
@@ -164,9 +164,6 @@ func testAliasMatching(eng *fingers.Engine, target string, aliases []alias.Alias
 
 		totalTests++
 		fmt.Printf("🔍 Testing alias: %s (priority: %d)\n", aliasEntry.Name, aliasEntry.Priority)
-		if aliasEntry.Category != "" {
-			fmt.Printf("   📝 Category: %s\n", aliasEntry.Category)
-		}
 
 		// Show target being used
 		if target != "" {

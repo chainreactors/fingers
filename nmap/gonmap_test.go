@@ -119,6 +119,9 @@ func TestJSONDataStructure(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewNmapEngine(resources.NmapServiceProbesData, resources.NmapServicesData)
 	if err != nil {
 		t.Fatalf("Failed to create nmap engine: %v", err)

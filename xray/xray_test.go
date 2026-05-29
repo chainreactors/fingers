@@ -16,6 +16,9 @@ import (
 )
 
 func TestScanRange(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewXrayEngine(resources.XrayWebData)
 	if err != nil {
 		t.Fatalf("load engine: %v", err)
