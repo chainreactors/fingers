@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -258,7 +257,7 @@ func (c *cachedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if cached, ok := c.cache[key]; ok {
 		c.mu.Unlock()
 		resp := *cached.resp
-		resp.Body = io.NopCloser(bytes.NewReader(cached.body))
+		resp.Body = ioutil.NopCloser(bytes.NewReader(cached.body))
 		resp.Request = req
 		return &resp, nil
 	}
@@ -281,7 +280,7 @@ func (c *cachedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	c.cache[key] = &cachedResp{resp: &cr, body: bodyBytes}
 	c.mu.Unlock()
 
-	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	resp.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
 	return resp, nil
 }
 
