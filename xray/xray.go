@@ -78,7 +78,8 @@ func (e *XrayEngine) loadTemplates(data []map[string]interface{}) (int, []error)
 			errs = append(errs, fmt.Errorf("unmarshal: %w", err))
 			continue
 		}
-		if err := tmpl.Compile(e.executerOptions); err != nil {
+		opts := &protocols.ExecuterOptions{Options: e.executerOptions.Options}
+		if err := tmpl.Compile(opts); err != nil {
 			for _, req := range tmpl.GetRequests() {
 				if compileErr := (&req.Operators).Compile(); compileErr != nil {
 					continue

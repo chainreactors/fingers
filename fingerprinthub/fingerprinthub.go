@@ -165,8 +165,8 @@ func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]inte
 			}
 		}
 
-		// 编译模板
-		if err := tmpl.Compile(engine.executerOptions); err != nil {
+		opts := &protocols.ExecuterOptions{Options: engine.executerOptions.Options}
+		if err := tmpl.Compile(opts); err != nil {
 			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
 			continue
 		}
@@ -225,8 +225,8 @@ func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 			continue
 		}
 
-		// 编译模板
-		err = tmpl.Compile(engine.executerOptions)
+		loadOpts := &protocols.ExecuterOptions{Options: engine.executerOptions.Options}
+		err = tmpl.Compile(loadOpts)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
 			continue
