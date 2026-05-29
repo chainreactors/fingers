@@ -10,3 +10,13 @@ wappalyzer.json
 .sock.lock
 resources/.sock.lock
 resources/nmap-service-probes.txt
+/.claude/
+/.idea/
+/bin/
+/kscan/
+/refer/
+/tidefinger/
+/fingers.test
+/frontend.mhtml
+/CLAUDE.md
+/MIGRATION.md
