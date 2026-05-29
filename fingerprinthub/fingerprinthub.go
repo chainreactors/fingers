@@ -562,16 +562,12 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 			continue
 		}
 
-		// 执行模板的所有 HTTP 请求
-		// neutron 会使用我们注入的 CachedHTTPClient
-		// 相同的请求会自动从缓存返回，不会重复发送
+		templateVars := tmpl.Variables.Evaluate(map[string]interface{}{})
 		for _, httpReq := range tmpl.RequestsHTTP {
-			// 为每个请求设置使用自定义的 client
-			// 使用 SetHTTPClient 方法注入我们的 transport
 			originalClient := httpReq.GetHTTPClient()
 			httpReq.SetHTTPClient(httpClient)
 
-			err := httpReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
+			err := httpReq.ExecuteWithResults(scanCtx, templateVars, make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
 				// 检查是否匹配
 				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
 					// 构建 Framework
