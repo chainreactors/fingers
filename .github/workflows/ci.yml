@@ -111,7 +111,6 @@ jobs:
             --exclude 'dist' \
             --exclude 'vendor' \
             --exclude 'cmd' \
-            --exclude 'nmap' \
             . "${src}/"
 
           cd "${src}"
@@ -135,9 +134,9 @@ jobs:
         run: |
           export GOPATH="${RUNNER_TEMP}/gopath"
           cd "${GOPATH}/src/github.com/chainreactors/fingers"
-          # nmap excluded (uses strings.ReplaceAll, Go 1.12+); cmd excluded
+          # Root pkg and nmap excluded (nmap uses strings.ReplaceAll,
+          # Go 1.12+; root imports nmap). cmd excluded.
           go build -tags="noembed goregexp" \
-            github.com/chainreactors/fingers \
             github.com/chainreactors/fingers/alias \
             github.com/chainreactors/fingers/common \
             github.com/chainreactors/fingers/ehole \
