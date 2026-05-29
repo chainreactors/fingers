@@ -5,6 +5,8 @@ import (
 
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/neutron/operators"
+	"github.com/chainreactors/neutron/protocols"
+	"github.com/chainreactors/neutron/templates"
 	"github.com/chainreactors/utils/encode"
 )
 
@@ -56,6 +58,56 @@ func TestFingerPrintHubEngine_WebMatch(t *testing.T) {
 	}
 
 	t.Logf("✅ Empty engine correctly returns no matches")
+}
+
+// ============================================================================
+// DSL case-sensitivity regression test
+// ============================================================================
+
+func TestWebMatch_DSLCaseSensitivity(t *testing.T) {
+	engine := &FingerPrintHubEngine{
+		webTemplates:    make([]*templates.Template, 0),
+		executerOptions: &protocols.ExecuterOptions{Options: &protocols.Options{Timeout: 10}},
+	}
+
+	tmplData := []map[string]interface{}{
+		{
+			"id": "test-dsl-case",
+			"info": map[string]interface{}{
+				"name":     "Test DSL Case",
+				"severity": "info",
+			},
+			"http": []interface{}{
+				map[string]interface{}{
+					"method":             "GET",
+					"path":               []interface{}{"{{BaseURL}}/"},
+					"matchers-condition": "and",
+					"matchers": []interface{}{
+						map[string]interface{}{
+							"type": "dsl",
+							"dsl":  []interface{}{`contains(body, "<title>Nacos") && contains(body, "console-ui/public/js/xml.js")`},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	count, errs := engine.loadTemplates(tmplData, true)
+	if count == 0 {
+		t.Fatalf("loadTemplates returned 0; errors: %v", errs)
+	}
+	engine.webTemplateIndex = NewTemplateKeywordIndex(engine.webTemplates)
+
+	raw := "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" +
+		"<html><head><title>Nacos</title></head><body>" +
+		"<script src=\"console-ui/public/js/xml.js\"></script></body></html>"
+
+	frames := engine.WebMatch([]byte(raw))
+	if len(frames) == 0 {
+		t.Fatal("expected DSL matcher to match mixed-case body, got 0 results")
+	}
+	t.Logf("matched: %v", frameworkNames(frames))
 }
 
 // ============================================================================

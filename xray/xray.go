@@ -84,8 +84,7 @@ func (e *XrayEngine) loadTemplates(data []map[string]interface{}) (int, []error)
 			errs = append(errs, fmt.Errorf("unmarshal: %w", err))
 			continue
 		}
-		opts := &protocols.ExecuterOptions{Options: e.executerOptions.Options}
-		if err := tmpl.Compile(opts); err != nil {
+		if err := tmpl.Compile(e.executerOptions); err != nil {
 			for _, req := range tmpl.GetRequests() {
 				if compileErr := (&req.Operators).Compile(); compileErr != nil {
 					continue
@@ -126,7 +125,7 @@ func (e *XrayEngine) WebMatch(content []byte) common.Frameworks {
 
 	for _, tmpl := range e.templates {
 		if e.matchTemplatePassive(tmpl, event) {
-			e.addFramework(frames, tmpl)
+			frames.Add(e.newFramework(tmpl))
 		}
 	}
 	return frames
@@ -205,7 +204,7 @@ func buildEvent(resp *http.Response, body string, contentLength int) protocols.I
 	return event
 }
 
-func (e *XrayEngine) addFramework(frames common.Frameworks, tmpl *templates.Template) {
+func (e *XrayEngine) newFramework(tmpl *templates.Template) *common.Framework {
 	name := tmpl.Info.Name
 	if name == "" {
 		name = tmpl.Id
@@ -219,7 +218,7 @@ func (e *XrayEngine) addFramework(frames common.Frameworks, tmpl *templates.Temp
 			frame.Attributes.Product = product
 		}
 	}
-	frames.Add(frame)
+	return frame
 }
 
 // ServiceMatch is not supported by the xray engine.
@@ -302,13 +301,9 @@ func (e *XrayEngine) HTTPActiveMatch(baseURL string, level int, transport http.R
 
 		result, err := tmpl.Execute(baseURL, nil)
 		if err == nil && result != nil && result.Matched {
-			e.addFramework(allFrameworks, tmpl)
+			frame := e.newFramework(tmpl)
+			allFrameworks.Add(frame)
 			if callback != nil {
-				name := tmpl.Info.Name
-				if name == "" {
-					name = tmpl.Id
-				}
-				frame := common.NewFramework(name, FrameFromXray)
 				callback(frame, nil)
 			}
 		}

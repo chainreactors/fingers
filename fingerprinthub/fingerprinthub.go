@@ -165,8 +165,7 @@ func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]inte
 			}
 		}
 
-		opts := &protocols.ExecuterOptions{Options: engine.executerOptions.Options}
-		if err := tmpl.Compile(opts); err != nil {
+		if err := tmpl.Compile(engine.executerOptions); err != nil {
 			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
 			continue
 		}
@@ -225,8 +224,7 @@ func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 			continue
 		}
 
-		loadOpts := &protocols.ExecuterOptions{Options: engine.executerOptions.Options}
-		err = tmpl.Compile(loadOpts)
+		err = tmpl.Compile(engine.executerOptions)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
 			continue
@@ -404,7 +402,7 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 	// Fast path: AC keyword hit directly resolves these templates.
 	// All matchers are Word type with OR condition — AC match = matched.
 	for ti := range mr.Matched {
-		engine.addFramework(frames, engine.webTemplates[ti])
+		frames.Add(engine.newFramework(engine.webTemplates[ti]))
 	}
 
 	// Slow path: templates needing full matchRequest (regex, AND, fallback).
@@ -421,7 +419,7 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 			}
 
 			if engine.matchRequest(req, event) {
-				engine.addFramework(frames, tmpl)
+				frames.Add(engine.newFramework(tmpl))
 				break
 			}
 		}
@@ -430,7 +428,7 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 	return frames
 }
 
-func (engine *FingerPrintHubEngine) addFramework(frames common.Frameworks, tmpl *templates.Template) {
+func (engine *FingerPrintHubEngine) newFramework(tmpl *templates.Template) *common.Framework {
 	name := tmpl.Info.Name
 	if name == "" {
 		name = tmpl.Id
@@ -444,7 +442,7 @@ func (engine *FingerPrintHubEngine) addFramework(frames common.Frameworks, tmpl 
 			frame.Attributes.Product = product
 		}
 	}
-	frames.Add(frame)
+	return frame
 }
 
 // buildInternalEvent 构建 neutron 的 InternalEvent
@@ -566,9 +564,10 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 
 			err := httpReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
 				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
-					engine.addFramework(allFrameworks, tmpl)
+					frame := engine.newFramework(tmpl)
+					allFrameworks.Add(frame)
 					if callback != nil {
-						callback(allFrameworks.One(), nil)
+						callback(frame, nil)
 					}
 				}
 			})
