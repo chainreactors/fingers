@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -49,7 +48,7 @@ func (c *CachedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		c.mu.Unlock()
 		// 复制响应对象，使用缓存的 Body
 		resp := *cached.Response
-		resp.Body = io.NopCloser(bytes.NewReader(cached.Body))
+		resp.Body = ioutil.NopCloser(bytes.NewReader(cached.Body))
 		resp.Request = req
 		return &resp, nil
 	}
@@ -79,7 +78,7 @@ func (c *CachedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	c.mu.Unlock()
 
 	// 返回响应（使用缓存的 Body）
-	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	resp.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
 	return resp, nil
 }
 
@@ -431,17 +430,6 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 	return frames
 }
 
-func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{}, len(a)+len(b))
-	for k, v := range a {
-		result[k] = v
-	}
-	for k, v := range b {
-		result[k] = v
-	}
-	return result
-}
-
 func (engine *FingerPrintHubEngine) addFramework(frames common.Frameworks, tmpl *templates.Template) {
 	name := tmpl.Info.Name
 	if name == "" {
@@ -566,32 +554,21 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 		Input: baseURL,
 	}
 
-	// 遍历所有 web 模板
+	// 遍历所有 web 模板（保留手动遍历 + CachedTransport 加速路径）
 	for _, tmpl := range engine.webTemplates {
-		// 跳过没有 HTTP 请求的模板
 		if len(tmpl.RequestsHTTP) == 0 {
 			continue
 		}
 
-		templateVars := tmpl.Variables.Evaluate(map[string]interface{}{})
-		previous := make(map[string]interface{})
 		for _, httpReq := range tmpl.RequestsHTTP {
 			originalClient := httpReq.GetHTTPClient()
 			httpReq.SetHTTPClient(httpClient)
 
-			dynamicValues := mergeMaps(templateVars, previous)
-			err := httpReq.ExecuteWithResults(scanCtx, dynamicValues, previous, func(event *protocols.InternalWrappedEvent) {
-				if event.OperatorsResult != nil {
-					for k, v := range event.OperatorsResult.DynamicValues {
-						if len(v) > 0 {
-							previous[k] = v[0]
-						}
-					}
-					if event.OperatorsResult.Matched {
-						engine.addFramework(allFrameworks, tmpl)
-						if callback != nil {
-							callback(allFrameworks.One(), nil)
-						}
+			err := httpReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
+				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
+					engine.addFramework(allFrameworks, tmpl)
+					if callback != nil {
+						callback(allFrameworks.One(), nil)
 					}
 				}
 			})

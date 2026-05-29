@@ -142,17 +142,6 @@ func (e *XrayEngine) matchTemplatePassive(tmpl *templates.Template, event protoc
 	return false
 }
 
-func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{}, len(a)+len(b))
-	for k, v := range a {
-		result[k] = v
-	}
-	for k, v := range b {
-		result[k] = v
-	}
-	return result
-}
-
 func isRootPath(req *nhttp.Request) bool {
 	if len(req.Path) == 0 {
 		return true
@@ -293,41 +282,32 @@ func (e *XrayEngine) HTTPActiveMatch(baseURL string, level int, transport http.R
 	allFrameworks := make(common.Frameworks)
 	ct := &cachedTransport{transport: transport, cache: make(map[string]*cachedResp)}
 	client := &http.Client{Transport: ct}
-	scanCtx := &protocols.ScanContext{Input: baseURL}
-
 	for _, tmpl := range e.templates {
 		if len(tmpl.RequestsHTTP) == 0 {
 			continue
 		}
-		templateVars := tmpl.Variables.Evaluate(map[string]interface{}{})
-		previous := make(map[string]interface{})
-		for _, httpReq := range tmpl.RequestsHTTP {
-			orig := httpReq.GetHTTPClient()
-			httpReq.SetHTTPClient(client)
 
-			dynamicValues := mergeMaps(templateVars, previous)
-			httpReq.ExecuteWithResults(scanCtx, dynamicValues, previous, func(event *protocols.InternalWrappedEvent) {
-				if event.OperatorsResult != nil {
-					for k, v := range event.OperatorsResult.DynamicValues {
-						if len(v) > 0 {
-							previous[k] = v[0]
-						}
-					}
-					if event.OperatorsResult.Matched {
-						e.addFramework(allFrameworks, tmpl)
-						if callback != nil {
-							name := tmpl.Info.Name
-							if name == "" {
-								name = tmpl.Id
-							}
-							frame := common.NewFramework(name, FrameFromXray)
-							callback(frame, nil)
-						}
-					}
+		origClients := make([]*http.Client, len(tmpl.RequestsHTTP))
+		for i, req := range tmpl.RequestsHTTP {
+			origClients[i] = req.GetHTTPClient()
+			req.SetHTTPClient(client)
+		}
+
+		result, err := tmpl.Execute(baseURL, nil)
+		if err == nil && result != nil && result.Matched {
+			e.addFramework(allFrameworks, tmpl)
+			if callback != nil {
+				name := tmpl.Info.Name
+				if name == "" {
+					name = tmpl.Id
 				}
-			})
+				frame := common.NewFramework(name, FrameFromXray)
+				callback(frame, nil)
+			}
+		}
 
-			httpReq.SetHTTPClient(orig)
+		for i, req := range tmpl.RequestsHTTP {
+			req.SetHTTPClient(origClients[i])
 		}
 	}
 	return allFrameworks, nil
