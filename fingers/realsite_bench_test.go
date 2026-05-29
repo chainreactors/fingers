@@ -130,6 +130,9 @@ func newRealSiteEngine(tb testing.TB) *FingersEngine {
 // BenchmarkRealSites compares AC-accelerated matching vs brute-force PassiveMatch
 // on real HTTP responses from a /26 CIDR range.
 func BenchmarkRealSites(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping live network benchmark in short mode")
+	}
 	targets := expandCIDR("101.132.149.35/26", []int{80, 443})
 	responses := fetchAndCache(targets)
 	if len(responses) == 0 {
@@ -205,6 +208,9 @@ func BenchmarkRealSites(b *testing.B) {
 }
 
 func TestRealSites_Correctness(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	targets := expandCIDR("101.132.149.35/26", []int{80, 443})
 	responses := fetchAndCache(targets)
 	if len(responses) == 0 {

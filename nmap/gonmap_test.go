@@ -14,10 +14,9 @@ import (
 
 // TestParseLogic 测试解析逻辑
 func TestParseLogic(t *testing.T) {
-	// 读取原始文本文件
 	content, err := os.ReadFile("../resources/nmap-service-probes.txt")
 	if err != nil {
-		t.Fatalf("Failed to read file: %v", err)
+		t.Skip("nmap-service-probes.txt not available, skipping parse logic test")
 	}
 
 	fmt.Printf("\n=== 解析逻辑测试 ===\n")
@@ -119,6 +118,9 @@ func TestJSONDataStructure(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewNmapEngine(resources.NmapServiceProbesData, resources.NmapServicesData)
 	if err != nil {
 		t.Fatalf("Failed to create nmap engine: %v", err)

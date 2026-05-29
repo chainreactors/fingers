@@ -18,7 +18,7 @@ type Fingerprint struct {
 	Cats        []int               `json:"cats"`
 	CSS         []string            `json:"css"`
 	Cookies     map[string]string   `json:"cookies"`
-	JS          []string            `json:"js"`
+	JS          map[string]string   `json:"js"`
 	Headers     map[string]string   `json:"headers"`
 	HTML        []string            `json:"html"`
 	Script      []string            `json:"scripts"`
@@ -182,6 +182,9 @@ func compileFingerprint(app string, fingerprint *Fingerprint) *CompiledFingerpri
 	}
 
 	for _, pattern := range fingerprint.JS {
+		if pattern == "" {
+			continue
+		}
 		fingerprint, err := newVersionRegex(pattern)
 		if err != nil {
 			continue

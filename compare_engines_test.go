@@ -18,6 +18,9 @@ import (
 )
 
 func TestCompareEngines(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	fullEngine, err := NewEngine(FingersEngine, FingerPrintEngine, EHoleEngine, GobyEngine)
 	if err != nil {
 		t.Fatalf("init engine: %v", err)

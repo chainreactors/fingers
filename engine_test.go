@@ -21,9 +21,9 @@ import (
 )
 
 func TestEngine(t *testing.T) {
-	// 在检测 `DetectContent` 前进行内存分析
-
-	// Your test code
+	if testing.Short() {
+		t.Skip("skipping test requiring local file in short mode")
+	}
 	engine, err := NewEngine()
 	if err != nil {
 		panic(err)
@@ -64,6 +64,9 @@ func TestEngine(t *testing.T) {
 }
 
 func TestEngine_Match(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewEngine()
 	if err != nil {
 		panic(err)
@@ -77,6 +80,9 @@ func TestEngine_Match(t *testing.T) {
 }
 
 func TestFavicon(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewEngine()
 	if err != nil {
 		panic(err)
@@ -92,6 +98,9 @@ func TestFavicon(t *testing.T) {
 }
 
 func TestFingersEngine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := fingers.NewFingersEngine(resources.FingersHTTPData, resources.FingersSocketData, resources.PortData)
 	if err != nil {
 		t.Error(err)
@@ -143,6 +152,9 @@ func TestFingersEngine(t *testing.T) {
 }
 
 func TestEngine_MatchWithEngines(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewEngine()
 	if err != nil {
 		t.Error(err)
@@ -160,6 +172,9 @@ func TestEngine_MatchWithEngines(t *testing.T) {
 }
 
 func TestFingerPrintHubsEngine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := fingerprinthub.NewFingerPrintHubEngine(resources.FingerprinthubWebData, resources.FingerprinthubServiceData)
 	if err != nil {
 		t.Error(err)
@@ -177,6 +192,9 @@ func TestFingerPrintHubsEngine(t *testing.T) {
 }
 
 func TestEHoleEngine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := ehole.NewEHoleEngine(resources.EholeData)
 	if err != nil {
 		t.Error(err)
@@ -197,6 +215,9 @@ func TestEHoleEngine(t *testing.T) {
 }
 
 func TestGobyEngine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := goby.NewGobyEngine(resources.GobyData)
 	if err != nil {
 		t.Error(err)
@@ -215,6 +236,9 @@ func TestGobyEngine(t *testing.T) {
 }
 
 func TestEngine_Wappalyzer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := wappalyzer.NewWappalyzeEngine(resources.WappalyzerData)
 	if err != nil {
 		t.Error(err)
@@ -233,10 +257,9 @@ func TestEngine_Wappalyzer(t *testing.T) {
 }
 
 func TestAlias(t *testing.T) {
-	engine, err := NewEngine()
+	engine, err := NewEngine(FingersEngine, FingerPrintEngine)
 	if err != nil {
-		t.Error()
-		return
+		t.Fatal(err)
 	}
 	fmt.Println(engine.FindAny("cdncache_server"))
 	fmt.Println(engine.Aliases.Aliases["cdn-cache-server"])
@@ -244,6 +267,9 @@ func TestAlias(t *testing.T) {
 }
 
 func TestNmapEngine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewEngine(NmapEngine)
 	if err != nil {
 		t.Error(err)
@@ -290,6 +316,9 @@ func TestNmapEngine(t *testing.T) {
 
 // TestServiceEngine 测试Service引擎的能力
 func TestServiceEngine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live network test in short mode")
+	}
 	engine, err := NewEngine(NmapEngine)
 	if err != nil {
 		t.Error(err)
