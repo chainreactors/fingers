@@ -571,7 +571,7 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 			originalClient := httpReq.GetHTTPClient()
 			httpReq.SetHTTPClient(httpClient)
 
-			err := httpReq.ExecuteWithResults(scanCtx, nil, nil, func(event *protocols.InternalWrappedEvent) {
+			err := httpReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
 				// 检查是否匹配
 				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
 					// 构建 Framework
@@ -635,7 +635,7 @@ func (engine *FingerPrintHubEngine) ServiceMatch(host string, portStr string, le
 		for _, networkReq := range tmpl.RequestsNetwork {
 			// 执行 network 请求
 			var matched bool
-			err := networkReq.ExecuteWithResults(scanCtx, nil, nil, func(event *protocols.InternalWrappedEvent) {
+			err := networkReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
 				// 检查是否有匹配结果
 				// FingerprintHub service-fingerprint 使用 extractors 而不是 matchers
 				// 如果有 extractor 提取到值，说明匹配成功

@@ -293,7 +293,7 @@ func (e *XrayEngine) HTTPActiveMatch(baseURL string, level int, transport http.R
 			orig := httpReq.GetHTTPClient()
 			httpReq.SetHTTPClient(client)
 
-			httpReq.ExecuteWithResults(scanCtx, nil, nil, func(event *protocols.InternalWrappedEvent) {
+			httpReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
 				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
 					name := tmpl.Info.Name
 					if name == "" {
