@@ -1,4 +1,5 @@
 //go:build goregexp
+// +build goregexp
 
 package fingers
 
