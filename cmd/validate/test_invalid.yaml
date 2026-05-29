@@ -1,0 +1,27 @@
+- name: missing_rules
+  focus: true
+  # Missing rule field - should be invalid
+
+- name: ""  # Empty name - should be invalid
+  rule:
+    - regexps:
+        body:
+          - test
+
+- name: invalid_protocol
+  protocol: invalid_protocol  # Unknown protocol - should warn
+  rule:
+    - regexps:
+        body:
+          - test
+
+- name: empty_rule
+  rule:
+    - # Empty rule with no matching criteria - should warn
+
+- name: active_no_senddata
+  rule:
+    - level: 1  # Active level but no senddata - should warn
+      regexps:
+        body:
+          - test

@@ -1,0 +1,28 @@
+- name: nginx
+  vendor: nginx
+  product: nginx
+  label: web,server,proxy
+  priority: 1
+  target: web
+  alias:
+    wappalyzer: [Nginx]
+    ehole: [nginx]
+    fingers: [nginx]
+  block: []
+- name: apache
+  vendor: apache
+  product: apache
+  label: web,server
+  priority: 2
+  target: web
+  alias:
+    wappalyzer: [Apache]
+    ehole: [apache]
+    fingers: [apache]
+  block: []
+- name: invalid_alias
+  vendor: test
+  product: test
+  priority: 10
+  alias: {}
+  block: []

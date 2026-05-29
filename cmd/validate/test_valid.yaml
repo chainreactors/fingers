@@ -1,0 +1,43 @@
+- name: apisix
+  focus: true
+  rule:
+    - regexps:
+        body:
+          - 'error_msg: "failed to match any routes"'
+
+- name: k8s_api
+  focus: true
+  rule:
+    - regexps:
+        body:
+          - '"kind": "Status"'
+        vuln:
+          - authentication.k8s.io
+      vuln: k8s-api_unauth
+
+- name: k8s_dashboard
+  rule:
+    - regexps:
+        body:
+          - assets/images/kubernetes-logo.png
+
+- name: gogs
+  rule:
+    - regexps:
+        header:
+          - i_like_gog
+          - i_like_gitea
+
+- name: jenkins
+  focus: true
+  rule:
+    - regexps:
+        header:
+          - X-Jenkins
+        body:
+          - Jenkins
+      favicon:
+        md5:
+          - 23e8c7bd78e8cd826c5a6073b15068b1
+        mmh3:
+          - '81586312'

@@ -1,0 +1,26 @@
+name: single_nginx
+vendor: nginx
+product: nginx
+protocol: http
+link: https://nginx.org
+default_port:
+  - "80"
+  - "443"
+focus: true
+rule:
+  - regexps:
+      header:
+        - "Server: nginx"
+      regexp:
+        - "nginx/([\\d\\.]+)"
+    version: "\\1"
+    level: 0
+  - regexps:
+      body:
+        - "nginx"
+    level: 1
+    senddata: "GET / HTTP/1.1\r\nHost: test.com\r\n\r\n"
+tag:
+  - web
+  - server
+opsec: false

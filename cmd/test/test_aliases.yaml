@@ -1,0 +1,40 @@
+- name: nginx_test
+  vendor: nginx
+  product: nginx
+  label: web,server,proxy
+  priority: 2
+  target: 
+    - https://nginx.org
+    - nginx.org
+  alias:
+    fingers: [nginx]
+    wappalyzer: [Nginx]
+    ehole: [nginx]
+  block: []
+
+- name: apache_test
+  vendor: apache
+  product: apache  
+  label: web,server
+  priority: 1
+  target:
+    - https://httpd.apache.org
+    - httpd.apache.org
+  alias:
+    fingers: [apache]
+    wappalyzer: [Apache]
+    ehole: [apache]
+  block: []
+
+- name: github_test
+  vendor: github
+  product: github
+  label: web,git,hosting
+  priority: 1
+  target:
+    - https://github.com
+    - github.com
+  alias:
+    fingers: [github]
+    wappalyzer: [GitHub]
+  block: []

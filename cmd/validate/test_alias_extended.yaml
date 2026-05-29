@@ -1,0 +1,29 @@
+- name: nginx_extended
+  vendor: nginx
+  product: nginx
+  label: web,server,proxy,reverse-proxy
+  priority: 2
+  target: web
+  alias:
+    fingers: [nginx]
+    wappalyzer: [Nginx]
+    ehole: [nginx]
+    goby: [nginx]
+    fingerprinthub: [nginx]
+  block: []
+- name: invalid_priority_test
+  vendor: test
+  product: test
+  label: test
+  priority: 10
+  target: web
+  alias:
+    fingers: [test]
+- name: invalid_target_test
+  vendor: test
+  product: test
+  label: test
+  priority: 1
+  target: invalid_target
+  alias:
+    fingers: [test]

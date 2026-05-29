@@ -1,0 +1,28 @@
+- name: nginx_with_url
+  vendor: nginx
+  product: nginx
+  label: web,server,proxy
+  priority: 2
+  target: https://nginx.org
+  alias:
+    fingers: [nginx]
+    wappalyzer: [Nginx]
+    ehole: [nginx]
+  block: []
+- name: apache_with_target
+  vendor: apache
+  product: apache
+  label: web,server
+  priority: 1
+  target: http://httpd.apache.org
+  alias:
+    fingers: [apache]
+    wappalyzer: [Apache]
+  block: []
+- name: still_invalid_priority
+  vendor: test
+  product: test
+  priority: 10
+  target: https://example.com
+  alias:
+    fingers: [test]
