@@ -9,6 +9,21 @@ on:
 permissions:
   contents: read
 
+env:
+  COMPAT_PKGS: >-
+    github.com/chainreactors/fingers
+    github.com/chainreactors/fingers/alias
+    github.com/chainreactors/fingers/common
+    github.com/chainreactors/fingers/ehole
+    github.com/chainreactors/fingers/favicon
+    github.com/chainreactors/fingers/fingerprinthub
+    github.com/chainreactors/fingers/fingers
+    github.com/chainreactors/fingers/goby
+    github.com/chainreactors/fingers/nmap
+    github.com/chainreactors/fingers/resources
+    github.com/chainreactors/fingers/wappalyzer
+    github.com/chainreactors/fingers/xray
+
 jobs:
   test:
     name: test
@@ -65,7 +80,7 @@ jobs:
           mkdir -p "$(dirname "${src}")"
           cp -a . "${src}"
           cd "${src}"
-          go build -tags="noembed goregexp" ./...
+          go build -tags="noembed goregexp" ${COMPAT_PKGS}
 
   go111-build:
     name: Go 1.11 compatibility build
@@ -99,4 +114,4 @@ jobs:
           mkdir -p "$(dirname "${src}")"
           cp -a . "${src}"
           cd "${src}"
-          go build -tags="noembed goregexp" ./...
+          go build -tags="noembed goregexp" ${COMPAT_PKGS}
