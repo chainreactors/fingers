@@ -35,7 +35,7 @@ require (
 	github.com/facebookincubator/nvdtools v0.1.5
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jessevdk/go-flags v1.6.1
-	github.com/mozillazg/go-pinyin v0.20.0
+	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/pkg/errors v0.9.1
 	github.com/wasilibs/go-re2 v1.10.0
 	gopkg.in/yaml.v3 v3.0.1
