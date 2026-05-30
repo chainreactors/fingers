@@ -5,7 +5,7 @@ go 1.22.0
 require (
 	github.com/chainreactors/logs v0.0.0-20260508055944-c678762ed15c
 	github.com/chainreactors/utils v0.0.0-20260520090033-cfefcb28cc6f
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	golang.org/x/net v0.21.0
 )
 
