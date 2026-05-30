@@ -316,23 +316,16 @@ func (e *XrayEngine) HTTPActiveMatch(baseURL string, level int, transport http.R
 			continue
 		}
 
-		origClients := make([]*http.Client, len(tmpl.RequestsHTTP))
-		for i, req := range tmpl.RequestsHTTP {
-			origClients[i] = req.GetHTTPClient()
-			req.SetHTTPClient(client)
-		}
-
-		result, err := tmpl.Execute(baseURL, nil)
+		// Pass the per-call client through execution instead of stashing it on the
+		// shared template's request objects — concurrent calls must not mutate the
+		// shared compiled templates.
+		result, err := tmpl.ExecuteWithClient(baseURL, nil, client)
 		if err == nil && result != nil && result.Matched {
 			frame := e.newFramework(tmpl)
 			allFrameworks.Add(frame)
 			if callback != nil {
 				callback(frame, nil)
 			}
-		}
-
-		for i, req := range tmpl.RequestsHTTP {
-			req.SetHTTPClient(origClients[i])
 		}
 	}
 	return allFrameworks, nil

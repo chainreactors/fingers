@@ -580,8 +580,11 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 	}
 
 	// 创建扫描上下文
+	// Thread the per-call client through the ScanContext so concurrent calls never
+	// mutate the shared compiled templates (httpReq.SetHTTPClient was a data race).
 	scanCtx := &protocols.ScanContext{
-		Input: baseURL,
+		Input:  baseURL,
+		Client: httpClient,
 	}
 
 	// 遍历所有 web 模板（保留手动遍历 + CachedTransport 加速路径）
@@ -591,9 +594,6 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 		}
 
 		for _, httpReq := range tmpl.RequestsHTTP {
-			originalClient := httpReq.GetHTTPClient()
-			httpReq.SetHTTPClient(httpClient)
-
 			err := httpReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
 				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
 					frame := engine.newFramework(tmpl)
@@ -603,8 +603,6 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 					}
 				}
 			})
-
-			httpReq.SetHTTPClient(originalClient)
 
 			if err != nil {
 				continue
