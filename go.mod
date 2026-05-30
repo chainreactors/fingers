@@ -29,7 +29,7 @@ require (
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
-	github.com/chainreactors/neutron v0.0.0-20260530143533-ea958251e73e
+	github.com/chainreactors/neutron v0.0.0-20260530163811-0adf043a1e99
 	github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/facebookincubator/nvdtools v0.1.5

@@ -83,9 +83,14 @@ func (e *XrayEngine) loadTemplates(data []map[string]interface{}) (int, []error)
 			errs = append(errs, fmt.Errorf("marshal: %w", err))
 			continue
 		}
-		tmpl := &templates.Template{}
-		if err := yaml.Unmarshal(yb, tmpl); err != nil {
-			errs = append(errs, fmt.Errorf("unmarshal: %w", err))
+		// templates.Load parses the (normally pre-converted) neutron template.
+		// Raw xray POCs are only auto-converted if the application opts in by
+		// importing github.com/chainreactors/neutron/convert, which registers
+		// the xray converter; without it, this package pulls in no conversion
+		// dependency and simply parses neutron-format templates.
+		tmpl, err := templates.Load(yb)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("load: %w", err))
 			continue
 		}
 		if err := e.compileTemplate(tmpl); err != nil {
