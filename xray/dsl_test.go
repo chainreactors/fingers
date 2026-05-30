@@ -23,7 +23,7 @@ func TestNginxDSLMatch(t *testing.T) {
 	}
 
 	// Check what buildEvent produces
-	event := buildEvent(resp, "<html><head><title>Welcome to CentOS</title></head><body>test</body></html>", len(raw))
+	event := engine.buildEvent(resp, "<html><head><title>Welcome to CentOS</title></head><body>test</body></html>", len(raw))
 
 	t.Logf("event keys:")
 	for k, v := range event {
