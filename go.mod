@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -17,19 +18,22 @@ require (
 	github.com/go-dedup/simhash v0.0.0-20170904020510-9ecaca7b509c // indirect
 	github.com/go-dedup/text v0.0.0-20170907015346-8bb1b95e3cb7 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
+	github.com/lcvvvv/logs v0.0.3 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/twmb/murmur3 v1.1.8 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
+	github.com/weppos/publicsuffix-go v0.15.1-0.20220329081811-9a40b608a236 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 )
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
-	github.com/chainreactors/neutron v0.0.0-20260530143533-ea958251e73e
+	github.com/chainreactors/neutron v0.0.1
 	github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/facebookincubator/nvdtools v0.1.5
