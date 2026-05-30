@@ -420,11 +420,20 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 
 	// Fast path: AC keyword hit directly resolves these templates.
 	// All matchers are Word type with OR condition — AC match = matched.
-	for ti := range mr.Matched {
-		frames.Add(engine.newFramework(engine.webTemplates[ti]))
+	// 仅在 CaseInsensitive 模式下可用，因为 AC index 始终用小写匹配。
+	if engine.CaseInsensitive {
+		for ti := range mr.Matched {
+			frames.Add(engine.newFramework(engine.webTemplates[ti]))
+		}
 	}
 
 	// Slow path: templates needing full matchRequest (regex, AND, fallback).
+	// CaseSensitive 模式下 AC fast path 的结果也走 slow path 以确保精确匹配。
+	if !engine.CaseInsensitive {
+		for ti := range mr.Matched {
+			mr.NeedsCheck[ti] = true
+		}
+	}
 	for ti := range mr.NeedsCheck {
 		tmpl := engine.webTemplates[ti]
 		requests := tmpl.GetRequests()
