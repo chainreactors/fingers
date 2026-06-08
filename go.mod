@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/chainreactors/logs v0.0.0-20260508055944-c678762ed15c
-	github.com/chainreactors/utils v0.0.0-20260520090033-cfefcb28cc6f
+	github.com/chainreactors/utils v0.0.0-20260529172343-6465cb8568b2
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.21.0
 )
@@ -29,7 +29,7 @@ require (
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
-	github.com/chainreactors/neutron v0.0.0-20260530163811-0adf043a1e99
+	github.com/chainreactors/neutron v0.0.0-20260608084636-c81691731908
 	github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/facebookincubator/nvdtools v0.1.5
