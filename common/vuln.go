@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"github.com/chainreactors/utils/iutils"
+	"sort"
 	"strings"
 )
 
@@ -55,7 +56,21 @@ func (v *Vuln) HasTag(tag string) bool {
 }
 
 func (v *Vuln) GetPayload() string {
-	return iutils.MapToString(v.Payload)
+	if v.Payload == nil || len(v.Payload) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(v.Payload))
+	for k := range v.Payload {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var s strings.Builder
+	for _, k := range keys {
+		s.WriteString(fmt.Sprintf(" %s:%v ", k, v.Payload[k]))
+	}
+	return s.String()
 }
 
 func (v *Vuln) GetDetail() string {
