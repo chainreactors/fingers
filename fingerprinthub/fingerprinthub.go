@@ -574,38 +574,23 @@ func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, t
 		cache:     make(map[string]*CachedResponse),
 	}
 
-	// 使用带缓存的 transport 创建 HTTP client
-	httpClient := &http.Client{
-		Transport: cachedTransport,
-	}
-
-	// 创建扫描上下文
-	// Thread the per-call client through the ScanContext so concurrent calls never
-	// mutate the shared compiled templates (httpReq.SetHTTPClient was a data race).
-	scanCtx := &protocols.ScanContext{
-		Input:  baseURL,
-		Client: httpClient,
-	}
-
-	// 遍历所有 web 模板（保留手动遍历 + CachedTransport 加速路径）
+	// 遍历所有 web 模板:整模板交给 neutron executer 跑。用 ExecuteWithTransport
+	// 而非 ExecuteWithClient——只换 RoundTripper,保住模板编译好的
+	// CheckRedirect/Jar/Timeout(ExecuteWithClient 会整包替换 client,丢掉
+	// redirect policy,使 redirects:false + contains(location,...) 那批指纹被默认
+	// 跟跳转吃掉 Location 而漏匹配)。executer 统一维护 __request_index_offset/
+	// favicon:逐请求 ExecuteWithResults 不维护 offset,会把 body_N 全塌成
+	// body_1,转换得到的多请求模板因此漏匹配。
 	for _, tmpl := range engine.webTemplates {
 		if len(tmpl.RequestsHTTP) == 0 {
 			continue
 		}
-
-		for _, httpReq := range tmpl.RequestsHTTP {
-			err := httpReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
-				if event.OperatorsResult != nil && event.OperatorsResult.Matched {
-					frame := engine.newFramework(tmpl)
-					allFrameworks.Add(frame)
-					if callback != nil {
-						callback(frame, nil)
-					}
-				}
-			})
-
-			if err != nil {
-				continue
+		result, err := tmpl.ExecuteWithTransport(baseURL, nil, cachedTransport)
+		if err == nil && result != nil && result.Matched {
+			frame := engine.newFramework(tmpl)
+			allFrameworks.Add(frame)
+			if callback != nil {
+				callback(frame, nil)
 			}
 		}
 	}

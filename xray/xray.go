@@ -157,7 +157,8 @@ func (e *XrayEngine) WebMatch(content []byte) common.Frameworks {
 }
 
 // matchTemplatePassive checks if ANY root-path request in the template matches.
-// Only requests with path "/" or "{{BaseURL}}/" are evaluated in passive mode.
+// Only requests with path "/", "{{BaseURL}}/" or "{{RootURL}}/" are evaluated in
+// passive mode.
 func (e *XrayEngine) matchTemplatePassive(tmpl *templates.Template, event protocols.InternalEvent) bool {
 	for _, req := range tmpl.GetRequests() {
 		if !isRootPath(req) {
@@ -178,7 +179,11 @@ func isRootPath(req *nhttp.Request) bool {
 		return true
 	}
 	for _, p := range req.Path {
+		// The converter targets the site root as either {{BaseURL}}/ (full input
+		// URL) or {{RootURL}}/ (scheme://host) depending on neutron's convert
+		// version; both mean "root GET" for passive matching, so accept either.
 		cleaned := strings.TrimPrefix(p, "{{BaseURL}}")
+		cleaned = strings.TrimPrefix(cleaned, "{{RootURL}}")
 		cleaned = strings.TrimSuffix(cleaned, "/")
 		if cleaned == "" || cleaned == "/" {
 			return true
@@ -315,16 +320,19 @@ func (e *XrayEngine) HTTPActiveMatch(baseURL string, level int, transport http.R
 
 	allFrameworks := make(common.Frameworks)
 	ct := &cachedTransport{transport: transport, cache: make(map[string]*cachedResp)}
-	client := &http.Client{Transport: ct}
 	for _, tmpl := range e.templates {
 		if len(tmpl.RequestsHTTP) == 0 {
 			continue
 		}
 
-		// Pass the per-call client through execution instead of stashing it on the
-		// shared template's request objects — concurrent calls must not mutate the
-		// shared compiled templates.
-		result, err := tmpl.ExecuteWithClient(baseURL, nil, client)
+		// Whole-template execution via neutron's executer (maintains cross-request
+		// __request_index_offset). Inject the cache as a transport-only override
+		// (ExecuteWithTransport) rather than a whole client (ExecuteWithClient): the
+		// latter would drop the template's compiled CheckRedirect/Jar/Timeout, so
+		// redirects:false fingerprints asserting on Location would be followed and
+		// miss. Transport-only swaps just the RoundTripper, leaving the shared
+		// compiled template untouched, so concurrent calls stay safe.
+		result, err := tmpl.ExecuteWithTransport(baseURL, nil, ct)
 		if err == nil && result != nil && result.Matched {
 			frame := e.newFramework(tmpl)
 			allFrameworks.Add(frame)
