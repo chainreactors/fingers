@@ -29,7 +29,7 @@ require (
 
 require (
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
-	github.com/chainreactors/neutron v0.0.0-20260608084636-c81691731908
+	github.com/chainreactors/neutron v0.0.0-20260612092850-1a0a5a8b4280
 	github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/facebookincubator/nvdtools v0.1.5
@@ -40,5 +40,3 @@ require (
 	github.com/wasilibs/go-re2 v1.10.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/chainreactors/neutron => ../neutron
