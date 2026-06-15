@@ -1,6 +1,10 @@
 package common
 
-import "github.com/facebookincubator/nvdtools/wfn"
+import (
+	"strings"
+
+	"github.com/facebookincubator/nvdtools/wfn"
+)
 
 func NewAttributesWithAny() *Attributes {
 	return &Attributes{}
@@ -65,4 +69,44 @@ func (a *Attributes) String() string {
 
 func (a *Attributes) WFNString() string {
 	return a.WFN().String()
+}
+
+// ParseCPEKey extracts vendor and product from a CPE string.
+// Supported formats:
+//   - "vendor:product"                          (shorthand)
+//   - "cpe:2.3:a:vendor:product:*:..."          (CPE 2.3 formatted string)
+//   - "cpe:/a:vendor:product:..."               (CPE 2.2 URI)
+func ParseCPEKey(raw string) (vendor, product string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", ""
+	}
+
+	if strings.HasPrefix(raw, "cpe:/") || strings.HasPrefix(raw, "cpe:2.3:") {
+		attr := NewAttributesWithCPE(raw)
+		if attr == nil {
+			return "", ""
+		}
+		vendor = strings.ToLower(strings.TrimSpace(attr.Vendor))
+		product = strings.ToLower(strings.TrimSpace(attr.Product))
+		if vendor == "" || vendor == "*" || product == "" || product == "*" {
+			return "", ""
+		}
+		return vendor, product
+	}
+
+	if idx := strings.IndexByte(raw, ':'); idx > 0 && idx < len(raw)-1 {
+		vendor = strings.ToLower(strings.TrimSpace(raw[:idx]))
+		product = strings.ToLower(strings.TrimSpace(raw[idx+1:]))
+		if vendor != "" && product != "" {
+			return vendor, product
+		}
+	}
+
+	return "", ""
+}
+
+// CPEKey joins vendor and product into the canonical "vendor:product" key.
+func CPEKey(vendor, product string) string {
+	return strings.ToLower(vendor) + ":" + strings.ToLower(product)
 }
