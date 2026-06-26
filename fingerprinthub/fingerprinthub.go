@@ -490,11 +490,7 @@ func (engine *FingerPrintHubEngine) buildInternalEvent(resp *http.Response, body
 	// 复用这个逻辑避免在 matchSingle 中重复拼接
 	event["all_headers"] = engine.buildHeaderString(resp.Header)
 
-	// favicon 字段：提取 favicon hash 用于 favicon matcher
-	faviconData := extractFaviconFromResponse(resp, []byte(bodyStr))
-	if len(faviconData) > 0 {
-		event["favicon"] = faviconData
-	}
+	event["favicon_hash"] = encode.Mmh3Hash32([]byte(bodyStr))
 
 	return event
 }
@@ -677,63 +673,3 @@ func (engine *FingerPrintHubEngine) ServiceMatch(host string, portStr string, le
 	return nil
 }
 
-// calculateFaviconHash 计算 favicon 的 MD5 和 MMH3 hash
-// 返回 [md5, mmh3] 格式的 hash 数组
-func calculateFaviconHash(content []byte) []string {
-	if len(content) == 0 {
-		return nil
-	}
-
-	md5Hash := encode.Md5Hash(content)
-	mmh3Hash := encode.Mmh3Hash32(content)
-
-	return []string{md5Hash, mmh3Hash}
-}
-
-// extractFaviconFromResponse 从 HTTP 响应中提取 favicon 数据
-// 返回 map[url][]hash 格式的数据，用于 favicon matcher
-func extractFaviconFromResponse(resp *http.Response, body []byte) map[string]interface{} {
-	faviconData := make(map[string]interface{})
-
-	// 检查响应和请求是否有效
-	if resp == nil || resp.Request == nil || resp.Request.URL == nil {
-		return faviconData
-	}
-
-	// 如果响应本身是 favicon.ico
-	if strings.HasSuffix(resp.Request.URL.Path, "/favicon.ico") {
-		if isImageContent(resp, body) {
-			hashes := calculateFaviconHash(body)
-			if hashes != nil {
-				faviconData[resp.Request.URL.String()] = hashes
-			}
-		}
-	}
-
-	// TODO: 未来可以扩展支持从 HTML 中提取 <link rel="icon"> 标签
-	// 目前仅支持直接请求 favicon.ico 的场景
-
-	return faviconData
-}
-
-// isImageContent 判断响应内容是否为图片
-func isImageContent(resp *http.Response, body []byte) bool {
-	// 检查 Content-Type
-	contentType := resp.Header.Get("Content-Type")
-	if strings.Contains(contentType, "image/") {
-		return true
-	}
-
-	// 简单检查：如果内容可以解析为 UTF-8 文本且包含 HTML 标签，则不是图片
-	if len(body) > 0 {
-		bodyStr := string(body)
-		htmlTags := []string{"<html", "<head", "<script", "<div", "<title", "<?xml"}
-		for _, tag := range htmlTags {
-			if strings.Contains(strings.ToLower(bodyStr), tag) {
-				return false
-			}
-		}
-	}
-
-	return true
-}
