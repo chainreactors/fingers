@@ -6,6 +6,7 @@ import (
 
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/utils/parsers"
 )
 
 type NmapEngine struct {
@@ -119,7 +120,7 @@ func (e *NmapEngine) ServiceMatch(host string, portStr string, level int, sender
 		if len(frameworks) > 0 {
 			framework = frameworks[0] // 取第一个Framework作为主要结果
 		}
-	} else if status == Open && !common.NoGuess {
+	} else if status == Open && !parsers.NoGuess {
 		// 端口开放但无法识别服务，使用guess功能猜测服务
 		guessedProtocol := e.nmap.GuessProtocol(portNum)
 		if guessedProtocol != "" && guessedProtocol != "unknown" {
