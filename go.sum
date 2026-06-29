@@ -83,8 +83,8 @@ github.com/chainreactors/neutron v0.0.0-20260612092850-1a0a5a8b4280 h1:hIKCF+Bsz
 github.com/chainreactors/neutron v0.0.0-20260612092850-1a0a5a8b4280/go.mod h1:Db5C6Ao3a4ZF91ZKRPEsbwQP7ig96v+o/7vKsbb9ixo=
 github.com/chainreactors/utils v0.0.0-20260629043228-93bdd2142c9a h1:4rLTKr+VlG7yGbw2ym7nhNvFglvZ4acdphxKEozF7CI=
 github.com/chainreactors/utils v0.0.0-20260629043228-93bdd2142c9a/go.mod h1:xwbUlFoSSxLHujyb8D48o1s2DqmEAxUNfxIy0DVUmcg=
-github.com/chainreactors/utils/parsers v0.0.0-20260629043228-93bdd2142c9a h1:nOEGD7XH3wd9+mtO2sAtUwuZ4B60KVH/l/UqTqqegpE=
-github.com/chainreactors/utils/parsers v0.0.0-20260629043228-93bdd2142c9a/go.mod h1:S9lkpQ1I4wcBq0YEBde/UPmR061IPok3bLl7aPz6Vkk=
+github.com/chainreactors/utils/parsers v0.0.0-20260629054935-23a3e0a235f9 h1:IOqCX8Hol0s8xul5d1VRQFjqvKyRCx1djU1MuLCLEZg=
+github.com/chainreactors/utils/parsers v0.0.0-20260629054935-23a3e0a235f9/go.mod h1:S9lkpQ1I4wcBq0YEBde/UPmR061IPok3bLl7aPz6Vkk=
 github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4 h1:lvnDYEkatmZFHP5i321qQXK9L4vKRfso/uUfr5tOeC8=
 github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4/go.mod h1:zfz367PUmyaX6oAqV9SktVqyRXKlEh0sel9Wsq9dd2c=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
