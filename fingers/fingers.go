@@ -33,6 +33,10 @@ type Finger struct {
 }
 
 func (finger *Finger) Compile(caseSensitive bool) error {
+	return finger.CompileWithPreset(caseSensitive, nil)
+}
+
+func (finger *Finger) CompileWithPreset(caseSensitive bool, preset *utils.PortPreset) error {
 	if finger.Protocol == "" {
 		finger.Protocol = HTTPProtocol
 	}
@@ -41,6 +45,8 @@ func (finger *Finger) Compile(caseSensitive bool) error {
 		if finger.Protocol == HTTPProtocol {
 			finger.DefaultPort = []string{"80"}
 		}
+	} else if preset != nil {
+		finger.DefaultPort = preset.ParsePortSlice(finger.DefaultPort)
 	} else if utils.PrePort != nil {
 		finger.DefaultPort = utils.ParsePortsSlice(finger.DefaultPort)
 	}

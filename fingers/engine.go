@@ -10,6 +10,7 @@ import (
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/favicon"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,10 +21,15 @@ const (
 )
 
 func NewEngine(httpFingers, socketFingers Fingers) (*FingersEngine, error) {
+	return NewEngineWithPreset(httpFingers, socketFingers, nil)
+}
+
+func NewEngineWithPreset(httpFingers, socketFingers Fingers, preset *utils.PortPreset) (*FingersEngine, error) {
 	engine := &FingersEngine{
 		HTTPFingers:   httpFingers,
 		SocketFingers: socketFingers,
 		Favicons:      favicon.NewFavicons(),
+		portPreset:    preset,
 	}
 
 	err := engine.Compile()
@@ -34,15 +40,15 @@ func NewEngine(httpFingers, socketFingers Fingers) (*FingersEngine, error) {
 }
 
 func NewFingersEngine(httpData, socketData, portData []byte) (*FingersEngine, error) {
-	// httpdata must be not nil
-	// socketdata can be nil
-	if resources.PrePort == nil && portData != nil {
-		// 临时设置 PortData 以供 LoadPorts 使用
-		resources.PortData = portData
-		_, err := resources.LoadPorts()
-		if err != nil {
+	var preset *utils.PortPreset
+	if portData != nil {
+		var ports []*utils.PortConfig
+		if err := yaml.Unmarshal(portData, &ports); err != nil {
 			return nil, err
 		}
+		preset = utils.NewPortPreset(ports)
+	} else if resources.PrePort != nil {
+		preset = resources.PrePort
 	}
 
 	httpfs, err := LoadFingers(httpData)
@@ -55,7 +61,7 @@ func NewFingersEngine(httpData, socketData, portData []byte) (*FingersEngine, er
 		return nil, err
 	}
 
-	return NewEngine(httpfs, socketfs)
+	return NewEngineWithPreset(httpfs, socketfs, preset)
 }
 
 type FingersEngine struct {
@@ -66,6 +72,7 @@ type FingersEngine struct {
 	Favicons                 *favicon.FaviconsEngine
 	MatchDetailEnabled       bool
 	httpKeywordIndex         *KeywordIndex
+	portPreset               *utils.PortPreset
 }
 
 func (engine *FingersEngine) Name() string {
@@ -82,12 +89,25 @@ func (engine *FingersEngine) addToSocketGroup(f *Finger) {
 		engine.SocketGroup = make(FingerMapper)
 	}
 	if f.DefaultPort != nil {
-		for _, port := range resources.PrePort.ParsePortSlice(f.DefaultPort) {
+		ports := engine.parsePortSlice(f.DefaultPort)
+		for _, port := range ports {
 			engine.SocketGroup[port] = append(engine.SocketGroup[port], f)
 		}
 	} else {
 		engine.SocketGroup["0"] = append(engine.SocketGroup["0"], f)
 	}
+}
+
+func (engine *FingersEngine) parsePortSlice(ports []string) []string {
+	if engine.portPreset != nil {
+		return engine.portPreset.ParsePortSlice(ports)
+	}
+	return ports
+}
+
+// PortPreset returns the engine's port preset (may be nil).
+func (engine *FingersEngine) PortPreset() *utils.PortPreset {
+	return engine.portPreset
 }
 
 func (engine *FingersEngine) Compile() error {
@@ -98,7 +118,7 @@ func (engine *FingersEngine) Compile() error {
 	engine.HTTPFingersActiveFingers = nil
 	for _, finger := range engine.HTTPFingers {
 		finger.EnableMatchDetail = engine.MatchDetailEnabled
-		err = finger.Compile(false)
+		err = finger.CompileWithPreset(false, engine.portPreset)
 		if err != nil {
 			return err
 		}
@@ -126,7 +146,7 @@ func (engine *FingersEngine) Compile() error {
 	if engine.SocketFingers != nil {
 		for _, finger := range engine.SocketFingers {
 			finger.EnableMatchDetail = engine.MatchDetailEnabled
-			err = finger.Compile(true)
+			err = finger.CompileWithPreset(true, engine.portPreset)
 			if err != nil {
 				return err
 			}
@@ -139,7 +159,7 @@ func (engine *FingersEngine) Compile() error {
 func (engine *FingersEngine) Append(fingers Fingers) error {
 	for _, f := range fingers {
 		f.EnableMatchDetail = engine.MatchDetailEnabled
-		err := f.Compile(false)
+		err := f.CompileWithPreset(false, engine.portPreset)
 		if err != nil {
 			return err
 		}

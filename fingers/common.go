@@ -54,7 +54,7 @@ func (fs Fingers) GroupByPort() FingerMapper {
 	fingermap := make(FingerMapper)
 	for _, f := range fs {
 		if f.DefaultPort != nil {
-			for _, port := range resources.PrePort.ParsePortSlice(f.DefaultPort) {
+			for _, port := range f.DefaultPort {
 				fingermap[port] = append(fingermap[port], f)
 			}
 		} else {
