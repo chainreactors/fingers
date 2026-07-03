@@ -625,7 +625,7 @@ func (engine *FingerPrintHubEngine) ServiceMatch(host string, portStr string, le
 						matched = true
 					}
 					// 有 extractors 的情况 - 提取到值说明匹配成功
-					if len(event.OperatorsResult.OutputExtracts) > 0 {
+					if len(event.OperatorsResult.OutputExtracts()) > 0 {
 						matched = true
 					}
 				}
