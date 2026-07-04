@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/chainreactors/neutron/operators"
-	"github.com/chainreactors/neutron/templates"
 	"github.com/chainreactors/utils/ahocorasick"
 )
 
@@ -18,13 +17,12 @@ type MatchResult struct {
 	NeedsCheck map[int]bool
 }
 
-func NewTemplateKeywordIndex(tmpls []*templates.Template) *TemplateKeywordIndex {
+func NewTemplateKeywordIndex(tmpls []*passiveTemplate) *TemplateKeywordIndex {
 	builder := ahocorasick.NewDualKeywordIndexBuilder().SetOverlapping(true)
 	fastPath := make(map[int]bool)
 
 	for ti, tmpl := range tmpls {
-		requests := tmpl.GetRequests()
-		if len(requests) == 0 {
+		if len(tmpl.requests) == 0 {
 			continue
 		}
 
@@ -32,8 +30,8 @@ func NewTemplateKeywordIndex(tmpls []*templates.Template) *TemplateKeywordIndex 
 		forceNonKeyword := false
 		isFastPath := true
 
-		for _, req := range requests {
-			if req.Matchers == nil {
+		for _, req := range tmpl.requests {
+			if len(req.Matchers) == 0 {
 				continue
 			}
 

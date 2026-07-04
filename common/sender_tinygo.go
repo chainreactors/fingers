@@ -1,5 +1,5 @@
-//go:build tinygo
-// +build tinygo
+//go:build tinygo && !passive_only
+// +build tinygo,!passive_only
 
 package common
 
@@ -12,11 +12,6 @@ import (
 	"strings"
 	"time"
 )
-
-// ServiceSender abstracts service-level fingerprint requests.
-type ServiceSender interface {
-	Send(host string, portStr string, data []byte, network string) ([]byte, error)
-}
 
 // DefaultServiceSender sends TCP/UDP/TLS probes with a timeout.
 type DefaultServiceSender struct {
@@ -150,8 +145,6 @@ func (d *DefaultServiceSender) parsePortString(portStr string, defaultNetwork st
 
 	return portNum, network
 }
-
-type ServiceCallback func(*ServiceResult)
 
 type DefaultHTTPSender struct {
 	client *http.Client

@@ -31,8 +31,8 @@ require (
 
 require (
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
-	github.com/chainreactors/neutron v0.1.1-0.20260703124839-c4091ad1e02d
-	github.com/chainreactors/utils/parsers v0.0.0-20260703124640-175b2abe30c2
+	github.com/chainreactors/neutron v0.1.1-0.20260704071807-d202392ad759
+	github.com/chainreactors/utils/parsers v0.0.1
 	github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/invopop/jsonschema v0.13.0

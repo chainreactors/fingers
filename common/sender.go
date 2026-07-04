@@ -1,5 +1,5 @@
-//go:build !tinygo
-// +build !tinygo
+//go:build !tinygo && !passive_only
+// +build !tinygo,!passive_only
 
 package common
 
@@ -12,11 +12,6 @@ import (
 	"strings"
 	"time"
 )
-
-// Service指纹检测的Sender抽象
-type ServiceSender interface {
-	Send(host string, portStr string, data []byte, network string) ([]byte, error)
-}
 
 // DefaultServiceSender 默认的ServiceSender实现
 type DefaultServiceSender struct {
@@ -195,9 +190,6 @@ func (d *DefaultServiceSender) parsePortString(portStr string, defaultNetwork st
 
 	return portNum, network
 }
-
-// Service指纹检测的回调函数
-type ServiceCallback func(*ServiceResult)
 
 // DefaultHTTPSender 默认的 HTTP RoundTripper 实现
 // 提供标准的 HTTP 请求发送能力，支持超时和 TLS 配置

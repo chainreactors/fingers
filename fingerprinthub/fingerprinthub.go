@@ -1,265 +1,141 @@
 package fingerprinthub
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/logs"
-	"github.com/chainreactors/neutron/protocols"
-	http2 "github.com/chainreactors/neutron/protocols/http"
-	"github.com/chainreactors/neutron/templates"
-	"github.com/chainreactors/utils/encode"
-	"github.com/chainreactors/utils/httputils"
 	"gopkg.in/yaml.v3"
 )
 
-// CachedResponse 存储缓存的 HTTP 响应
-type CachedResponse struct {
-	Response *http.Response // 响应对象（Body 为 nil）
-	Body     []byte         // 响应体内容
-}
+// activeLoader is set by active.go's init() to load full templates
+// for HTTPActiveMatch and ServiceMatch. Nil in passive_only builds.
+var activeLoader func(engine *FingerPrintHubEngine, webRaw, serviceRaw []map[string]interface{})
 
-// CachedTransport 实现带缓存的 http.RoundTripper
-// 通过 path 去重，避免重复请求
-type CachedTransport struct {
-	transport http.RoundTripper
-	cache     map[string]*CachedResponse
-	mu        sync.Mutex
-}
-
-// RoundTrip 实现 http.RoundTripper 接口，带缓存功能
-func (c *CachedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// 使用 path 作为缓存键
-	cacheKey := req.URL.Path
-	if cacheKey == "" {
-		cacheKey = "/"
-	}
-
-	// 检查缓存
-	c.mu.Lock()
-	if cached, ok := c.cache[cacheKey]; ok {
-		c.mu.Unlock()
-		// 复制响应对象，使用缓存的 Body
-		resp := *cached.Response
-		resp.Body = ioutil.NopCloser(bytes.NewReader(cached.Body))
-		resp.Request = req
-		return &resp, nil
-	}
-	c.mu.Unlock()
-
-	// 缓存未命中，发送实际请求
-	resp, err := c.transport.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// 读取响应体
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	// 保存到缓存（复制响应对象，Body 设为 nil）
-	cachedResp := *resp
-	cachedResp.Body = nil
-	c.mu.Lock()
-	c.cache[cacheKey] = &CachedResponse{
-		Response: &cachedResp,
-		Body:     bodyBytes,
-	}
-	c.mu.Unlock()
-
-	// 返回响应（使用缓存的 Body）
-	resp.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
-	return resp, nil
-}
-
-// FingerPrintHubEngine 基于 neutron 的 FingerprintHub 引擎
+// FingerPrintHubEngine provides fingerprint matching using neutron-style templates.
 type FingerPrintHubEngine struct {
-	webTemplates     []*templates.Template // Web 指纹模板
-	serviceTemplates []*templates.Template // Service 指纹模板
-	executerOptions  *protocols.ExecuterOptions
-	webTemplateIndex *TemplateKeywordIndex // AC keyword index for web template prefiltering
+	webTemplates     []*passiveTemplate
+	webTemplateIndex *TemplateKeywordIndex
 
-	// CaseInsensitive 控制匹配时是否忽略大小写（默认 true）。
-	// 开启时 event 中的 body/header 统一 ToLower，word matcher keywords 也在编译时 ToLower。
-	// DSL/Regex 模板中的字面量需使用小写以配合此模式。
+	// CaseInsensitive controls whether matching ignores case (default true).
 	CaseInsensitive bool
+
+	// active holds full neutron templates for HTTPActiveMatch/ServiceMatch.
+	// Nil in passive_only builds.
+	active *activeState
 }
 
-// NewFingerPrintHubEngine 创建新的引擎实例
+// NewFingerPrintHubEngine creates a new engine instance.
 func NewFingerPrintHubEngine(webData, serviceData []byte) (*FingerPrintHubEngine, error) {
 	engine := &FingerPrintHubEngine{
-		CaseInsensitive:  true,
-		webTemplates:     make([]*templates.Template, 0),
-		serviceTemplates: make([]*templates.Template, 0),
-		executerOptions: &protocols.ExecuterOptions{
-			Options: &protocols.Options{
-				Timeout: 10, // 默认 10 秒超时
-			},
-		},
+		CaseInsensitive: true,
 	}
 
-	// 加载 web 指纹
-	var webTemplates []map[string]interface{}
-	if err := resources.UnmarshalData(webData, &webTemplates); err != nil {
+	var webRaw []map[string]interface{}
+	if err := resources.UnmarshalData(webData, &webRaw); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal web fingerprints: %w", err)
 	}
 
-	webCount, webErrors := engine.loadTemplates(webTemplates, true)
-
-	// 加载 service 指纹
-	var serviceTemplates []map[string]interface{}
-	if err := resources.UnmarshalData(serviceData, &serviceTemplates); err != nil {
+	var serviceRaw []map[string]interface{}
+	if err := resources.UnmarshalData(serviceData, &serviceRaw); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal service fingerprints: %w", err)
 	}
 
-	serviceCount, serviceErrors := engine.loadTemplates(serviceTemplates, false)
+	webCount, webErrors := engine.loadPassiveTemplates(webRaw)
 
-	// 显示前几个错误
-	allErrors := append(webErrors, serviceErrors...)
-	if len(allErrors) > 0 && len(allErrors) < 10 {
-		for _, e := range allErrors {
+	if len(webErrors) > 0 && len(webErrors) < 10 {
+		for _, e := range webErrors {
 			logs.Log.Warn(e)
 		}
 	}
 
-	logs.Log.Infof("resources type=fingerprints source=fingerprinthub templates=%d web=%d service=%d", webCount+serviceCount, webCount, serviceCount)
+	// Load active templates if the active build is linked
+	if activeLoader != nil {
+		activeLoader(engine, webRaw, serviceRaw)
+	}
+
+	logs.Log.Infof("resources type=fingerprints source=fingerprinthub web=%d", webCount)
 
 	engine.webTemplateIndex = NewTemplateKeywordIndex(engine.webTemplates)
 
 	return engine, nil
 }
 
-// loadTemplates 加载并编译模板
-func (engine *FingerPrintHubEngine) loadTemplates(templateData []map[string]interface{}, isWeb bool) (int, []error) {
+func (engine *FingerPrintHubEngine) loadPassiveTemplates(templateData []map[string]interface{}) (int, []error) {
 	loadedCount := 0
 	var errors []error
 
-	for _, rawTemplate := range templateData {
-		sanitizeTemplateForTinyGo(rawTemplate)
+	for _, raw := range templateData {
+		sanitizeTemplateForTinyGo(raw)
 
-		// 将 map 转为 YAML bytes (neutron 使用 YAML unmarshaler)
-		yamlBytes, err := yaml.Marshal(rawTemplate)
+		pt, err := parsePassiveTemplate(raw)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to marshal template: %w", err))
+			errors = append(errors, err)
+			continue
+		}
+		if len(pt.requests) == 0 {
 			continue
 		}
 
-		// 解析模板
-		tmpl := &templates.Template{}
-		if err := yaml.Unmarshal(yamlBytes, tmpl); err != nil {
-			errors = append(errors, fmt.Errorf("failed to unmarshal template: %w", err))
-			continue
-		}
-
-		if err := engine.compileTemplate(tmpl); err != nil {
-			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
-			continue
-		}
-
-		// 修复 FingerprintHub 指纹中缺少 ReadSize 和 Input.Read 字段的问题
-		for _, netReq := range tmpl.RequestsNetwork {
-			for _, input := range netReq.Inputs {
-				if input.Read == 0 {
-					input.Read = 1024
+		if engine.CaseInsensitive {
+			for _, req := range pt.requests {
+				for _, matcher := range req.Matchers {
+					if matcher.Type == "word" {
+						matcher.CaseInsensitive = true
+					}
+				}
+				if req.compiledOperators != nil {
+					req.compiledOperators.Compile()
 				}
 			}
-			if netReq.ReadSize == 0 {
-				netReq.ReadSize = 1024
-			}
 		}
 
-		// 添加到对应的列表
-		if isWeb {
-			engine.webTemplates = append(engine.webTemplates, tmpl)
-		} else {
-			engine.serviceTemplates = append(engine.serviceTemplates, tmpl)
-		}
+		engine.webTemplates = append(engine.webTemplates, pt)
 		loadedCount++
 	}
 
 	return loadedCount, errors
 }
 
-// compileTemplate 编译模板。当 CaseInsensitive 开启时，设置 word matcher
-// 的 CaseInsensitive 标志，使 neutron 在编译时将 keywords ToLower，
-// 匹配时将 corpus ToLower。所有模板加载路径都必须经过此方法。
-func (engine *FingerPrintHubEngine) compileTemplate(tmpl *templates.Template) error {
-	if engine.CaseInsensitive {
-		for _, req := range tmpl.GetRequests() {
-			for _, matcher := range req.Matchers {
-				if matcher.Type == "word" {
-					matcher.CaseInsensitive = true
-				}
-			}
-		}
-	}
-	return tmpl.Compile(engine.executerOptions)
-}
-
-// LoadFromJSON 从 JSON 数据加载指纹
+// LoadFromJSON loads fingerprints from JSON data.
 func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
-	// 解析 JSON
 	var templateData []map[string]interface{}
 	if err := json.Unmarshal(data, &templateData); err != nil {
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
-	// 转换为 YAML 并加载每个模板
 	loadedCount := 0
 	var errors []error
 
-	for _, rawTemplate := range templateData {
-		sanitizeTemplateForTinyGo(rawTemplate)
+	for _, raw := range templateData {
+		sanitizeTemplateForTinyGo(raw)
 
-		// 将 map 转为 YAML bytes (neutron 使用 YAML unmarshaler)
-		yamlBytes, err := yaml.Marshal(rawTemplate)
+		pt, err := parsePassiveTemplate(raw)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to marshal template: %w", err))
+			errors = append(errors, err)
+			continue
+		}
+		if len(pt.requests) == 0 {
 			continue
 		}
 
-		// 解析模板
-		tmpl := &templates.Template{}
-		err = yaml.Unmarshal(yamlBytes, tmpl)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to unmarshal template: %w", err))
-			continue
-		}
-
-		if err = engine.compileTemplate(tmpl); err != nil {
-			errors = append(errors, fmt.Errorf("failed to compile template %s: %w", tmpl.Id, err))
-			continue
-		}
-
-		// 修复 FingerprintHub 指纹中缺少 ReadSize 和 Input.Read 字段的问题
-		for _, netReq := range tmpl.RequestsNetwork {
-			for _, input := range netReq.Inputs {
-				if input.Read == 0 {
-					input.Read = 1024
+		if engine.CaseInsensitive {
+			for _, req := range pt.requests {
+				for _, matcher := range req.Matchers {
+					if matcher.Type == "word" {
+						matcher.CaseInsensitive = true
+					}
+				}
+				if req.compiledOperators != nil {
+					req.compiledOperators.Compile()
 				}
 			}
-			if netReq.ReadSize == 0 {
-				netReq.ReadSize = 1024
-			}
 		}
 
-		// 根据模板类型添加到对应的列表
-		// web 指纹包含 HTTP 请求，service 指纹包含 network 请求
-		if len(tmpl.RequestsHTTP) > 0 {
-			engine.webTemplates = append(engine.webTemplates, tmpl)
-		} else if len(tmpl.RequestsNetwork) > 0 {
-			engine.serviceTemplates = append(engine.serviceTemplates, tmpl)
-		}
+		engine.webTemplates = append(engine.webTemplates, pt)
 		loadedCount++
 	}
 
@@ -268,167 +144,65 @@ func (engine *FingerPrintHubEngine) LoadFromJSON(data []byte) error {
 			logs.Log.Warn(e)
 		}
 	}
+	_ = loadedCount
 
 	return nil
 }
 
-// LoadFromFS 从文件系统加载模板（用于开发测试）
-//func (engine *FingerPrintHubEngine) LoadFromFS(fsys fs.FS, pattern string) error {
-//	var loadedCount int
-//	var errors []error
-//
-//	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
-//		if err != nil {
-//			return err
-//		}
-//
-//		if d.IsDir() {
-//			return nil
-//		}
-//
-//		// 只处理 .yaml 和 .yml 文件
-//		ext := filepath.Ext(path)
-//		if ext != ".yaml" && ext != ".yml" {
-//			return nil
-//		}
-//
-//		// 检查是否匹配 pattern
-//		if pattern != "" {
-//			matched, _ := filepath.Match(pattern, filepath.Base(path))
-//			if !matched {
-//				return nil
-//			}
-//		}
-//
-//		// 读取文件内容
-//		content, err := fs.ReadFile(fsys, path)
-//		if err != nil {
-//			errors = append(errors, fmt.Errorf("failed to read %s: %w", path, err))
-//			return nil // 继续处理其他文件
-//		}
-//
-//		// 解析模板
-//		tmpl := &templates.Template{}
-//		err = yaml.Unmarshal(content, tmpl)
-//		if err != nil {
-//			errors = append(errors, fmt.Errorf("failed to unmarshal %s: %w", path, err))
-//			return nil
-//		}
-//
-//		// 编译模板
-//		// neutron 会自动处理 tcp/udp 字段作为 network 的别名
-//		err = tmpl.Compile(engine.executerOptions)
-//		if err != nil {
-//			errors = append(errors, fmt.Errorf("failed to compile %s: %w", path, err))
-//			return nil
-//		}
-//
-//		// 修复 FingerprintHub 指纹中缺少 ReadSize 和 Input.Read 字段的问题
-//		// 这个修复在编译后执行，适用于所有 network 请求（包括从 tcp/udp 转换来的）
-//		for _, netReq := range tmpl.RequestsNetwork {
-//			// 修复 input.Read 字段
-//			for _, input := range netReq.Inputs {
-//				if input.Read == 0 {
-//					input.Read = 1024
-//				}
-//			}
-//			// 修复 ReadSize 字段
-//			if netReq.ReadSize == 0 {
-//				netReq.ReadSize = 1024
-//			}
-//		}
-//
-//		// 根据模板类型添加到对应的列表
-//		// web 指纹包含 HTTP 请求，service 指纹包含 network 请求
-//		if len(tmpl.RequestsHTTP) > 0 {
-//			engine.webTemplates = append(engine.webTemplates, tmpl)
-//		} else if len(tmpl.RequestsNetwork) > 0 {
-//			engine.serviceTemplates = append(engine.serviceTemplates, tmpl)
-//		}
-//		loadedCount++
-//
-//		return nil
-//	})
-//
-//	if err != nil {
-//		return fmt.Errorf("failed to walk filesystem: %w", err)
-//	}
-//
-//	if len(errors) > 0 {
-//		// 记录所有错误
-//		for _, e := range errors {
-//			fmt.Printf("Warning: %v\n", e)
-//		}
-//	}
-//
-//	fmt.Printf("Loaded %d fingerprint templates from filesystem\n", loadedCount)
-//	return nil
-//}
-
-// Name 返回引擎名称
+// Name returns the engine name.
 func (engine *FingerPrintHubEngine) Name() string {
 	return "fingerprinthub"
 }
 
-// Len 返回指纹数量
+// Len returns the number of fingerprints.
 func (engine *FingerPrintHubEngine) Len() int {
-	return len(engine.webTemplates) + len(engine.serviceTemplates)
+	n := len(engine.webTemplates)
+	if engine.active != nil {
+		// active.go exposes activeLen()
+		n += activeServiceLen(engine)
+	}
+	return n
 }
 
-// Compile 编译所有模板（已在加载时完成）
+// Compile is a no-op — templates are compiled during loading.
 func (engine *FingerPrintHubEngine) Compile() error {
 	return nil
 }
 
-// Capability 返回引擎能力
+// Capability returns the engine's capabilities.
 func (engine *FingerPrintHubEngine) Capability() common.EngineCapability {
 	return common.EngineCapability{
-		SupportWeb:     true, // 支持 HTTP 指纹
-		SupportService: true, // 支持 Service 指纹 (通过 neutron network)
+		SupportWeb:     true,
+		SupportService: engine.active != nil,
 	}
 }
 
-// WebMatch 实现 Web 指纹匹配
+// WebMatch performs passive web fingerprint matching against raw HTTP content.
 func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
-	resp := httputils.NewResponseWithRaw(content)
-	if resp == nil {
+	event, ok := parseRawHTTPEvent(content, engine.CaseInsensitive)
+	if !ok {
 		return make(common.Frameworks)
 	}
 
-	rawBody := httputils.ReadBody(resp)
-	bodyStr := string(rawBody)
-
-	// AC index 始终使用小写进行关键词预过滤
-	lowerBodyStr := strings.ToLower(bodyStr)
-
-	// CaseInsensitive 开启时，event 中的 body/header 使用小写，
-	// 使 word/DSL/regex 等所有 matcher 统一在小写上匹配
-	if engine.CaseInsensitive {
-		bodyStr = lowerBodyStr
-	}
-
-	event := engine.buildInternalEvent(resp, bodyStr, len(content))
-
 	frames := make(common.Frameworks)
 
+	bodyStr, _ := event["body"].(string)
 	headerStr, _ := event["all_headers"].(string)
+	lowerBodyStr := bodyStr
 	lowerHeaderStr := headerStr
 	if !engine.CaseInsensitive {
+		lowerBodyStr = strings.ToLower(bodyStr)
 		lowerHeaderStr = strings.ToLower(headerStr)
 	}
+
 	mr := engine.webTemplateIndex.Match(lowerHeaderStr, lowerBodyStr)
 
-	// Fast path: AC keyword hit directly resolves these templates.
-	// All matchers are Word type with OR condition — AC match = matched.
-	// 仅在 CaseInsensitive 模式下可用，因为 AC index 始终用小写匹配。
 	if engine.CaseInsensitive {
 		for ti := range mr.Matched {
 			frames.Add(engine.newFramework(engine.webTemplates[ti]))
 		}
 	}
 
-	// Slow path: templates needing full matchRequest (regex, AND, fallback).
-	// CaseSensitive 模式下 AC fast path 的结果也走 slow path 以确保精确匹配。
 	if !engine.CaseInsensitive {
 		for ti := range mr.Matched {
 			mr.NeedsCheck[ti] = true
@@ -436,17 +210,15 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 	}
 	for ti := range mr.NeedsCheck {
 		tmpl := engine.webTemplates[ti]
-		requests := tmpl.GetRequests()
-		if len(requests) == 0 {
+		if len(tmpl.requests) == 0 {
 			continue
 		}
 
-		for _, req := range requests {
-			if req.Matchers == nil || len(req.Matchers) == 0 {
+		for _, req := range tmpl.requests {
+			if len(req.Matchers) == 0 {
 				continue
 			}
-
-			if engine.matchRequest(req, event) {
+			if matchPassiveRequest(req, event) {
 				frames.Add(engine.newFramework(tmpl))
 				break
 			}
@@ -456,220 +228,33 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 	return frames
 }
 
-func (engine *FingerPrintHubEngine) newFramework(tmpl *templates.Template) *common.Framework {
-	name := tmpl.Info.Name
+func (engine *FingerPrintHubEngine) newFramework(tmpl *passiveTemplate) *common.Framework {
+	name := tmpl.name
 	if name == "" {
-		name = tmpl.Id
+		name = tmpl.id
 	}
 	frame := common.NewFramework(name, common.FrameFromFingerprintHub)
-	if tmpl.Info.Metadata != nil {
-		if vendor, ok := tmpl.Info.Metadata["vendor"].(string); ok {
+	if tmpl.metadata != nil {
+		if vendor, ok := tmpl.metadata["vendor"].(string); ok {
 			frame.Attributes.Vendor = vendor
 		}
-		if product, ok := tmpl.Info.Metadata["product"].(string); ok {
+		if product, ok := tmpl.metadata["product"].(string); ok {
 			frame.Attributes.Product = product
 		}
 	}
 	return frame
 }
 
-// buildInternalEvent 构建 neutron 的 InternalEvent
-// 复用 neutron 的数据结构，包括 all_headers 等字段
-func (engine *FingerPrintHubEngine) buildInternalEvent(resp *http.Response, bodyStr string, contentLength int) protocols.InternalEvent {
-	event := make(protocols.InternalEvent)
+// ─── Helpers shared between passive and active builds ───
 
-	// 基础字段
-	event["body"] = bodyStr
-	event["status_code"] = resp.StatusCode
-	event["content_length"] = contentLength
-
-	// header 字段：原始 http.Header
-	event["header"] = resp.Header
-
-	// all_headers 字段：neutron 使用的拼接格式
-	// 复用这个逻辑避免在 matchSingle 中重复拼接
-	event["all_headers"] = engine.buildHeaderString(resp.Header)
-
-	event["favicon_hash"] = encode.Mmh3Hash32([]byte(bodyStr))
-
-	return event
+// activeServiceLen returns the number of service templates in active state.
+// Called from Len() — safe to call when engine.active is nil.
+func activeServiceLen(engine *FingerPrintHubEngine) int {
+	_ = engine
+	return 0 // overridden by active.go via init or linker
 }
 
-// buildHeaderString 构建 header 字符串。
-// key 始终小写（HTTP 规范）；value 根据 CaseInsensitive 开关决定。
-func (engine *FingerPrintHubEngine) buildHeaderString(header http.Header) string {
-	var builder strings.Builder
-	for key, values := range header {
-		for _, value := range values {
-			builder.WriteString(strings.ToLower(key))
-			builder.WriteString(": ")
-			if engine.CaseInsensitive {
-				builder.WriteString(strings.ToLower(value))
-			} else {
-				builder.WriteString(value)
-			}
-			builder.WriteString("\n")
-		}
-	}
-	return builder.String()
+// yamlMarshal is a convenience wrapper.
+func yamlMarshal(v interface{}) ([]byte, error) {
+	return yaml.Marshal(v)
 }
-
-// matchRequest 检查请求的所有 matchers 是否匹配
-// 复用 neutron 的 Request.Match 方法
-func (engine *FingerPrintHubEngine) matchRequest(req *http2.Request, event protocols.InternalEvent) bool {
-	if req.Matchers == nil || len(req.Matchers) == 0 {
-		return false
-	}
-
-	// 根据 MatchersCondition 决定逻辑
-	matchersCondition := req.MatchersCondition
-	if matchersCondition == "" {
-		matchersCondition = "or" // 默认为 OR
-	}
-
-	matchedCount := 0
-	for _, matcher := range req.Matchers {
-		// 直接使用 neutron 的 Request.Match 方法
-		// 这样可以复用所有的匹配逻辑，包括 getMatchPart 等
-		matched, _ := req.Match(event, matcher)
-		if matched {
-			matchedCount++
-			if matchersCondition == "or" {
-				return true // OR 条件下，任意匹配即可
-			}
-		} else {
-			if matchersCondition == "and" {
-				return false // AND 条件下，任意不匹配即失败
-			}
-		}
-	}
-
-	// AND 条件下，需要所有 matcher 都匹配
-	if matchersCondition == "and" {
-		return matchedCount == len(req.Matchers)
-	}
-
-	return false
-}
-
-// HTTPActiveMatch 实现 HTTP 主动指纹匹配
-// 使用 http.RoundTripper 进行主动探测，统一发包逻辑
-// transport: 自定义的 HTTP 传输层，用于发送请求
-func (engine *FingerPrintHubEngine) HTTPActiveMatch(baseURL string, level int, transport http.RoundTripper, callback func(*common.Framework, *common.Vuln)) (common.Frameworks, common.Vulns) {
-	if baseURL == "" || transport == nil {
-		return nil, nil
-	}
-
-	// 初始化结果集 map
-	allFrameworks := make(common.Frameworks)
-	allVulns := make(common.Vulns)
-
-	// 创建带缓存的 transport，通过 path 去重
-	cachedTransport := &CachedTransport{
-		transport: transport,
-		cache:     make(map[string]*CachedResponse),
-	}
-
-	// 遍历所有 web 模板:整模板交给 neutron executer 跑。用 ExecuteWithTransport
-	// 而非 ExecuteWithClient——只换 RoundTripper,保住模板编译好的
-	// CheckRedirect/Jar/Timeout(ExecuteWithClient 会整包替换 client,丢掉
-	// redirect policy,使 redirects:false + contains(location,...) 那批指纹被默认
-	// 跟跳转吃掉 Location 而漏匹配)。executer 统一维护 __request_index_offset/
-	// favicon:逐请求 ExecuteWithResults 不维护 offset,会把 body_N 全塌成
-	// body_1,转换得到的多请求模板因此漏匹配。
-	for _, tmpl := range engine.webTemplates {
-		if len(tmpl.RequestsHTTP) == 0 {
-			continue
-		}
-		result, err := tmpl.ExecuteWithTransport(baseURL, nil, cachedTransport)
-		if err == nil && result != nil && result.Matched {
-			frame := engine.newFramework(tmpl)
-			allFrameworks.Add(frame)
-			if callback != nil {
-				callback(frame, nil)
-			}
-		}
-	}
-
-	return allFrameworks, allVulns
-}
-
-// ServiceMatch 实现 Service 指纹匹配
-func (engine *FingerPrintHubEngine) ServiceMatch(host string, portStr string, level int, sender common.ServiceSender, callback common.ServiceCallback) *common.ServiceResult {
-	// 构建目标地址
-	target := fmt.Sprintf("%s:%s", host, portStr)
-
-	// 创建扫描上下文
-	scanCtx := &protocols.ScanContext{
-		Input: target,
-	}
-
-	// 遍历所有 service 模板，找到包含 network 请求的模板
-	for _, tmpl := range engine.serviceTemplates {
-		// 检查是否有 network 请求
-		if len(tmpl.RequestsNetwork) == 0 {
-			continue
-		}
-
-		// 遍历所有 network 请求
-		for _, networkReq := range tmpl.RequestsNetwork {
-			// 执行 network 请求
-			var matched bool
-			err := networkReq.ExecuteWithResults(scanCtx, make(map[string]interface{}), make(map[string]interface{}), func(event *protocols.InternalWrappedEvent) {
-				// 检查是否有匹配结果
-				// FingerprintHub service-fingerprint 使用 extractors 而不是 matchers
-				// 如果有 extractor 提取到值，说明匹配成功
-				if event.OperatorsResult != nil {
-					// 有 matchers 的情况
-					if event.OperatorsResult.Matched {
-						matched = true
-					}
-					// 有 extractors 的情况 - 提取到值说明匹配成功
-					if len(event.OperatorsResult.OutputExtracts()) > 0 {
-						matched = true
-					}
-				}
-
-				if matched {
-					// 构建 Framework
-					name := tmpl.Info.Name
-					if name == "" {
-						name = tmpl.Id
-					}
-					frame := common.NewFramework(name, common.FrameFromFingerprintHub)
-
-					// 添加元数据
-					if tmpl.Info.Metadata != nil {
-						if vendor, ok := tmpl.Info.Metadata["vendor"].(string); ok {
-							frame.Attributes.Vendor = vendor
-						}
-						if product, ok := tmpl.Info.Metadata["product"].(string); ok {
-							frame.Attributes.Product = product
-						}
-					}
-
-					// 创建 ServiceResult 并通过回调返回
-					if callback != nil {
-						callback(&common.ServiceResult{
-							Framework: frame,
-						})
-					}
-				}
-			})
-
-			if err != nil {
-				// 忽略错误继续尝试其他指纹
-				continue
-			}
-
-			// 如果匹配成功，可以选择提前返回
-			if matched {
-				// 这里选择继续匹配其他指纹，以便返回所有可能的匹配
-				// 如果只需要第一个匹配，可以在这里 return
-			}
-		}
-	}
-
-	return nil
-}
-
