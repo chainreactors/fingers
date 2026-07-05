@@ -1,12 +1,12 @@
 module github.com/chainreactors/fingers
 
-go 1.22.0
+go 1.25.0
 
 require (
 	github.com/chainreactors/logs v0.0.0-20260508055944-c678762ed15c
 	github.com/chainreactors/utils v0.0.0-20260629043228-93bdd2142c9a
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/net v0.21.0
+	golang.org/x/net v0.56.0
 )
 
 require (
@@ -25,8 +25,8 @@ require (
 	github.com/twmb/murmur3 v1.1.8 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 )
 
 require (
