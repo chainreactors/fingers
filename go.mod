@@ -1,6 +1,8 @@
 module github.com/chainreactors/fingers
 
-go 1.17
+go 1.22
+
+toolchain go1.24.3
 
 require (
 	github.com/chainreactors/logs v0.0.0-20260508055944-c678762ed15c

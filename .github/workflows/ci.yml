@@ -39,14 +39,17 @@ jobs:
           go-version: '1.22.x'
           cache: true
 
+      - name: Install libre2-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y libre2-dev g++
+
       - name: Vet
-        run: go vet ./...
+        run: go vet -tags re2_cgo ./...
 
       - name: Build
-        run: go build ./...
+        run: go build -tags re2_cgo ./...
 
       - name: Test
-        run: go test -short -timeout 300s -race -count=1 ./...
+        run: go test -tags re2_cgo -short -timeout 300s -race -count=1 ./...
 
   go117-build:
     name: Go 1.17 compatibility build
