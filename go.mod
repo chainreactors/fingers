@@ -1,6 +1,6 @@
 module github.com/chainreactors/fingers
 
-go 1.22
+go 1.24.0
 
 toolchain go1.24.3
 
@@ -23,10 +23,11 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/tetratelabs/wazero v1.7.2 // indirect
+	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/twmb/murmur3 v1.1.8 // indirect
+	github.com/wasilibs/wazero-helpers v0.0.0-20250123031827-cd30c44769bb // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )
 
@@ -43,3 +44,5 @@ require (
 	github.com/wasilibs/go-re2 v1.6.0
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+replace github.com/wasilibs/go-re2 => github.com/chainreactors/go-re2 v1.11.1-0.20260716142648-7b4fcc466374
