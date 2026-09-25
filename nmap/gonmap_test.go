@@ -10,6 +10,7 @@ import (
 
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
+	"github.com/chainreactors/utils/parsers"
 )
 
 // TestParseLogic 测试解析逻辑
@@ -148,14 +149,14 @@ func TestNoGuessFlag(t *testing.T) {
 	fmt.Println("\n=== Testing NoGuess Flag Behavior ===")
 
 	// Save original NoGuess value and restore after test
-	originalNoGuess := common.NoGuess
+	originalNoGuess := parsers.NoGuess
 	defer func() {
-		common.NoGuess = originalNoGuess
+		parsers.NoGuess = originalNoGuess
 	}()
 
 	// Test 1: NoGuess = false (default) - guess should work
 	fmt.Println("\n1. Testing with NoGuess = false (guess enabled)")
-	common.NoGuess = false
+	parsers.NoGuess = false
 
 	// Test against a high port that's unlikely to be running but might be guessable
 	// Using port 9999 which is unlikely to have a service but has a guess entry
@@ -168,7 +169,7 @@ func TestNoGuessFlag(t *testing.T) {
 
 	// Test 2: NoGuess = true - guess should be skipped
 	fmt.Println("\n2. Testing with NoGuess = true (guess disabled)")
-	common.NoGuess = true
+	parsers.NoGuess = true
 
 	res2 := engine.ServiceMatch("127.0.0.1", "9999", 1, common.NewServiceSender(time.Second*2), nil)
 	if res2 == nil {

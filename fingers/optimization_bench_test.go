@@ -671,7 +671,7 @@ func TestContentSizeScaling(t *testing.T) {
 	const iterations = 50
 
 	t.Logf("%-10s %15s %15s %10s", "Size", "Baseline", "AC", "Speedup")
-	t.Logf(strings.Repeat("-", 55))
+	t.Log(strings.Repeat("-", 55))
 
 	for _, size := range sizes {
 		raw := generateLargeResponse(size)

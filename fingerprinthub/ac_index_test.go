@@ -15,7 +15,6 @@ import (
 
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
-	"github.com/chainreactors/utils/httputils"
 )
 
 func TestTemplateKeywordIndex_Build(t *testing.T) {
@@ -64,43 +63,17 @@ func TestTemplateKeywordIndex_Match(t *testing.T) {
 	}
 }
 
-// webMatchBaseline runs the original full-iteration WebMatch logic without AC prefiltering.
+// webMatchBaseline runs the full-iteration WebMatch logic without AC prefiltering.
 func (engine *FingerPrintHubEngine) webMatchBaseline(content []byte) common.Frameworks {
-	resp := httputils.NewResponseWithRaw(content)
-	if resp == nil {
-		return make(common.Frameworks)
-	}
-
-	rawBody := httputils.ReadBody(resp)
-	rawBodyStr := string(rawBody)
-	event := engine.buildInternalEvent(resp, rawBodyStr, len(content))
 	frames := make(common.Frameworks)
-
+	event, ok := parseRawHTTPEvent(content, engine.CaseInsensitive)
+	if !ok {
+		return frames
+	}
 	for _, tmpl := range engine.webTemplates {
-		requests := tmpl.GetRequests()
-		if len(requests) == 0 {
-			continue
-		}
-		for _, req := range requests {
-			if req.Matchers == nil || len(req.Matchers) == 0 {
-				continue
-			}
-			matched := engine.matchRequest(req, event)
-			if matched {
-				name := tmpl.Info.Name
-				if name == "" {
-					name = tmpl.Id
-				}
-				frame := common.NewFramework(name, common.FrameFromFingerprintHub)
-				if tmpl.Info.Metadata != nil {
-					if vendor, ok := tmpl.Info.Metadata["vendor"].(string); ok {
-						frame.Attributes.Vendor = vendor
-					}
-					if product, ok := tmpl.Info.Metadata["product"].(string); ok {
-						frame.Attributes.Product = product
-					}
-				}
-				frames.Add(frame)
+		for _, req := range tmpl.requests {
+			if matchPassiveRequest(req, event) {
+				frames.Add(engine.newFramework(tmpl))
 				break
 			}
 		}
