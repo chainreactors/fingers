@@ -3,7 +3,7 @@ module github.com/chainreactors/fingers/re2
 go 1.24.0
 
 require (
-	github.com/chainreactors/fingers v0.0.0
+	github.com/chainreactors/fingers v1.2.2-0.20260925174709-350638e91234
 	github.com/wasilibs/go-re2 v1.6.0
 )
 
@@ -32,8 +32,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// Development against the fingers checkout; downstream builds use the
-// required version.
-replace github.com/chainreactors/fingers => ../
-
 replace github.com/wasilibs/go-re2 => github.com/chainreactors/go-re2 v1.11.1-0.20260716152604-8121b6cd261e
+
+// Development and CI use the checkout; downstream builds use the version
+// required above.
+replace github.com/chainreactors/fingers => ../
