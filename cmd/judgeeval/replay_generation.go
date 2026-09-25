@@ -12,6 +12,7 @@ import (
 	"github.com/chainreactors/fingers/common"
 	fingerlib "github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/fingers/judge/gen"
 	"gopkg.in/yaml.v3"
 )
 
@@ -124,7 +125,7 @@ func generateReplay(m *replayManifest, j *judge.Judge, out string) ([]generation
 			return nil, err
 		}
 		r.Excluded = excluded
-		g := judge.NewGenerator(j)
+		g := gen.New(j)
 		if !p.AutoName {
 			g.Name(p.Product)
 		}

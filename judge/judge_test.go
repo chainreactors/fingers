@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/bits"
 	"sort"
 	"strings"
 	"sync"
@@ -34,11 +35,8 @@ func TestNewPage(t *testing.T) {
 	if got := extractVersions([]byte(jenkinsRaw), 5); len(got) != 2 || got[0].Value != "1.24.0" || got[1].Value != "2.401.3" {
 		t.Fatalf("versions: %v", got)
 	}
-	if got := NewRetriever([]string{"jenkins", "oa", "tomcat"}).Find(s.Haystack(), 5); len(got) != 1 || got[0] != "jenkins" {
+	if got := NewRetriever([]string{"jenkins", "oa", "tomcat"}).Find(s.haystack(), 5); len(got) != 1 || got[0] != "jenkins" {
 		t.Fatalf("retriever: %v", got)
-	}
-	if b, _ := json.Marshal(s); strings.Contains(string(b), "Kind") || strings.Contains(string(b), "Generic") {
-		t.Fatalf("conclusions leak into the state: %s", b)
 	}
 }
 
@@ -52,7 +50,8 @@ type mock struct {
 	fail      bool
 	versionP  float64
 	present   map[string]float64
-	layer     map[string]Layer
+	layer     map[string]string
+	versions  map[string]string // product -> version picked, if among the options
 	primary   string
 	lastState map[string]interface{}
 }
@@ -61,17 +60,19 @@ func newMock() *mock {
 	return &mock{
 		versionP: 0.95,
 		present:  map[string]float64{"nginx": 0.1, "wordpress": 0.05, "jenkins": 0.97, "apache tomcat": 0.8, "prototype": 0.9},
-		layer: map[string]Layer{"nginx": LayerServer, "wordpress": LayerNotPresent, "jenkins": LayerApplication,
+		versions: map[string]string{"jenkins": "2.401.3", "nginx": "1.24.0"},
+		layer: map[string]string{"nginx": LayerServer, "wordpress": LayerNotPresent, "jenkins": LayerApplication,
 			"apache tomcat": LayerServer, "prototype": LayerFrontend},
 		primary: "jenkins",
 	}
 }
 
+// named is the first product named in backticks, skipping evidence names.
 func named(q Question) string {
-	s := q.Instructions
-	if i := strings.Index(s, "`"); i >= 0 {
-		if j := strings.Index(s[i+1:], "`"); j >= 0 {
-			return s[i+1 : i+1+j]
+	parts := strings.Split(q.Instructions, "`")
+	for i := 1; i < len(parts); i += 2 {
+		if parts[i] != "version_strings" {
+			return parts[i]
 		}
 	}
 	return ""
@@ -104,14 +105,11 @@ func (m *mock) Judge(ctx context.Context, state interface{}, questions map[strin
 			answers[k] = Answer{Choice: "login", Confidence: 0.9}
 		case k == "generic":
 			answers[k] = Answer{Yes: 0.9}
-		case k == "version":
-			choice := "2.401.3"
-			if _, ok := q.Options[choice]; !ok {
-				for candidate := range q.Options {
-					if candidate != notStated {
-						choice = candidate
-						break
-					}
+		case strings.HasPrefix(k, "version_"):
+			choice := notStated
+			if v, ok := m.versions[name]; ok {
+				if _, offered := q.Options[v]; offered {
+					choice = v
 				}
 			}
 			answers[k] = Answer{Choice: choice, Confidence: m.versionP}
@@ -124,9 +122,6 @@ func (m *mock) Judge(ctx context.Context, state interface{}, questions map[strin
 	return answers, nil
 }
 
-// client keeps the old test shape: a Judge over the mock.
-func (m *mock) client(t *testing.T) (*Judge, func()) { return New(m), func() {} }
-
 func testFrames() common.Frameworks {
 	fs := common.Frameworks{}
 	fs.Add(common.NewFramework("nginx", common.FrameFromFingers))
@@ -137,73 +132,124 @@ func testFrames() common.Frameworks {
 	return fs
 }
 
-func refine(t *testing.T, c *Judge, frames common.Frameworks) (*Page, error) {
-	p, err := NewPage([]byte(jenkinsRaw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, err := runRefine(context.Background(), c, p, frames, []string{"Jenkins", "Prototype"})
-	if err == nil {
-		for name, f := range out {
-			frames[name] = f
-		}
-	}
-	return p, err
+// newJudge is a Judge over m that recalls Jenkins and Prototype by name.
+func newJudge(m *mock) *Judge {
+	j := New(m)
+	j.Known = NewRetriever([]string{"Jenkins", "Prototype"})
+	return j
 }
+
+// bodyRaw states versions only in the body, so the provider has to pick them.
+const bodyRaw = "HTTP/1.1 200 OK\r\nServer: nginx\r\nSet-Cookie: JSESSIONID.1=x; Path=/\r\n\r\n" +
+	`<html><head><title>Sign in [Jenkins]</title><script src="/static/prototype.js"></script></head>` +
+	`<body><p>We moved here from WordPress.</p><footer>Jenkins 2.401.3, nginx 1.24.0</footer></body></html>`
 
 func TestRefine(t *testing.T) {
 	m := newMock()
-	c, stop := m.client(t)
-	defer stop()
-	frames := testFrames()
-	p, err := refine(t, c, frames)
+	j := newJudge(m)
+	all, err := j.Inspect(context.Background(), []byte(jenkinsRaw), testFrames())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !Is(frames["wordpress"], Rejected) {
-		t.Errorf("text-only wordpress not rejected: %v", frames["wordpress"].Tags)
+	if w := all["wordpress"]; w.Judge == nil || !w.Judge.Rejected {
+		t.Errorf("text-only wordpress not rejected: %+v", w.Judge)
 	}
-	if nginx := frames["nginx"]; Is(nginx, Rejected) || LayerOf(nginx) != LayerServer {
-		t.Errorf("nginx from the Server header must be kept: %v", nginx.Tags)
+	if nginx := all["nginx"].Judge; nginx.Rejected || nginx.Layer != LayerServer || nginx.Confidence != 0.1 {
+		t.Errorf("nginx from the Server header must be kept: %+v", nginx)
 	}
-	if Is(frames["apache tomcat"], Duplicate) == Is(frames["apache-tomcat"], Duplicate) {
+	if all["apache tomcat"].Judge.Duplicate == all["apache-tomcat"].Judge.Duplicate {
 		t.Errorf("exactly one tomcat spelling must be a dup")
 	}
-	j := frames["jenkins"]
-	if !Is(j, Primary) || j.Version != "2.401.3" || PrimaryOf(frames) != j {
-		t.Errorf("jenkins primary/version: %v %q", j.Tags, j.Version)
-	}
-	if f := frames["prototype"]; f == nil || !Is(f, Recalled) || !f.IsGuess() {
-		t.Errorf("confirmed recall not added: %+v", f)
-	}
-	if got := Accepted(frames); len(got) != 4 { // nginx, tomcat, jenkins, prototype
-		t.Errorf("accepted: %v", got)
-	}
-	if p.Kind != KindLogin || !p.Generic {
-		t.Errorf("page: %q %v", p.Kind, p.Generic)
+	if p := all["prototype"]; p == nil || !p.Judge.Recalled || !p.IsGuess() {
+		t.Errorf("confirmed recall not added: %+v", p)
 	}
 	// Jenkins is both a rule hit and a recall name: asked once. 5 products x 2 + primary + page_kind + generic.
-	if len(m.requests) != 2 || len(m.requests[0]) != 13 || strings.Join(m.requests[1], ",") != "version" {
-		t.Errorf("requests: %v", m.requests)
+	if len(m.requests) != 1 || len(m.requests[0]) != 13 {
+		t.Fatalf("requests: %v", m.requests)
+	}
+
+	accepted, err := j.Refine(context.Background(), []byte(jenkinsRaw), testFrames())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(accepted) != 4 { // nginx, tomcat, jenkins, prototype
+		t.Errorf("accepted: %v", accepted)
+	}
+	jenkins := accepted["jenkins"]
+	if !jenkins.Judge.Primary || accepted.Primary() != jenkins {
+		t.Errorf("jenkins primary: %+v", jenkins.Judge)
+	}
+	// Both versions are bound by name in the headers: taken without asking,
+	// and not offered to the products they do not name.
+	if jenkins.Version != "2.401.3" || accepted["nginx"].Version != "1.24.0" || accepted["prototype"].Version != "" {
+		t.Errorf("versions: jenkins %q nginx %q prototype %q", jenkins.Version, accepted["nginx"].Version, accepted["prototype"].Version)
+	}
+	if len(m.requests) != 1 || j.CacheHits != 1 {
+		t.Errorf("header versions or cached verdicts were asked again: %v hits=%d", m.requests, j.CacheHits)
+	}
+	if kind, generic, err := j.Classify(context.Background(), []byte(jenkinsRaw)); err != nil || kind != KindLogin || !generic || len(m.requests) != 1 {
+		t.Errorf("classify after refine: %q %v %v, requests %v", kind, generic, err, m.requests)
+	}
+}
+
+// Versions stated only in the body are picked by the provider, all kept
+// products in one request, each from its own candidates.
+func TestRefineVersionsEveryProduct(t *testing.T) {
+	m := newMock()
+	j := newJudge(m)
+	accepted, err := j.Refine(context.Background(), []byte(bodyRaw), testFrames())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if accepted["jenkins"].Version != "2.401.3" || accepted["nginx"].Version != "1.24.0" {
+		t.Fatalf("versions: jenkins %q nginx %q", accepted["jenkins"].Version, accepted["nginx"].Version)
+	}
+	// jenkins (primary), apache tomcat and nginx (servers), prototype (frontend).
+	if len(m.requests) != 2 || strings.Join(m.requests[1], ",") != "version_0,version_1,version_2,version_3" {
+		t.Fatalf("requests: %v", m.requests)
 	}
 	if _, ok := m.lastState["version_strings"]; !ok {
 		t.Errorf("version strings not in the state: %v", m.lastState)
 	}
-	if c.Requests != 2 {
-		t.Errorf("requests: %d", c.Requests)
+}
+
+// One version string occurring once goes to one product only.
+func TestVersionGoesToOneProduct(t *testing.T) {
+	m := newMock()
+	m.versions = map[string]string{"jenkins": "2.401.3", "nginx": "2.401.3"}
+	raw := strings.Replace(bodyRaw, "Jenkins 2.401.3, nginx 1.24.0", "Jenkins 2.401.3", 1)
+	accepted, err := newJudge(m).Refine(context.Background(), []byte(raw), testFrames())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if accepted["jenkins"].Version != "2.401.3" || accepted["nginx"].Version != "" {
+		t.Fatalf("versions: jenkins %q nginx %q", accepted["jenkins"].Version, accepted["nginx"].Version)
+	}
+}
+
+func TestDeclarations(t *testing.T) {
+	raw := []byte("HTTP/1.1 200 OK\r\nServer: Apache/2.4.38 (Debian) OpenSSL/1.0.2q PHP/5.6.40\r\nX-Jenkins: 2.401.3\r\n" +
+		"X-Gitea-Version: 1.21.4\r\nX-Tomcat: Apache Tomcat/9.0.1\r\n\r\n<meta name=\"generator\" content=\"WordPress 7.0.3\">")
+	decls := declarations(raw)
+	for product, want := range map[string]string{"Apache": "2.4.38", "openssl": "1.0.2q", "PHP": "5.6.40", "jenkins": "2.401.3",
+		"Gitea": "1.21.4", "Apache Tomcat": "9.0.1", "WordPress": "7.0.3", "nginx": ""} {
+		if got := declaredVersion(decls, product); got != want {
+			t.Errorf("%s: got %q want %q", product, got, want)
+		}
+	}
+	if !claimedByOther(decls, "5.6.40", NormalizeName("ThinkPHP")) || claimedByOther(decls, "5.6.40", NormalizeName("php")) {
+		t.Error("claims")
 	}
 }
 
 func TestVersionNeedsConfidence(t *testing.T) {
 	m := newMock()
 	m.versionP = 0.6
-	c, stop := m.client(t)
-	defer stop()
-	frames := testFrames()
-	if _, err := refine(t, c, frames); err != nil {
+	accepted, err := newJudge(m).Refine(context.Background(), []byte(bodyRaw), testFrames())
+	if err != nil {
 		t.Fatal(err)
 	}
-	if v := frames["jenkins"].Version; v != "" {
+	if v := accepted["jenkins"].Version; v != "" {
 		t.Fatalf("low-confidence version written: %q", v)
 	}
 }
@@ -211,60 +257,57 @@ func TestVersionNeedsConfidence(t *testing.T) {
 func TestFailedRoundLeavesFrames(t *testing.T) {
 	m := newMock()
 	m.fail = true
-	c, stop := m.client(t)
-	defer stop()
 	frames := testFrames()
 	before, _ := json.Marshal(frames)
-	p, err := refine(t, c, frames)
-	if err == nil {
+	accepted, err := newJudge(m).Refine(context.Background(), []byte(jenkinsRaw), frames)
+	if err == nil || accepted != nil {
 		t.Fatal("expected error")
 	}
-	if after, _ := json.Marshal(frames); string(after) != string(before) || p.Kind != "" {
+	if after, _ := json.Marshal(frames); string(after) != string(before) {
 		t.Fatalf("frames changed on failure:\n%s\n%s", before, after)
 	}
 }
 
 func TestCache(t *testing.T) {
 	m := newMock()
-	c, stop := m.client(t)
-	defer stop()
-	c.Cache = NewMemoryCache(16)
+	j := newJudge(m)
 	for i := 0; i < 2; i++ {
-		frames := testFrames()
-		if _, err := refine(t, c, frames); err != nil {
+		accepted, err := j.Refine(context.Background(), []byte(bodyRaw), testFrames())
+		if err != nil {
 			t.Fatal(err)
 		}
-		if frames["jenkins"].Version != "2.401.3" {
+		if accepted["jenkins"].Version != "2.401.3" {
 			t.Fatalf("run %d: cached answers not applied", i)
 		}
 	}
-	if m.calls != 2 || c.CacheHits != 2 {
-		t.Fatalf("calls=%d hits=%d", m.calls, c.CacheHits)
+	if m.calls != 2 || j.CacheHits != 2 {
+		t.Fatalf("calls=%d hits=%d", m.calls, j.CacheHits)
 	}
 }
 
 func TestClassifyAlone(t *testing.T) {
 	m := newMock()
-	c, stop := m.client(t)
-	defer stop()
+	j := New(m)
 	p, _ := NewPage([]byte(jenkinsRaw))
-	r := p.Round()
-	Classify(r)
+	r := newRound(p)
+	var kind Kind
+	var generic bool
+	classifyRound(r, &kind, &generic)
 	var custom float64
-	r.Add("honeypot", Binary("Is this a honeypot?"), func(a Answer) { custom = a.Yes })
-	if err := r.Ask(context.Background(), c); err != nil {
+	r.add("honeypot", Binary("Is this a honeypot?"), func(a Answer) { custom = a.Yes })
+	if err := r.ask(context.Background(), j); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(m.requests[0], ",") != "generic,honeypot,page_kind" || p.Kind != KindLogin || custom != 0.7 {
-		t.Fatalf("requests=%v kind=%q custom=%v", m.requests, p.Kind, custom)
+	if strings.Join(m.requests[0], ",") != "generic,honeypot,page_kind" || kind != KindLogin || !generic || custom != 0.7 {
+		t.Fatalf("requests=%v kind=%q custom=%v", m.requests, kind, custom)
 	}
-	if err := p.Round().Ask(context.Background(), c); err != nil || m.calls != 1 {
+	if err := newRound(p).ask(context.Background(), j); err != nil || m.calls != 1 {
 		t.Fatalf("empty round sent a request: %v %d", err, m.calls)
 	}
-	r = p.Round()
-	r.Add("x", Binary("?"), nil)
-	r.Add("x", Binary("?"), nil)
-	if err := r.Ask(context.Background(), c); err == nil {
+	r = newRound(p)
+	r.add("x", Binary("?"), nil)
+	r.add("x", Binary("?"), nil)
+	if err := r.ask(context.Background(), j); err == nil {
 		t.Fatal("duplicate key accepted")
 	}
 }
@@ -273,21 +316,24 @@ func TestMemoryCacheEvicts(t *testing.T) {
 	c := NewMemoryCache(2)
 	c.Put("a", 0, []byte("1"))
 	c.Put("b", 0, []byte("2"))
-	c.Get("a", 0)
+	c.Get("a", 0, 0)
 	c.Put("c", 0, []byte("3"))
-	if _, ok := c.Get("b", 0); ok {
+	if _, ok := c.Get("b", 0, 0); ok {
 		t.Fatal("least recently used entry kept")
 	}
-	if v, ok := c.Get("a", 0); !ok || string(v) != "1" {
+	if v, ok := c.Get("a", 0, 0); !ok || string(v) != "1" {
 		t.Fatal("recent entry evicted")
 	}
-	if _, ok := c.Get("a", 0xff); ok {
+	if _, ok := c.Get("a", 0xff, 1); ok {
 		t.Fatal("signature 8 bits away matched")
 	}
-	if v, ok := c.Get("a", 0x1); !ok || string(v) != "1" {
+	if v, ok := c.Get("a", 0x1, 1); !ok || string(v) != "1" {
 		t.Fatal("signature 1 bit away missed")
 	}
-	if _, ok := c.Get("a", 0x3); ok {
+	if _, ok := c.Get("a", 0x1, 0); ok {
+		t.Fatal("signature 1 bit away matched at distance 0")
+	}
+	if _, ok := c.Get("a", 0x3, 1); ok {
 		t.Fatal("signature 2 bits away matched")
 	}
 }
@@ -295,10 +341,6 @@ func TestMemoryCacheEvicts(t *testing.T) {
 // The same product page on another host (other token, date, host name) reuses
 // the answers; a different page does not.
 func TestSimilarPagesShareAnswers(t *testing.T) {
-	m := newMock()
-	c, stop := m.client(t)
-	defer stop()
-	c.Cache = NewMemoryCache(16)
 	// Same page on another host: other session, build number and date.
 	page := func(build, date string) string {
 		return strings.Replace(jenkinsRaw, "We moved here from WordPress.", "We moved here from WordPress. Build "+build+", "+date+".", 1)
@@ -307,19 +349,22 @@ func TestSimilarPagesShareAnswers(t *testing.T) {
 	a, _ := NewPage([]byte(orig))
 	b, _ := NewPage([]byte(variant))
 	other, _ := NewPage([]byte("HTTP/1.1 200 OK\r\nServer: Apache\r\n\r\n<title>Index of /</title><a href=\"a.txt\">a.txt</a>"))
-	if !Similar(a.Signature(), b.Signature()) || Similar(a.Signature(), other.Signature()) {
-		t.Fatalf("signatures: %x %x %x", a.Signature(), b.Signature(), other.Signature())
+	near := func(x, y *Page) bool { return bits.OnesCount64(x.signature()^y.signature()) <= DefaultSimilarDistance }
+	if !near(a, b) || near(a, other) {
+		t.Fatalf("signatures: %x %x %x", a.signature(), b.signature(), other.signature())
 	}
-	for _, raw := range []string{orig, variant} {
-		p, _ := NewPage([]byte(raw))
-		r := p.Round()
-		Classify(r)
-		if err := r.Ask(context.Background(), c); err != nil || p.Kind != KindLogin {
-			t.Fatalf("kind %q err %v", p.Kind, err)
+	for _, distance := range []int{DefaultSimilarDistance, 0} {
+		m := newMock()
+		j := New(m)
+		j.SimilarDistance = distance
+		for _, raw := range []string{orig, variant} {
+			if kind, _, err := j.Classify(context.Background(), []byte(raw)); err != nil || kind != KindLogin {
+				t.Fatalf("kind %q err %v", kind, err)
+			}
 		}
-	}
-	if m.calls != 1 || c.CacheHits != 1 {
-		t.Fatalf("similar page not served from cache: calls=%d hits=%d", m.calls, c.CacheHits)
+		if want := map[int]int64{DefaultSimilarDistance: 1, 0: 2}[distance]; m.calls != want {
+			t.Fatalf("distance %d: calls=%d, want %d", distance, m.calls, want)
+		}
 	}
 }
 
@@ -394,38 +439,36 @@ func TestNormalizeName(t *testing.T) {
 	}
 }
 
-// A server's own page has no primary application; the only server is the subject.
+// A server's own page has no primary application; its version is still resolved.
 func TestVersionWithoutPrimary(t *testing.T) {
 	m := newMock()
 	m.primary = noneOfThem
-	c, stop := m.client(t)
-	defer stop()
 	frames := common.Frameworks{}
 	frames.Add(common.NewFramework("nginx", common.FrameFromFingers))
-	p, _ := NewPage([]byte(jenkinsRaw))
-	result, err := runRefine(context.Background(), c, p, frames, nil)
+	accepted, err := New(m).Refine(context.Background(), []byte(bodyRaw), frames)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if PrimaryOf(result) != nil || result["nginx"].Version == "" {
-		t.Fatalf("subject version not asked: %+v", result["nginx"])
+	if accepted.Primary() != nil || accepted["nginx"].Version != "1.24.0" {
+		t.Fatalf("server version not resolved: %+v", accepted["nginx"])
 	}
 }
 
-// Refine on frames it already judged sends nothing: Verify skips judged hits,
-// Classify is answered by the cache, and the version is already set.
+// Refine of its own result sends nothing: judged hits are skipped and the
+// remaining questions are answered by the cache.
 func TestRefineIsIdempotent(t *testing.T) {
 	m := newMock()
-	c, stop := m.client(t)
-	defer stop()
-	frames := testFrames()
-	for i := 0; i < 2; i++ {
-		if _, err := refine(t, c, frames); err != nil {
-			t.Fatal(err)
-		}
+	j := newJudge(m)
+	first, err := j.Refine(context.Background(), []byte(bodyRaw), testFrames())
+	if err != nil {
+		t.Fatal(err)
 	}
-	if m.calls != 2 || !Is(frames["wordpress"], Rejected) || len(frames["wordpress"].Tags) != len(testFrames()["wordpress"].Tags)+2 {
-		t.Fatalf("calls=%d wordpress=%v requests=%v", m.calls, frames["wordpress"].Tags, m.requests)
+	second, err := j.Refine(context.Background(), []byte(bodyRaw), first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.calls != 2 || len(second) != len(first) || second["jenkins"].Version != "2.401.3" {
+		t.Fatalf("calls=%d first=%v second=%v requests=%v", m.calls, first, second, m.requests)
 	}
 }
 
@@ -434,8 +477,7 @@ func TestRefineIsIdempotent(t *testing.T) {
 func TestConcurrentSimilarPagesMerge(t *testing.T) {
 	m := newMock()
 	m.delay = 100 * time.Millisecond
-	c, stop := m.client(t)
-	defer stop()
+	c := New(m)
 	var wg sync.WaitGroup
 	kinds := make([]Kind, 20)
 	for i := range kinds {
@@ -443,13 +485,11 @@ func TestConcurrentSimilarPagesMerge(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			raw := strings.Replace(jenkinsRaw, "JSESSIONID.1=x", fmt.Sprintf("JSESSIONID.1=%d", i), 1)
-			p, _ := NewPage([]byte(raw))
-			r := p.Round()
-			Classify(r)
-			if err := r.Ask(context.Background(), c); err != nil {
+			kind, _, err := c.Classify(context.Background(), []byte(raw))
+			if err != nil {
 				t.Error(err)
 			}
-			kinds[i] = p.Kind
+			kinds[i] = kind
 		}(i)
 	}
 	wg.Wait()
@@ -466,36 +506,40 @@ func TestConcurrentSimilarPagesMerge(t *testing.T) {
 // A round partly answered by the cache sends only the rest.
 func TestPartialCacheHit(t *testing.T) {
 	m := newMock()
-	c, stop := m.client(t)
-	defer stop()
-	p, _ := NewPage([]byte(jenkinsRaw))
-	r := p.Round()
-	Classify(r)
-	if err := r.Ask(context.Background(), c); err != nil {
+	c := New(m)
+	if _, _, err := c.Classify(context.Background(), []byte(jenkinsRaw)); err != nil {
 		t.Fatal(err)
 	}
-	p, _ = NewPage([]byte(jenkinsRaw))
-	r = p.Round()
-	Classify(r)
-	r.Add("extra", Binary("Is this page served over a CDN?"), nil)
-	if err := r.Ask(context.Background(), c); err != nil || p.Kind != KindLogin {
-		t.Fatalf("err %v kind %q", err, p.Kind)
+	p, _ := NewPage([]byte(jenkinsRaw))
+	r := newRound(p)
+	var kind Kind
+	var generic bool
+	classifyRound(r, &kind, &generic)
+	r.add("extra", Binary("Is this page served over a CDN?"), nil)
+	if err := r.ask(context.Background(), c); err != nil || kind != KindLogin {
+		t.Fatalf("err %v kind %q", err, kind)
 	}
 	if len(m.requests) != 2 || strings.Join(m.requests[1], ",") != "extra" {
 		t.Fatalf("requests: %v", m.requests)
 	}
 }
 
-// Without a primary, the only server is the subject even next to an OS.
-func TestVersionSubjectPrefersServer(t *testing.T) {
+// Versions are resolved for the primary application first, then other
+// applications, servers and libraries; unjudged hits last.
+func TestByImportance(t *testing.T) {
 	frames := common.Frameworks{}
-	for name, l := range map[string]Layer{"apache": LayerServer, "ubuntu": LayerDevice} {
+	for name, j := range map[string]*common.Judgement{"jquery": {Layer: LayerFrontend}, "apache": {Layer: LayerServer},
+		"ubuntu": {Layer: LayerDevice}, "gitlab": {Layer: LayerApplication, Primary: true}, "unjudged": nil} {
 		f := common.NewFramework(name, common.FrameFromFingers)
-		setLayer(f, l)
+		f.Judge = j
 		frames.Add(f)
 	}
-	if f := subject(frames); f == nil || f.Name != "apache" {
-		t.Fatalf("subject: %+v", f)
+	var got []string
+	for _, f := range byImportance(frames) {
+		got = append(got, f.Name)
+	}
+	if strings.Join(got, ",") != "gitlab,ubuntu,apache,jquery,unjudged" {
+		t.Fatalf("order: %v", got)
 	}
 }
 
@@ -505,7 +549,7 @@ func TestUnrelatedSparsePagesDoNotShare(t *testing.T) {
 	head := "HTTP/1.1 200 OK\r\nServer: nginx\r\nX-Frame-Options: SAMEORIGIN\r\n\r\n<script src=\"/js/jquery.min.js\"></script>"
 	a, _ := NewPage([]byte(head + "<title>职业规划咨询</title><p>生涯规划师与高考志愿规划，帮助学生找到方向</p>"))
 	b, _ := NewPage([]byte(head + "<title>官方网站</title><p>在线娱乐平台，注册即送体验金</p>"))
-	if Similar(a.Signature(), b.Signature()) && a.similarityScope() == b.similarityScope() {
-		t.Fatalf("unrelated pages share answers: %x %x", a.Signature(), b.Signature())
+	if bits.OnesCount64(a.signature()^b.signature()) <= DefaultSimilarDistance && a.similarityScope() == b.similarityScope() {
+		t.Fatalf("unrelated pages share answers: %x %x", a.signature(), b.signature())
 	}
 }

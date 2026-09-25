@@ -220,17 +220,32 @@ func main() {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			accepted, kind, generic, err := j.Refine(context.Background(), content, frames)
+			j.Known = judge.NewRetriever(engine.Names())
+			ctx := context.Background()
+			accepted, err := j.Refine(ctx, content, frames)
+			if err == nil {
+				var kind judge.Kind
+				var generic bool
+				if kind, generic, err = j.Classify(ctx, content); err == nil {
+					fmt.Printf("page: %s, generic: %v\n", kind, generic)
+				}
+			}
 			if err != nil {
 				fmt.Printf("jev failed, showing the rule result: %v\n", err)
 			} else {
-				fmt.Printf("page: %s, generic: %v\n", kind, generic)
 				for _, frame := range accepted {
 					verdict := "accepted"
-					if judge.Is(frame, judge.Primary) {
+					if frame.Judge != nil && frame.Judge.Primary {
 						verdict += ",primary"
 					}
-					fmt.Printf("  %-40s %-10s %-18s %s\n", frame.Name, frame.Version, judge.LayerOf(frame), verdict)
+					if frame.Judge != nil && frame.Judge.Recalled {
+						verdict += ",recalled"
+					}
+					layer := ""
+					if frame.Judge != nil {
+						layer = frame.Judge.Layer
+					}
+					fmt.Printf("  %-40s %-10s %-18s %s\n", frame.Name, frame.Version, layer, verdict)
 				}
 				fmt.Printf("accepted: %s\n", accepted.String())
 				return

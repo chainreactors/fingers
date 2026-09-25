@@ -1,4 +1,7 @@
-package judge
+// Package gen builds native fingerprints from labelled HTTP responses. It
+// uses a judge.Judge only to pick a product name and versions; rules are
+// derived and validated by code against the rule engine.
+package gen
 
 import (
 	"bytes"
@@ -10,12 +13,16 @@ import (
 
 	"github.com/chainreactors/fingers/common"
 	fingerlib "github.com/chainreactors/fingers/fingers"
+	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/fingers/judge/internal/evidence"
 )
+
+var whitespace = regexp.MustCompile(`\s+`)
 
 // Generator builds one native Finger from labelled HTTP responses. Probe
 // belongs to the most recently added positive or negative sample.
 type Generator struct {
-	judge    *Judge
+	judge    *judge.Judge
 	name     string
 	positive []generatorSample
 	negative []generatorSample
@@ -29,9 +36,10 @@ type generatorSample struct {
 	probes  map[string][]byte
 }
 
-// NewGenerator creates a fingerprint generator using j for name and version
-// selection. A Name hint lets rule generation work without a provider.
-func NewGenerator(j *Judge) *Generator { return &Generator{judge: j} }
+// New creates a fingerprint generator using j for name and version
+// selection. j may be nil when Name is given and every positive carries its
+// version (PositiveVersion).
+func New(j *judge.Judge) *Generator { return &Generator{judge: j} }
 
 // Name supplies a known product name. Without it Generate selects a name
 // from the positive responses.
@@ -42,7 +50,7 @@ func (g *Generator) Name(name string) *Generator {
 
 // Positive adds an HTTP response known to belong to the product.
 func (g *Generator) Positive(raw []byte) *Generator {
-	g.positive = append(g.positive, generatorSample{raw: bytes.Clone(raw), probes: map[string][]byte{}})
+	g.positive = append(g.positive, generatorSample{raw: append([]byte(nil), raw...), probes: map[string][]byte{}})
 	g.current = &g.positive[len(g.positive)-1]
 	return g
 }
@@ -56,7 +64,7 @@ func (g *Generator) PositiveVersion(raw []byte, version string) *Generator {
 
 // Negative adds an HTTP response known not to belong to the product.
 func (g *Generator) Negative(raw []byte) *Generator {
-	g.negative = append(g.negative, generatorSample{raw: bytes.Clone(raw), probes: map[string][]byte{}})
+	g.negative = append(g.negative, generatorSample{raw: append([]byte(nil), raw...), probes: map[string][]byte{}})
 	g.current = &g.negative[len(g.negative)-1]
 	return g
 }
@@ -65,14 +73,14 @@ func (g *Generator) Negative(raw []byte) *Generator {
 // is the exact send_data used by the rule engine.
 func (g *Generator) Probe(request, response []byte) *Generator {
 	if g.current == nil {
-		g.err = fmt.Errorf("judge: Probe requires a preceding Positive or Negative")
+		g.err = fmt.Errorf("gen: Probe requires a preceding Positive or Negative")
 		return g
 	}
 	if len(request) == 0 {
-		g.err = fmt.Errorf("judge: Probe requires non-empty send_data")
+		g.err = fmt.Errorf("gen: Probe requires non-empty send_data")
 		return g
 	}
-	g.current.probes[string(request)] = bytes.Clone(response)
+	g.current.probes[string(request)] = append([]byte(nil), response...)
 	return g
 }
 
@@ -80,10 +88,10 @@ func (g *Generator) Probe(request, response []byte) *Generator {
 // caller controls network behavior through send.
 func (g *Generator) ProbeWith(ctx context.Context, request []byte, send func(context.Context, []byte) ([]byte, error)) error {
 	if g.current == nil {
-		return fmt.Errorf("judge: ProbeWith requires a preceding Positive or Negative")
+		return fmt.Errorf("gen: ProbeWith requires a preceding Positive or Negative")
 	}
 	if send == nil || len(request) == 0 {
-		return fmt.Errorf("judge: ProbeWith requires a sender and non-empty send_data")
+		return fmt.Errorf("gen: ProbeWith requires a sender and non-empty send_data")
 	}
 	response, err := send(ctx, request)
 	if err != nil {
@@ -100,7 +108,7 @@ func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
 		return nil, g.err
 	}
 	if len(g.positive) == 0 || len(g.negative) == 0 {
-		return nil, fmt.Errorf("judge: Generate requires positive and negative samples")
+		return nil, fmt.Errorf("gen: Generate requires positive and negative samples")
 	}
 	if err := g.validateSamples(); err != nil {
 		return nil, err
@@ -108,7 +116,7 @@ func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
 	name := g.name
 	if name == "" {
 		if g.judge == nil {
-			return nil, fmt.Errorf("judge: a Judge or Name is required to select a product name")
+			return nil, fmt.Errorf("gen: a Judge or Name is required to select a product name")
 		}
 		counts := map[string]int{}
 		ranks := map[string]int{}
@@ -119,7 +127,7 @@ func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
 				return nil, err
 			}
 			for rank, candidate := range names {
-				key := NormalizeName(candidate)
+				key := evidence.NormalizeName(candidate)
 				counts[key]++
 				ranks[key] += len(names) - rank
 				if labels[key] == "" {
@@ -141,7 +149,7 @@ func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
 			return keys[a] < keys[b]
 		})
 		if len(keys) == 0 || counts[keys[0]] != len(g.positive) {
-			return nil, fmt.Errorf("judge: no product name supported by every positive sample; provide Name")
+			return nil, fmt.Errorf("gen: no product name supported by every positive sample; provide Name")
 		}
 		name = labels[keys[0]]
 	}
@@ -175,7 +183,7 @@ func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
 		}
 	}
 	if len(f.Rules) == 0 {
-		return nil, fmt.Errorf("judge: no rule distinguishes the positive and negative samples")
+		return nil, fmt.Errorf("gen: no rule distinguishes the positive and negative samples")
 	}
 	if rule := g.versionRule("", name, versions); rule != nil {
 		f.Rules = append(fingerlib.Rules{rule}, f.Rules...)
@@ -196,17 +204,17 @@ func (g *Generator) Validate(f *fingerlib.Finger) error {
 		return g.err
 	}
 	if f == nil || len(f.Rules) == 0 {
-		return fmt.Errorf("judge: fingerprint has no rules")
+		return fmt.Errorf("gen: fingerprint has no rules")
 	}
 	if len(g.positive) == 0 || len(g.negative) == 0 {
-		return fmt.Errorf("judge: validation requires positive and negative samples")
+		return fmt.Errorf("gen: validation requires positive and negative samples")
 	}
 	if err := g.validateSamples(); err != nil {
 		return err
 	}
 	for i, rule := range f.Rules {
 		if rule == nil {
-			return fmt.Errorf("judge: rule %d is nil", i)
+			return fmt.Errorf("gen: rule %d is nil", i)
 		}
 	}
 	checking := copyFingerForValidation(f)
@@ -224,15 +232,15 @@ func (g *Generator) Validate(f *fingerlib.Finger) error {
 	for i, sample := range g.positive {
 		frame, ok := check(sample)
 		if !ok {
-			return fmt.Errorf("judge: positive sample %d did not match", i)
+			return fmt.Errorf("gen: positive sample %d did not match", i)
 		}
 		if sample.version != "" && frame.Version != sample.version {
-			return fmt.Errorf("judge: positive sample %d version = %q, want %q", i, frame.Version, sample.version)
+			return fmt.Errorf("gen: positive sample %d version = %q, want %q", i, frame.Version, sample.version)
 		}
 	}
 	for i, sample := range g.negative {
 		if _, ok := check(sample); ok {
-			return fmt.Errorf("judge: negative sample %d matched", i)
+			return fmt.Errorf("gen: negative sample %d matched", i)
 		}
 	}
 	return nil
@@ -240,15 +248,15 @@ func (g *Generator) Validate(f *fingerlib.Finger) error {
 
 func (g *Generator) validateSamples() error {
 	for _, sample := range append(append([]generatorSample(nil), g.positive...), g.negative...) {
-		if _, err := NewPage(sample.raw); err != nil {
-			return fmt.Errorf("judge: invalid sample: %w", err)
+		if _, err := judge.NewPage(sample.raw); err != nil {
+			return fmt.Errorf("gen: invalid sample: %w", err)
 		}
 		for request, response := range sample.probes {
 			if request == "" {
-				return fmt.Errorf("judge: probe has empty send_data")
+				return fmt.Errorf("gen: probe has empty send_data")
 			}
-			if _, err := NewPage(response); err != nil {
-				return fmt.Errorf("judge: invalid probe response: %w", err)
+			if _, err := judge.NewPage(response); err != nil {
+				return fmt.Errorf("gen: invalid probe response: %w", err)
 			}
 		}
 	}
@@ -284,7 +292,7 @@ type ruleCandidate struct {
 }
 
 func candidates(raw []byte) []ruleCandidate {
-	p, err := NewPage(raw)
+	p, err := judge.NewPage(raw)
 	if err != nil {
 		return nil
 	}
@@ -297,7 +305,7 @@ func candidates(raw []byte) []ruleCandidate {
 	}
 	for k, v := range p.Headers {
 		if k == "Server" || strings.HasPrefix(k, "X-") || k == "Product" {
-			value := strings.TrimSpace(nameVersion.ReplaceAllString(strings.Split(v, "/")[0], ""))
+			value := strings.TrimSpace(evidence.NameVersion.ReplaceAllString(strings.Split(v, "/")[0], ""))
 			if strings.HasPrefix(k, "X-") && (strings.HasSuffix(k, "-Version") || value == "" || value[0] >= '0' && value[0] <= '9') {
 				add("header", k+":", 6)
 			} else {
@@ -307,8 +315,8 @@ func candidates(raw []byte) []ruleCandidate {
 	}
 	add("body", p.Generator, 6)
 	// Preserve the declaration, but not a single release or customized title.
-	if name := nameVersion.ReplaceAllString(p.Generator, ""); name != "" {
-		if loc := reGenerator.FindSubmatchIndex(raw); loc != nil {
+	if name := evidence.NameVersion.ReplaceAllString(p.Generator, ""); name != "" {
+		if loc := evidence.Generator.FindSubmatchIndex(raw); loc != nil {
 			start := loc[2]
 			if start < 0 {
 				start = loc[4]
@@ -320,8 +328,8 @@ func candidates(raw []byte) []ruleCandidate {
 			add("body", string(raw[loc[0]:end]), 8)
 		}
 	}
-	if !genericName(NormalizeName(p.Title)) {
-		if title := reTitle.Find(raw); len(title) > 0 {
+	if !evidence.GenericName(evidence.NormalizeName(p.Title)) {
+		if title := evidence.Title.Find(raw); len(title) > 0 {
 			add("body", string(title), 5)
 		}
 		add("body", p.Title, 4)
@@ -333,7 +341,7 @@ func candidates(raw []byte) []ruleCandidate {
 	for _, comment := range p.Comments {
 		add("body", comment, 2)
 	}
-	for _, name := range pageNames(p) {
+	for _, name := range evidence.Names(p.Generator, p.Title, p.Text, p.Headers, append(append([]string(nil), p.Scripts...), p.Styles...)) {
 		if strings.Contains(strings.ToLower(p.Text), strings.ToLower(name)) {
 			add("body", name, 1)
 		}
@@ -395,7 +403,7 @@ func selectCandidates(positive, negative [][]byte, product ...string) []ruleCand
 		for _, c := range candidates(raw) {
 			// A product must not inherit its proxy/CDN or an unrelated security
 			// header merely because that header is absent from a small negative set.
-			if c.kind == "header" && len(product) > 0 && !strings.Contains(NormalizeName(c.value), NormalizeName(product[0])) {
+			if c.kind == "header" && len(product) > 0 && !strings.Contains(evidence.NormalizeName(c.value), evidence.NormalizeName(product[0])) {
 				continue
 			}
 			key := c.kind + "\x00" + c.value
@@ -564,22 +572,22 @@ func versionPattern(name string, positive [][]byte, versions []string, negative 
 func versionPatternAt(raw string, index int, name string) string {
 	var pattern string
 	// A generator meta tag is stronger than an unscoped product mention.
-	for _, loc := range reGenerator.FindAllStringSubmatchIndex(raw, -1) {
+	for _, loc := range evidence.Generator.FindAllStringSubmatchIndex(raw, -1) {
 		start, end := loc[2], loc[3]
 		if start < 0 {
 			start, end = loc[4], loc[5]
 		}
-		if index >= start && index < end && strings.Contains(NormalizeName(raw[start:index]), NormalizeName(name)) {
-			return regexp.QuoteMeta(raw[loc[0]:index]) + `(` + versionToken + `|[0-9]+)`
+		if index >= start && index < end && strings.Contains(evidence.NormalizeName(raw[start:index]), evidence.NormalizeName(name)) {
+			return regexp.QuoteMeta(raw[loc[0]:index]) + `(` + evidence.VersionToken + `|[0-9]+)`
 		}
 	}
 	if headerEnd := strings.Index(raw, "\r\n\r\n"); headerEnd >= 0 && index < headerEnd {
 		lineStart := strings.LastIndex(raw[:index], "\n") + 1
 		prefix := strings.TrimSpace(raw[lineStart:index])
-		if len(prefix) > 48 || !strings.Contains(NormalizeName(prefix), NormalizeName(name)) {
+		if len(prefix) > 48 || !strings.Contains(evidence.NormalizeName(prefix), evidence.NormalizeName(name)) {
 			return ""
 		}
-		pattern = `(?m)^` + regexp.QuoteMeta(prefix) + `\s*(` + versionToken + `|[0-9]+)`
+		pattern = `(?m)^` + regexp.QuoteMeta(prefix) + `\s*(` + evidence.VersionToken + `|[0-9]+)`
 	} else {
 		begin := index - 60
 		if begin < 0 {
@@ -594,7 +602,7 @@ func versionPatternAt(raw string, index int, name string) string {
 		if len(prefix) > 48 || strings.ContainsAny(prefix, "\r\n<>") {
 			return ""
 		}
-		pattern = regexp.QuoteMeta(strings.TrimSpace(prefix)) + `\s*(` + versionToken + `|[0-9]+)`
+		pattern = regexp.QuoteMeta(strings.TrimSpace(prefix)) + `\s*(` + evidence.VersionToken + `|[0-9]+)`
 	}
 	return pattern
 }
@@ -606,7 +614,7 @@ func guardedVersionPatterns(name string, positive [][]byte, versions []string, n
 	var patterns []string
 	seen := map[string]bool{}
 	for _, guard := range selectCandidates(positive, negative, name) {
-		if guard.weight < 4 || !strings.Contains(NormalizeName(guard.value), NormalizeName(name)) {
+		if guard.weight < 4 || !strings.Contains(evidence.NormalizeName(guard.value), evidence.NormalizeName(name)) {
 			continue
 		}
 		for i, version := range versions {
@@ -626,8 +634,8 @@ func guardedVersionPatterns(name string, positive [][]byte, versions []string, n
 					continue
 				}
 				prefix := regexp.QuoteMeta(raw[begin:index])
-				prefix = reSpace.ReplaceAllStringFunc(prefix, func(string) string { return `\s+` })
-				pattern := `(?s)` + regexp.QuoteMeta(guard.value) + `.*?` + prefix + `(` + versionToken + `)(?:[^0-9A-Za-z.+-]|$)`
+				prefix = whitespace.ReplaceAllStringFunc(prefix, func(string) string { return `\s+` })
+				pattern := `(?s)` + regexp.QuoteMeta(guard.value) + `.*?` + prefix + `(` + evidence.VersionToken + `)(?:[^0-9A-Za-z.+-]|$)`
 				if seen[pattern] {
 					continue
 				}

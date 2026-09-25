@@ -70,7 +70,6 @@ type replayRow struct {
 	SHA256      string            `json:"sha256"`
 	Baseline    common.Frameworks `json:"baseline"`
 	Refined     common.Frameworks `json:"refined,omitempty"`
-	Completed   common.Frameworks `json:"completed,omitempty"`
 	Rejected    []string          `json:"rejected,omitempty"`
 	Duplicates  []string          `json:"duplicates,omitempty"`
 	Added       []string          `json:"added,omitempty"`
@@ -83,7 +82,7 @@ type replayRow struct {
 }
 
 func digest(b []byte) string { return fmt.Sprintf("%x", sha256.Sum256(b)) }
-func writeJSON(path string, value any) error {
+func writeJSON(path string, value interface{}) error {
 	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
@@ -153,7 +152,7 @@ func loadReplay(path string) (*replayManifest, error) {
 			}
 			stable[k] = v
 		}
-		head, _ := json.Marshal([]any{resp.StatusCode, stable})
+		head, _ := json.Marshal([]interface{}{resp.StatusCode, stable})
 		s.ContentSHA256 = digest(append(head, body...))
 		evidence := strings.ToLower(string(s.raw) + "\n" + string(body))
 		keys := map[string]bool{}
@@ -195,8 +194,8 @@ func (p *replayProvider) Calibration() (float64, float64) {
 	}
 	return .5, .9
 }
-func (p *replayProvider) Judge(ctx context.Context, state any, qs map[string]judge.Question) (map[string]judge.Answer, error) {
-	data, err := json.Marshal([]any{p.ID(), p.namespace, state, qs})
+func (p *replayProvider) Judge(ctx context.Context, state interface{}, qs map[string]judge.Question) (map[string]judge.Answer, error) {
+	data, err := json.Marshal([]interface{}{p.ID(), p.namespace, state, qs})
 	if err != nil {
 		return nil, err
 	}
@@ -333,14 +332,7 @@ func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out str
 			return err
 		}
 	}
-	var names []string
-	if engine.Aliases != nil {
-		for name := range engine.Aliases.Aliases {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	retriever := judge.NewRetriever(names)
+	j.Known = judge.NewRetriever(engine.Names())
 	baselineFile, err := os.Create(filepath.Join(out, "baseline.jsonl"))
 	if err != nil {
 		return err
@@ -373,18 +365,18 @@ func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out str
 			return err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		err = cleanReplay(ctx, j, retriever, s, &r)
+		err = cleanReplay(ctx, j, s, &r)
 		cancel()
 		if err != nil {
 			r.Err = err.Error()
-		} else if err := ce.Encode(baselineRecord{s.ID, s.SHA256, r.Completed}); err != nil {
+		} else if err := ce.Encode(baselineRecord{s.ID, s.SHA256, r.Refined}); err != nil {
 			return err
 		}
 		if err := re.Encode(r); err != nil {
 			return err
 		}
 		rows = append(rows, r)
-		fmt.Fprintf(os.Stderr, "replay %d/%d %s: baseline=%d completed=%d error=%t\n", len(rows), len(m.Samples), s.ID, len(r.Baseline), len(r.Completed), r.Err != "")
+		fmt.Fprintf(os.Stderr, "replay %d/%d %s: baseline=%d refined=%d error=%t\n", len(rows), len(m.Samples), s.ID, len(r.Baseline), len(r.Refined), r.Err != "")
 	}
 	generated, err := generateReplay(m, j, out)
 	if err != nil {
@@ -437,52 +429,38 @@ func saveReplaySnapshot(out string, m *replayManifest) error {
 	}
 	return writeJSON(filepath.Join(out, "manifest.json"), copy)
 }
-func cleanReplay(ctx context.Context, j *judge.Judge, retriever *judge.Retriever, s replaySample, r *replayRow) error {
-	p, err := judge.NewPage(s.raw)
+func cleanReplay(ctx context.Context, j *judge.Judge, s replaySample, r *replayRow) error {
+	var err error
+	r.Refined, err = j.Refine(ctx, s.raw, r.Baseline)
 	if err != nil {
 		return err
 	}
-	known := retriever.Find(p.Haystack(), 24)
-	r.Refined, r.Kind, r.Generic, err = j.Refine(ctx, s.raw, r.Baseline, known...)
-	if err != nil {
+	if r.Kind, r.Generic, err = j.Classify(ctx, s.raw); err != nil {
 		return err
 	}
-	inspected, err := j.Inspect(ctx, s.raw, r.Baseline, known...)
+	inspected, err := j.Inspect(ctx, s.raw, r.Baseline)
 	if err != nil {
 		return err
 	}
 	for _, f := range inspected {
-		if judge.Is(f, judge.Rejected) {
+		if f.Judge != nil && f.Judge.Rejected {
 			r.Rejected = append(r.Rejected, f.Name)
 		}
-		if judge.Is(f, judge.Duplicate) {
+		if f.Judge != nil && f.Judge.Duplicate {
 			r.Duplicates = append(r.Duplicates, f.Name)
 		}
 	}
-	r.Completed = copyFrames(r.Refined)
 	r.Filled = map[string]string{}
-	for _, f := range r.Completed {
+	for _, f := range r.Refined {
 		before := findLabel(r.Baseline, productLabel{Product: f.Name})
 		if before == nil {
 			r.Added = append(r.Added, f.Name)
-		}
-		if f.Version == "" {
-			v, err := j.Version(ctx, s.raw, f)
-			if err != nil {
-				return err
-			}
-			if v != "" {
-				if f.Attributes == nil {
-					f.Attributes = common.NewAttributesWithAny()
-				}
-				f.Version = v
-			}
 		}
 		if f.Version != "" && (before == nil || before.Version == "") {
 			r.Filled[f.Name] = f.Version
 		}
 	}
-	r.Unknown, err = j.IsUnknownProduct(ctx, s.raw, r.Completed)
+	r.Unknown, err = j.IsUnknownProduct(ctx, s.raw, r.Refined)
 	if err != nil {
 		return err
 	}

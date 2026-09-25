@@ -17,6 +17,7 @@ var protocolFeatures = map[string]bool{"hsts": true, "altsvc": true, "http3": tr
 const (
 	maxGroups = 40 // products judged per page
 	maxRecall = 8  // recall names judged per page
+	maxKnown  = 24 // known names looked up per page
 )
 
 // product is one product claimed for the page: every engine spelling of it
@@ -28,18 +29,18 @@ type product struct {
 	feature bool // protocol features have deterministic response-head evidence
 }
 
-// Verify is the engine result filter. It folds the spellings of all engines
-// into products, asks the provider per product whether it is really in the stack (a
-// binary question, so several products can be present) and at which layer (a choice), and which
-// product is the page's application. recall names (e.g. fingerprint names
-// found in the page) that no rule reported are judged the same way; confirmed
-// ones are added to frames. Code decides: a product named in a header or
-// cookie is never rejected.
+// verifyRound is the engine result filter. It folds the spellings of all
+// engines into products, asks the provider per product whether it is really
+// in the stack (a binary question, so several products can be present) and at
+// which layer (a choice), and which product is the page's application.
+// recall names (fingerprint names found in the page) that no rule reported
+// are judged the same way; confirmed ones are added to frames. Code decides:
+// a product named in a header or cookie is never rejected.
 //
-// Results are Marks and a layer on frames (see Is, LayerOf, Accepted).
-// Frameworks judged before are skipped, so calling Verify again on the same
-// frames asks only about new hits.
-func Verify(r *Round, frames common.Frameworks, recall []string) {
+// The verdict is written to Framework.Judge. Frameworks that already carry
+// one are not asked again. Past maxGroups products, hits are left unjudged
+// (Judge == nil), which Frameworks.Accepted keeps.
+func verifyRound(r *round, frames common.Frameworks, recall []string) {
 	page := r.page
 	var list []*common.Framework
 	judged := map[string]bool{} // keys judged before: not asked again, not recalled again
@@ -47,7 +48,7 @@ func Verify(r *Round, frames common.Frameworks, recall []string) {
 		if f == nil {
 			continue
 		}
-		if Judged(f) {
+		if f.Judge != nil {
 			judged[NormalizeName(f.Name)] = true
 		} else {
 			list = append(list, f)
@@ -74,7 +75,7 @@ func Verify(r *Round, frames common.Frameworks, recall []string) {
 			products = append(products, p)
 		}
 		p.frames = append(p.frames, f)
-		for _, e := range page.Evidence(f.Name) {
+		for _, e := range page.where(f.Name) {
 			if !p.feature {
 				p.strong = p.strong || e == "header" || e == "cookie"
 			}
@@ -111,7 +112,7 @@ func Verify(r *Round, frames common.Frameworks, recall []string) {
 	type answer struct {
 		present  float64
 		answered bool
-		layer    Layer
+		layer    string
 	}
 	answers := make([]answer, len(products))
 	var primary string
@@ -119,17 +120,17 @@ func Verify(r *Round, frames common.Frameworks, recall []string) {
 	for i, p := range products {
 		i, name := i, p.name
 		primaryOpts[name] = ""
-		r.Add(fmt.Sprintf("is_%d", i), BinaryWith(fmt.Sprintf("Is `%s` part of the software stack that produced this HTTP response "+
+		r.add(fmt.Sprintf("is_%d", i), BinaryWith(fmt.Sprintf("Is `%s` part of the software stack that produced this HTTP response "+
 			"(seen in its headers, cookies, asset paths, page structure or title), rather than only mentioned in the page text? "+
 			"A packaged browser-side or static web application counts even without a login or server backend. "+
 			"On documentation, README or tutorial pages, the product being documented does not count as running; distinguish it from the documentation generator.", name),
 			name+" served, generated or is loaded by this response",
 			name+" only appears in the page's text, or is not present"),
 			func(a Answer) { answers[i].present, answers[i].answered = a.Yes, true })
-		r.Add(fmt.Sprintf("layer_%d", i), Choice(fmt.Sprintf("What role does `%s` play in producing this HTTP response?", name), layerCriteria),
-			func(a Answer) { answers[i].layer = Layer(a.Choice) })
+		r.add(fmt.Sprintf("layer_%d", i), Choice(fmt.Sprintf("What role does `%s` play in producing this HTTP response?", name), layerCriteria),
+			func(a Answer) { answers[i].layer = a.Choice })
 	}
-	r.Add("primary", Choice("Which listed product is the main application this page belongs to "+
+	r.add("primary", Choice("Which listed product is the main application this page belongs to "+
 		"(the product whose login, console or content this is), as opposed to servers, frameworks and libraries underneath it?", primaryOpts),
 		func(a Answer) {
 			if a.Choice != noneOfThem {
@@ -137,30 +138,24 @@ func Verify(r *Round, frames common.Frameworks, recall []string) {
 			}
 		})
 
-	r.Done(func() {
+	r.then(func() {
 		for i, p := range products {
 			a := answers[i]
 			rejected := !p.strong && (p.feature || a.answered && (a.layer == LayerNotPresent || a.present < r.judge.Threshold))
-			if p.frames == nil { // recall: added only when the provider confirms it
+			recalled := p.frames == nil
+			if recalled { // recall: added only when the provider confirms it
 				if !a.answered || rejected {
 					continue
 				}
 				f := common.NewFramework(p.name, common.FrameFromGUESS)
-				mark(f, Recalled)
 				frames.Add(f)
 				p.frames = []*common.Framework{f}
 			}
 			for j, f := range p.frames {
-				setLayer(f, a.layer)
-				if rejected {
-					mark(f, Rejected)
-				}
-				if j > 0 {
-					mark(f, Duplicate)
-				}
+				f.Judge = &common.Judgement{Layer: a.layer, Confidence: a.present, Rejected: rejected, Duplicate: j > 0, Recalled: recalled}
 			}
 			if p.name == primary && !rejected {
-				mark(p.frames[0], Primary)
+				p.frames[0].Judge.Primary = true
 			}
 		}
 	})

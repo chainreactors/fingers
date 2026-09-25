@@ -49,19 +49,19 @@ func embeddedCatalog() ([]catalogSource, error) {
 		{"ehole", resources.EholeData}, {"wappalyzer", resources.WappalyzerData},
 		{"fingerprinthub", resources.FingerprinthubWebData},
 	} {
-		var raw any
+		var raw interface{}
 		if err := resources.UnmarshalData(source.data, &raw); err != nil {
 			return nil, err
 		}
-		var entries []any
+		var entries []interface{}
 		var names []string
 		switch source.name {
 		case "wappalyzer":
-			root, ok := raw.(map[string]any)
+			root, ok := raw.(map[string]interface{})
 			if !ok {
 				return nil, fmt.Errorf("invalid %s catalog", source.name)
 			}
-			apps, ok := root["apps"].(map[string]any)
+			apps, ok := root["apps"].(map[string]interface{})
 			if !ok {
 				return nil, fmt.Errorf("invalid apps catalog")
 			}
@@ -69,16 +69,16 @@ func embeddedCatalog() ([]catalogSource, error) {
 				names = append(names, name)
 			}
 		case "ehole":
-			root, ok := raw.(map[string]any)
+			root, ok := raw.(map[string]interface{})
 			if !ok {
 				return nil, fmt.Errorf("invalid ehole catalog")
 			}
-			entries, _ = root["fingerprint"].([]any)
+			entries, _ = root["fingerprint"].([]interface{})
 		default:
-			entries, _ = raw.([]any)
+			entries, _ = raw.([]interface{})
 		}
 		for _, entry := range entries {
-			obj, ok := entry.(map[string]any)
+			obj, ok := entry.(map[string]interface{})
 			if !ok {
 				continue
 			}
@@ -87,11 +87,11 @@ func embeddedCatalog() ([]catalogSource, error) {
 					names = append(names, name)
 				}
 			}
-			if info, ok := obj["info"].(map[string]any); ok {
+			if info, ok := obj["info"].(map[string]interface{}); ok {
 				if name, ok := info["name"].(string); ok {
 					names = append(names, name)
 				}
-				if metadata, ok := info["metadata"].(map[string]any); ok {
+				if metadata, ok := info["metadata"].(map[string]interface{}); ok {
 					if name, ok := metadata["product"].(string); ok {
 						names = append(names, name)
 					}

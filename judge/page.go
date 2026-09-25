@@ -9,14 +9,15 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/chainreactors/fingers/judge/internal/evidence"
 )
 
-// Page is the entry point of the judgement layer: the compact, named view of
-// one HTTP response that providers judge (serialized as the request state),
-// plus the page-level conclusions written back by Classify. A provider only
-// judges the
-// evidence it is given and loses accuracy on large states full of irrelevant
-// detail, so the fields below are the ones that carry fingerprint signal.
+// Page is the compact, named view of one HTTP response that providers judge
+// (serialized as the request state). A provider only judges the evidence it
+// is given and loses accuracy on large states full of irrelevant detail, so
+// the fields below are the ones that carry fingerprint signal. Pass one to
+// Yes, Choose or Score to ask custom questions about a response.
 type Page struct {
 	Status      string            `json:"status"`
 	Headers     map[string]string `json:"headers,omitempty"`
@@ -30,9 +31,6 @@ type Page struct {
 	Comments    []string          `json:"html_comments,omitempty"`
 	Forms       []string          `json:"form_inputs,omitempty"`
 	Text        string            `json:"visible_text,omitempty"`
-
-	Kind    Kind `json:"-"` // set by Classify
-	Generic bool `json:"-"` // stock page of a packaged product, set by Classify
 
 	raw []byte
 }
@@ -48,8 +46,6 @@ var (
 		// per-request values: no signal, and they would defeat the cache
 		"X-Request-Id": true, "X-Amzn-Trace-Id": true, "Cf-Ray": true, "X-Runtime": true, "Server-Timing": true}
 
-	reTitle       = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reGenerator   = regexp.MustCompile(`(?is)<meta[^>]+name=["']generator["'][^>]*content=["']([^"']+)|<meta[^>]+content=["']([^"']+)["'][^>]*name=["']generator["']`)
 	reDescription = regexp.MustCompile(`(?is)<meta[^>]+name=["']description["'][^>]*content=["']([^"']+)|<meta[^>]+content=["']([^"']+)["'][^>]*name=["']description["']`)
 	reScript      = regexp.MustCompile(`(?is)<script[^>]+src=["']([^"']+)`)
 	reStyle       = regexp.MustCompile(`(?is)<link[^>]+rel=["']?stylesheet[^>]*href=["']([^"']+)|<link[^>]+href=["']([^"']+)["'][^>]*rel=["']?stylesheet`)
@@ -60,15 +56,11 @@ var (
 	reAttrType    = regexp.MustCompile(`(?is)\btype=["']([^"']+)`)
 	reDropBlock   = regexp.MustCompile(`(?is)<(script|style|noscript)[^>]*>.*?</(script|style|noscript)>`)
 	reTag         = regexp.MustCompile(`(?s)<[^>]+>`)
-	reSpace       = regexp.MustCompile(`\s+`)
 	// Allows a v/V/x/X prefix ("X3.4", "V8.1SP2") and a letter suffix; rejects
 	// digits glued to other digits or dots so IPs and long builds stay out.
 	reGenMajor = regexp.MustCompile(`(?i)generator["'][^>]*content=["'][A-Za-z][^"']*?\s[vV]?(\d{1,3})(?:[\s"'(]|$)|content=["'][A-Za-z][^"']*?\s[vV]?(\d{1,3})(?:[\s(][^"']*)?["'][^>]*name=["']generator`)
-	reVersion  = regexp.MustCompile(`(?:^|[^0-9A-Za-z.])[vVxX]?(` + versionToken + `)(?:[^0-9A-Za-z.]|\.[A-Za-z]|$)`)
+	reVersion  = regexp.MustCompile(`(?:^|[^0-9A-Za-z.])[vVxX]?(` + evidence.VersionToken + `)(?:[^0-9A-Za-z.]|\.[A-Za-z]|$)`)
 )
-
-// Keep release suffixes and calendar versions (e.g. 2026.9.23+3cd69d30e).
-const versionToken = `[0-9]{1,4}(?:\.[0-9]{1,4}){1,3}(?:[A-Za-z]+[0-9]*|[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?`
 
 const (
 	maxHeaderValue = 160
@@ -94,10 +86,10 @@ func NewPage(raw []byte) (*Page, error) {
 		s.Cookies = append(s.Cookies, c.Name)
 	}
 	html := string(body)
-	if m := reTitle.FindStringSubmatch(html); m != nil {
+	if m := evidence.Title.FindStringSubmatch(html); m != nil {
 		s.Title = clean(m[1])
 	}
-	if m := reGenerator.FindStringSubmatch(html); m != nil {
+	if m := evidence.Generator.FindStringSubmatch(html); m != nil {
 		s.Generator = m[1] + m[2]
 	}
 	if m := reDescription.FindStringSubmatch(html); m != nil {
@@ -136,8 +128,8 @@ func NewPage(raw []byte) (*Page, error) {
 	return s, nil
 }
 
-// Haystack is the lowercase text that candidate names are searched in.
-func (s *Page) Haystack() string {
+// haystack is the lowercase text that candidate names are searched in.
+func (s *Page) haystack() string {
 	var b strings.Builder
 	for k, v := range s.Headers {
 		b.WriteString(k + ": " + v + "\n")
@@ -153,10 +145,7 @@ func (s *Page) Haystack() string {
 	return strings.ToLower(b.String())
 }
 
-func clean(s string) string {
-	s = strings.NewReplacer("&nbsp;", " ", "&amp;", "&", "&lt;", "<", "&gt;", ">", "&quot;", `"`).Replace(s)
-	return strings.TrimSpace(reSpace.ReplaceAllString(s, " "))
-}
+func clean(s string) string { return evidence.Clean(s) }
 
 func truncate(s string, max int) string {
 	if utf8.RuneCountInString(s) <= max {
@@ -165,10 +154,10 @@ func truncate(s string, max int) string {
 	return string([]rune(s)[:max]) + "…"
 }
 
-// Evidence reports where a candidate name literally occurs in the page. It is
+// where reports where a candidate name literally occurs in the page. It is
 // a cheap code-only baseline for false positive detection: a name found only
 // in visible text is a likely false positive.
-func (s *Page) Evidence(name string) []string {
+func (s *Page) where(name string) []string {
 	n := strings.ToLower(name)
 	if len(n) < 3 {
 		return nil
@@ -219,12 +208,12 @@ func (s *Page) similarityScope() string {
 	return reDigits.ReplaceAllString(strings.ToLower(strings.TrimSpace(s.Title)), "0")
 }
 
-// Signature is a 64-bit simhash of the page's evidence. Digits are folded so
+// signature is a 64-bit simhash of the page's evidence. Digits are folded so
 // timestamps, build ids and tokens do not matter; structure (headers,
 // assets, forms) weighs more than visible text, which counts by two-rune
 // shingles. Near-identical pages get signatures a few bits apart; see
-// SimilarDistance. The cache also requires equal titles.
-func (s *Page) Signature() uint64 {
+// Judge.SimilarDistance. The cache also requires equal titles.
+func (s *Page) signature() uint64 {
 	var v [64]int
 	add := func(kind, feature string, weight int) {
 		h := fnv.New64a()

@@ -2,55 +2,223 @@ package judge
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/judge/internal/evidence"
 )
 
 const (
 	notStated = "not_stated"
 
 	maxVersions      = 40 // extracted from the raw response
-	maxVersionsShown = 15 // shown to the provider after ranking
+	maxVersionsShown = 15 // options per product after ranking
+	maxVersioned     = 8  // products versioned per page
 )
 
-// Version adds to r the question which extracted version string is the
-// version of f, and writes it to f when the provider is confident. It does nothing when
-// f is nil, already has a version, or the page shows no version-like string.
-// Code extracts, the provider only picks: it never has to generate a string.
-func Version(r *Round, f *common.Framework) {
-	if f == nil || (f.Attributes != nil && f.Attributes.Version != "") {
+// versionRound resolves the versions of frames that have none. Code decides
+// first: a version the response binds to the product by name (a header such
+// as "Server: nginx/1.24.0" or "X-Jenkins: 2.401.3", a generator meta such
+// as "WordPress 7.0.3") is taken as is. For the rest the provider picks
+// among extracted candidates, never generating a string: the candidates go
+// into the state once, as a named list (Jev picked 100% right this way
+// against 78% with them in the option descriptions), and each product's
+// options are its own best-ranked ones. A version bound by name to another
+// product is not offered, and one string is not given to two products.
+func versionRound(r *round, frames ...*common.Framework) {
+	var targets []*common.Framework
+	for _, f := range frames {
+		if f != nil && (f.Attributes == nil || f.Attributes.Version == "") && len(targets) < maxVersioned {
+			targets = append(targets, f)
+		}
+	}
+	if len(targets) == 0 {
 		return
 	}
-	cands := rankVersions(extractVersions(r.page.raw, maxVersions), f.Name, maxVersionsShown)
-	if len(cands) == 0 {
+	decls := declarations(r.page.raw)
+	var asked []*common.Framework
+	for _, f := range targets {
+		if v := declaredVersion(decls, f.Name); v != "" {
+			setVersion(f, v)
+		} else {
+			asked = append(asked, f)
+		}
+	}
+	extracted := extractVersions(r.page.raw, maxVersions)
+	if len(asked) == 0 || len(extracted) == 0 {
 		return
 	}
-	// The candidates go into the state as a named list: Jev picked 100% right
-	// this way against 78% with them in the option descriptions.
-	opts := map[string]string{notStated: "The response does not show the version of " + f.Name}
-	for _, c := range cands {
-		opts[c.Value] = ""
+	type pick struct {
+		f          *common.Framework
+		value      string
+		score      int
+		confidence float64
 	}
-	r.Evidence("version_strings", cands)
-	r.Add("version", Choice(fmt.Sprintf("`version_strings` lists every version-like string found in the raw response, with the text around it. "+
-		"Which one is the version of `%s`? A version in an asset URL parameter, a meta tag or embedded build info of %s counts. "+
-		"Ignore versions of third-party libraries, other products mentioned in text, years, timestamps and build numbers.", f.Name, f.Name), opts),
-		func(a Answer) {
-			if a.Choice == "" || a.Choice == notStated || a.Confidence < r.judge.VersionConfidence {
-				return
+	picks := make([]pick, len(asked))
+	var shown []versionString
+	seen := map[string]bool{}
+	for i, f := range asked {
+		i, f := i, f
+		key := NormalizeName(f.Name)
+		var own []versionString
+		for _, c := range extracted {
+			if c.count == 1 && claimedByOther(decls, c.Value, key) {
+				continue
 			}
-			// copy on write: Attributes may be shared with other frameworks
-			attrs := common.NewAttributesWithAny()
-			if f.Attributes != nil {
-				copied := *f.Attributes
-				attrs = &copied
+			own = append(own, c)
+		}
+		cands := rankVersions(own, f.Name, maxVersionsShown)
+		if len(cands) == 0 {
+			continue
+		}
+		scores := map[string]int{}
+		opts := map[string]string{notStated: "The response does not show the version of " + f.Name}
+		for _, c := range cands {
+			opts[c.Value] = ""
+			scores[c.Value] = versionScore(c, key)
+			if !seen[c.Value] {
+				seen[c.Value] = true
+				shown = append(shown, c)
 			}
-			attrs.Version = a.Choice
-			f.Attributes = attrs
-		})
+		}
+		r.add(fmt.Sprintf("version_%d", i), Choice(fmt.Sprintf("`version_strings` lists every version-like string found in the raw response, with the text around it. "+
+			"Which one is the version of `%s`? A version in an asset URL parameter, a meta tag or embedded build info of %s counts. "+
+			"Ignore versions of third-party libraries, other products mentioned in text, years, timestamps and build numbers.", f.Name, f.Name), opts),
+			func(a Answer) {
+				if a.Choice != "" && a.Choice != notStated && a.Confidence >= r.judge.VersionConfidence {
+					picks[i] = pick{f: f, value: a.Choice, score: scores[a.Choice], confidence: a.Confidence}
+				}
+			})
+	}
+	if len(shown) == 0 {
+		return
+	}
+	r.show("version_strings", shown)
+	count := map[string]int{}
+	for _, c := range extracted {
+		count[c.Value] = c.count
+	}
+	r.then(func() {
+		// A string that occurs once belongs to one product: the one whose
+		// context names it best, then the more confident pick.
+		best := map[string]int{}
+		for i, p := range picks {
+			if p.f == nil || count[p.value] > 1 {
+				continue
+			}
+			if j, ok := best[p.value]; !ok || p.score > picks[j].score || p.score == picks[j].score && p.confidence > picks[j].confidence {
+				best[p.value] = i
+			}
+		}
+		for i, p := range picks {
+			if p.f == nil {
+				continue
+			}
+			if j, ok := best[p.value]; ok && j != i {
+				continue
+			}
+			setVersion(p.f, p.value)
+		}
+	})
+}
+
+// setVersion copies on write: Attributes may be shared with other frameworks.
+func setVersion(f *common.Framework, version string) {
+	attrs := common.NewAttributesWithAny()
+	if f.Attributes != nil {
+		copied := *f.Attributes
+		attrs = &copied
+	}
+	attrs.Version = version
+	f.Attributes = attrs
+}
+
+// declaration is a version the response binds to a product name.
+type declaration struct{ name, version string }
+
+var (
+	reDeclared       = regexp.MustCompile(`([A-Za-z][A-Za-z0-9._-]*(?: [A-Za-z][A-Za-z0-9._-]*){0,2})(?:/| +[vV]?)(` + evidence.VersionToken + `)(?:[^0-9A-Za-z.+-]|$)`)
+	reLeadingVersion = regexp.MustCompile(`^[vV]?(` + evidence.VersionToken + `)(?:[\s;,(]|$)`)
+)
+
+// declarations finds "name/version" and "name version" pairs in response
+// headers and generator metas, and headers whose name is the product
+// ("X-Jenkins: 2.401.3", "X-AspNet-Version: 4.0.30319").
+func declarations(raw []byte) []declaration {
+	text := string(raw)
+	head, body := text, ""
+	if i := strings.Index(text, "\r\n\r\n"); i >= 0 {
+		head, body = text[:i], text[i+4:]
+	} else if i := strings.Index(text, "\n\n"); i >= 0 {
+		head, body = text[:i], text[i+2:]
+	}
+	var out []declaration
+	pairs := func(value string) {
+		for _, m := range reDeclared.FindAllStringSubmatch(value, -1) {
+			out = append(out, declaration{m[1], m[2]})
+		}
+	}
+	lines := strings.Split(head, "\n")
+	for _, line := range lines[1:] { // skip the status line
+		line = strings.TrimSpace(line)
+		colon := strings.IndexByte(line, ':')
+		if colon < 0 {
+			continue
+		}
+		key, value := line[:colon], strings.TrimSpace(line[colon+1:])
+		if m := reLeadingVersion.FindStringSubmatch(value); m != nil {
+			name := strings.TrimSuffix(strings.TrimPrefix(strings.ToLower(key), "x-"), "-version")
+			out = append(out, declaration{name, m[1]})
+		}
+		pairs(value)
+	}
+	for _, m := range evidence.Generator.FindAllStringSubmatch(body, 4) {
+		pairs(m[1] + m[2])
+	}
+	return out
+}
+
+// names reports whether a declared name is the product with key: the whole
+// name or its trailing words, so "Apache Tomcat/9.0" names tomcat, not apache.
+func (d declaration) names(key string) bool {
+	if key == "" {
+		return false
+	}
+	words := strings.Fields(d.name)
+	for i := range words {
+		if NormalizeName(strings.Join(words[i:], " ")) == key {
+			return true
+		}
+	}
+	return false
+}
+
+// declaredVersion is the version the response binds to product, if exactly one.
+func declaredVersion(decls []declaration, product string) string {
+	key := NormalizeName(product)
+	found := ""
+	for _, d := range decls {
+		if d.names(key) {
+			if found != "" && found != d.version {
+				return ""
+			}
+			found = d.version
+		}
+	}
+	return found
+}
+
+// claimedByOther reports whether value is bound by name to a product other than key.
+func claimedByOther(decls []declaration, value, key string) bool {
+	for _, d := range decls {
+		if d.version == value && !d.names(key) {
+			return true
+		}
+	}
+	return false
 }
 
 // versionString is a version-like string with the raw text around its first
@@ -59,6 +227,7 @@ func Version(r *Round, f *common.Framework) {
 type versionString struct {
 	Value   string `json:"value"`
 	Context string `json:"found_in"`
+	count   int    // occurrences in the response
 }
 
 // extractVersions scans the raw response (headers and body, including
@@ -87,13 +256,14 @@ func extractVersions(raw []byte, max int) []versionString {
 		// A value repeats across a page ("?ver=7.1" on every asset, then
 		// the generator meta); keep the context that best states a version.
 		if i, ok := seen[v]; ok {
+			out[i].count++
 			if contextWeight(ctx) > contextWeight(out[i].Context) {
 				out[i].Context = ctx
 			}
 			continue
 		}
 		seen[v] = len(out)
-		out = append(out, versionString{Value: v, Context: ctx})
+		out = append(out, versionString{Value: v, Context: ctx, count: 1})
 	}
 	// "Drupal 10": a generator meta that states only a major version.
 	for _, m := range reGenMajor.FindAllStringSubmatchIndex(text, -1) {
@@ -106,7 +276,7 @@ func extractVersions(raw []byte, max int) []versionString {
 				continue
 			}
 			seen[v] = len(out)
-			out = append(out, versionString{Value: v, Context: clean(strings.ToValidUTF8(text[m[0]:m[1]], ""))})
+			out = append(out, versionString{Value: v, Context: clean(strings.ToValidUTF8(text[m[0]:m[1]], "")), count: 1})
 		}
 	}
 	// Select evidence after scanning: SVG numbers or early library assets must
@@ -151,39 +321,53 @@ func looksLikeIPv4(v string) bool {
 	return true
 }
 
-// rankVersions orders candidates by how likely their context names
-// the version of product, and keeps the first max. Pages often carry dozens
-// of "?ver=" strings, so without ranking the one real version (a generator
-// meta or a header) can fall outside the list the provider sees.
+// rankVersions orders candidates by how likely their context states the
+// version of product, and keeps the first max. Pages often carry dozens of
+// "?ver=" strings, so without ranking the one real version can fall outside
+// the list the provider sees.
 func rankVersions(cands []versionString, product string, max int) []versionString {
 	key := NormalizeName(product)
-	score := func(c versionString) int {
-		ctx := strings.ToLower(c.Context)
-		s := 0
-		if strings.Contains(ctx, "generator") {
-			s += 4
-		}
-		for _, h := range []string{"server:", "x-powered-by:", "product:", "x-generator:", "version:"} {
-			if strings.Contains(ctx, h) {
-				s += 3
-				break
-			}
-		}
-		if key != "" && strings.Contains(NormalizeName(ctx), key) {
-			s += 2
-		}
-		for _, noisy := range []string{"/plugins/", "/themes/", "/vendor/", "jquery", "bootstrap", "schema_version"} {
-			if strings.Contains(ctx, noisy) {
-				s -= 2
-				break
-			}
-		}
-		return s
-	}
 	out := append([]versionString(nil), cands...)
-	sort.SliceStable(out, func(a, b int) bool { return score(out[a]) > score(out[b]) })
+	sort.SliceStable(out, func(a, b int) bool { return versionScore(out[a], key) > versionScore(out[b], key) })
 	if len(out) > max {
 		out = out[:max]
 	}
 	return out
+}
+
+// versionScore rates how well c's context ties it to the product with key.
+// Naming the product counts most, the more so right before the value; words
+// that declare some version (generator, Server:) count less, since they do
+// not say whose; library and plugin paths count against.
+func versionScore(c versionString, key string) int {
+	ctx := strings.ToLower(c.Context)
+	s := 0
+	if key != "" {
+		if strings.Contains(NormalizeName(ctx), key) {
+			s += 3
+		}
+		before := ctx
+		if i := strings.Index(ctx, strings.ToLower(c.Value)); i >= 0 {
+			before = ctx[:i]
+		}
+		if len(before) > 24 {
+			before = before[len(before)-24:]
+		}
+		if strings.Contains(NormalizeName(before), key) {
+			s += 3
+		}
+	}
+	for _, h := range []string{"generator", "server:", "x-powered-by:", "product:", "version"} {
+		if strings.Contains(ctx, h) {
+			s += 2
+			break
+		}
+	}
+	for _, noisy := range []string{"/plugins/", "/themes/", "/vendor/", "jquery", "bootstrap", "schema_version"} {
+		if strings.Contains(ctx, noisy) && !strings.Contains(key, NormalizeName(noisy)) {
+			s -= 2
+			break
+		}
+	}
+	return s
 }

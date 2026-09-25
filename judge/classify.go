@@ -23,16 +23,16 @@ var pageKinds = map[string]string{
 	string(KindAPI):        "A machine-readable API response rather than a web page",
 }
 
-// Classify judges the page itself and writes Page.Kind and Page.Generic. It
-// needs no fingerprints: spray can use it alone for 404 detection and
+// classifyRound asks what the page is and whether it is the stock page of a
+// packaged product, writing the answers to kind and generic. It needs no
+// fingerprints: spray can use it alone for 404 detection and
 // prioritisation. A generic page without an accepted application is a
 // candidate for a new fingerprint.
-func Classify(r *Round) {
-	p := r.page
-	r.Add("page_kind", Choice("What kind of page is this HTTP response?", pageKinds), func(a Answer) { p.Kind = Kind(a.Choice) })
-	r.Add("generic", BinaryWith("Is this page the stock interface of a packaged software product, framework or device, "+
+func classifyRound(r *round, kind *Kind, generic *bool) {
+	r.add("page_kind", Choice("What kind of page is this HTTP response?", pageKinds), func(a Answer) { *kind = Kind(a.Choice) })
+	r.add("generic", BinaryWith("Is this page the stock interface of a packaged software product, framework or device, "+
 		"so that the same page would appear on many unrelated deployments?",
 		"Login, console, default or error page, packaged search application or static/browser-side tools shipped by a product; no login or backend is required; only branding, host names or data differ between installs",
 		"Content written by one organization for its own purpose: articles, company pages, shops, forums, custom-built portals"),
-		func(a Answer) { p.Generic = a.Yes >= r.judge.Threshold })
+		func(a Answer) { *generic = a.Yes >= r.judge.Threshold })
 }

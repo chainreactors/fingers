@@ -73,7 +73,6 @@ type replaySummary struct {
 	LabelledPairs           int                `json:"labelled_pairs"`
 	Baseline                stageScore         `json:"baseline"`
 	Refined                 stageScore         `json:"refined"`
-	Completed               stageScore         `json:"completed"`
 	FalseHitsRemoved        int                `json:"false_hits_removed"`
 	TrueHitsRemoved         int                `json:"true_hits_removed"`
 	NaturalMissesRecovered  int                `json:"natural_misses_recovered"`
@@ -108,7 +107,7 @@ func summarizeReplay(m *replayManifest, rows []replayRow, gen []generationResult
 		for _, stage := range []struct {
 			score  *stageScore
 			frames common.Frameworks
-		}{{&out.Baseline, r.Baseline}, {&out.Refined, r.Refined}, {&out.Completed, r.Completed}} {
+		}{{&out.Baseline, r.Baseline}, {&out.Refined, r.Refined}} {
 			for _, l := range s.Labels {
 				f := findLabel(stage.frames, l)
 				stage.score.Detection.add(l.Present, f != nil)
@@ -126,7 +125,7 @@ func summarizeReplay(m *replayManifest, rows []replayRow, gen []generationResult
 		}
 		for _, l := range s.Labels {
 			out.LabelledPairs++
-			before, after := findLabel(r.Baseline, l), findLabel(r.Completed, l)
+			before, after := findLabel(r.Baseline, l), findLabel(r.Refined, l)
 			if before != nil && after == nil {
 				if l.Present {
 					out.TrueHitsRemoved++
@@ -197,7 +196,7 @@ func writeReplayReport(path string, s replaySummary) error {
 	for _, r := range []struct {
 		name string
 		s    stageScore
-	}{{"原结果", s.Baseline}, {"Refine", s.Refined}, {"逐产品补版本", s.Completed}} {
+	}{{"原结果", s.Baseline}, {"Refine", s.Refined}} {
 		d := r.s.Detection
 		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d |\n", r.name, d.TP, d.FP, d.FN, d.TN, r.s.UnlabelledPredictions)
 	}
@@ -207,7 +206,7 @@ func writeReplayReport(path string, s replaySummary) error {
 	for _, r := range []struct {
 		name string
 		s    versionScore
-	}{{"原结果", s.Baseline.Versions}, {"Refine", s.Refined.Versions}, {"逐产品补版本", s.Completed.Versions}} {
+	}{{"原结果", s.Baseline.Versions}, {"Refine", s.Refined.Versions}} {
 		v := r.s
 		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d | %d |\n", r.name, v.Correct, v.Wrong, v.Missing, v.CorrectAbstentions, v.Unsupported, v.ProductMissing)
 	}

@@ -23,9 +23,9 @@ func TestReplayCountsErrorsAndUnlabelledSeparately(t *testing.T) {
 	base := testFrames("nginx", "")
 	after := testFrames("apache http server", "2.4.38")
 	after.Add(common.NewFramework("unlabelled-library", common.FrameFromGUESS))
-	r := replayRow{ID: "a", Baseline: base, Refined: after, Completed: after, Filled: map[string]string{"apache http server": "2.4.38"}}
+	r := replayRow{ID: "a", Baseline: base, Refined: after, Filled: map[string]string{"apache http server": "2.4.38"}}
 	summary := summarizeReplay(m, []replayRow{r, {ID: "failed", Err: "network"}}, nil)
-	if summary.Errors != 1 || summary.LabelledPairs != 2 || summary.Baseline.Detection.FP != 1 || summary.Baseline.Detection.FN != 1 || summary.Completed.Detection.TP != 1 || summary.Completed.Detection.TN != 1 || summary.Completed.UnlabelledPredictions != 1 {
+	if summary.Errors != 1 || summary.LabelledPairs != 2 || summary.Baseline.Detection.FP != 1 || summary.Baseline.Detection.FN != 1 || summary.Refined.Detection.TP != 1 || summary.Refined.Detection.TN != 1 || summary.Refined.UnlabelledPredictions != 1 {
 		t.Fatalf("metrics: %+v", summary)
 	}
 	if summary.NaturalMissesRecovered != 1 || summary.FalseHitsRemoved != 1 || summary.CorrectVersionFills != 1 {
@@ -100,7 +100,7 @@ func TestReplayConfinesResponsePaths(t *testing.T) {
 type replayTestProvider struct{ calls int }
 
 func (*replayTestProvider) ID() string { return "test/replay" }
-func (p *replayTestProvider) Judge(_ context.Context, _ any, qs map[string]judge.Question) (map[string]judge.Answer, error) {
+func (p *replayTestProvider) Judge(_ context.Context, _ interface{}, qs map[string]judge.Question) (map[string]judge.Answer, error) {
 	p.calls++
 	answers := map[string]judge.Answer{}
 	for key := range qs {
@@ -145,7 +145,7 @@ func TestReplayVersionFillsDeduplicateAliases(t *testing.T) {
 	m := &replayManifest{Samples: []replaySample{{ID: "a", Labels: []productLabel{l}}}}
 	after := testFrames("PHP", "5.6.40")
 	after.Add(common.NewFrameworkWithVersion("php-runtime", common.FrameFromGUESS, "5.6.40"))
-	r := replayRow{ID: "a", Baseline: testFrames("PHP", "5.6.40"), Refined: after, Completed: after, Filled: map[string]string{"php-runtime": "5.6.40"}}
+	r := replayRow{ID: "a", Baseline: testFrames("PHP", "5.6.40"), Refined: after, Filled: map[string]string{"php-runtime": "5.6.40"}}
 	if s := summarizeReplay(m, []replayRow{r}, nil); s.VersionFills != 0 {
 		t.Fatalf("existing alias version counted as new: %+v", s)
 	}
@@ -160,7 +160,7 @@ func TestReplaySuggestionsDoNotRecoverDetections(t *testing.T) {
 	m := &replayManifest{Samples: []replaySample{{ID: "a", Labels: []productLabel{{Product: "New API", Present: true}}}}}
 	r := replayRow{ID: "a", Suggestions: []string{"new-api", "New API"}}
 	s := summarizeReplay(m, []replayRow{r}, nil)
-	if s.MissedProductsSuggested != 1 || s.NaturalMissesRecovered != 0 || s.Completed.Detection.FN != 1 {
+	if s.MissedProductsSuggested != 1 || s.NaturalMissesRecovered != 0 || s.Refined.Detection.FN != 1 {
 		t.Fatalf("suggestions credited as detections: %+v", s)
 	}
 }

@@ -2,27 +2,60 @@ package judge
 
 import (
 	"context"
+	"sort"
 
 	"github.com/chainreactors/fingers/common"
 )
 
-// refine keeps the first round's output private until version resolution ends.
-func runRefine(ctx context.Context, j *Judge, p *Page, frames common.Frameworks, recall []string) (common.Frameworks, error) {
+// inspect judges a copy of frames plus the known names found in the page.
+// When the Judge caches answers, the page is classified in the same request,
+// so a later Classify of this response costs nothing.
+func (j *Judge) inspect(ctx context.Context, p *Page, frames common.Frameworks) (common.Frameworks, error) {
 	working := cloneFrameworks(frames)
-	page := *p
-	r := page.Round()
-	Verify(r, working, recall)
-	Classify(r)
-	if err := r.Ask(ctx, j); err != nil {
+	r := newRound(p)
+	verifyRound(r, working, j.known(p))
+	if j.Cache != nil {
+		var kind Kind
+		var generic bool
+		classifyRound(r, &kind, &generic)
+	}
+	if err := r.ask(ctx, j); err != nil {
 		return nil, err
 	}
-	r = page.Round()
-	Version(r, subject(working))
-	if err := r.Ask(ctx, j); err != nil {
-		return nil, err
-	}
-	p.Kind, p.Generic = page.Kind, page.Generic
 	return working, nil
+}
+
+func (j *Judge) known(p *Page) []string {
+	if j.Known == nil {
+		return nil
+	}
+	return j.Known.Find(p.haystack(), maxKnown)
+}
+
+// byImportance orders frames for versioning: the primary application first,
+// then applications, servers and the rest, each by name.
+func byImportance(frames common.Frameworks) []*common.Framework {
+	rank := func(f *common.Framework) int {
+		switch {
+		case f.Judge == nil:
+			return 3
+		case f.Judge.Primary:
+			return 0
+		case f.Judge.Layer == LayerApplication || f.Judge.Layer == LayerDevice:
+			return 1
+		case f.Judge.Layer == LayerFrontend:
+			return 3
+		}
+		return 2
+	}
+	list := frames.List()
+	sort.Slice(list, func(a, b int) bool {
+		if ra, rb := rank(list[a]), rank(list[b]); ra != rb {
+			return ra < rb
+		}
+		return list[a].Name < list[b].Name
+	})
+	return list
 }
 
 func cloneFrameworks(frames common.Frameworks) common.Frameworks {
@@ -49,29 +82,9 @@ func cloneFramework(f *common.Framework) *common.Framework {
 		attrs := *f.Attributes
 		copy.Attributes = &attrs
 	}
+	if f.Judge != nil {
+		judgement := *f.Judge
+		copy.Judge = &judgement
+	}
 	return &copy
-}
-
-// subject is the product whose version the page most likely shows: the
-// primary application or, on pages without one (a server's default, error
-// or index page), the only accepted application, else the only server, else
-// the only device.
-func subject(frames common.Frameworks) *common.Framework {
-	if f := PrimaryOf(frames); f != nil {
-		return f
-	}
-	accepted := Accepted(frames)
-	for _, l := range []Layer{LayerApplication, LayerServer, LayerDevice} {
-		var only *common.Framework
-		n := 0
-		for _, f := range accepted {
-			if LayerOf(f) == l {
-				only, n = f, n+1
-			}
-		}
-		if n == 1 {
-			return only
-		}
-	}
-	return nil
 }

@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/chainreactors/fingers/judge/internal/evidence"
 )
 
 // Retriever finds fingerprint names that literally occur in a page. Every
@@ -19,7 +21,7 @@ func NewRetriever(names []string) *Retriever {
 	seen := map[string]bool{}
 	for _, n := range names {
 		k := strings.ToLower(strings.TrimSpace(n))
-		if seen[k] || !usableKey(k) {
+		if seen[k] || !evidence.UsableKey(k) {
 			continue
 		}
 		seen[k] = true
@@ -27,15 +29,6 @@ func NewRetriever(names []string) *Retriever {
 		r.keys = append(r.keys, k)
 	}
 	return r
-}
-
-// usableKey drops keys too short to be meaningful evidence ("oa", "cms").
-func usableKey(k string) bool {
-	n := utf8.RuneCountInString(k)
-	if n == len(k) { // ascii
-		return n >= 4
-	}
-	return n >= 2
 }
 
 // containsWord matches ASCII keys on word boundaries ("acti" must not match

@@ -15,10 +15,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"math/bits"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -137,8 +139,7 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 	}
 	j := judge.New(provider)
 	// Measure similarity rather than use it: every page gets its own answers.
-	defaultDistance := judge.SimilarDistance
-	judge.SimilarDistance = 0
+	j.SimilarDistance = 0
 	sim := newSimCheck(cacheDir)
 	j.Cache = sim
 
@@ -146,13 +147,7 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 	if err != nil {
 		return err
 	}
-	var names []string
-	if engine.Aliases != nil {
-		for name := range engine.Aliases.Aliases {
-			names = append(names, name)
-		}
-	}
-	retriever := judge.NewRetriever(names)
+	j.Known = judge.NewRetriever(engine.Names())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -166,7 +161,7 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				rows[i] = evaluatePage(ctx, engine, j, retriever, files[i])
+				rows[i] = evaluatePage(ctx, engine, j, files[i])
 				var apiErr *jev.APIError
 				if rows[i].err != nil && errors.As(rows[i].err, &apiErr) && apiErr.Status == 401 {
 					once.Do(func() { fatal = errors.New("unauthorized: check " + jev.EnvAPIKey); cancel() })
@@ -202,7 +197,7 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 
 	var b strings.Builder
 	report(&b, rows, provider.ID(), j, tokens(), time.Since(start))
-	sim.report(&b, defaultDistance)
+	sim.report(&b, judge.DefaultSimilarDistance)
 	if labelsPath != "" {
 		if err := evaluate(&b, rows, labelsPath); err != nil {
 			return err
@@ -212,7 +207,7 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 	return os.WriteFile(filepath.Join(out, "report.md"), []byte(b.String()), 0o644)
 }
 
-func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, retriever *judge.Retriever, path string) (r *row) {
+func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, path string) (r *row) {
 	r = &row{ID: filepath.Base(path), ruleEngines: map[string][]string{}}
 	defer func() {
 		if p := recover(); p != nil { // one malformed page must not stop a long run
@@ -240,7 +235,7 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, r
 	keys := map[string]bool{}
 	for _, f := range r.frames {
 		keys[judge.NormalizeName(f.Name)] = true
-		if ev := page.Evidence(f.Name); len(ev) == 1 && ev[0] == "text" {
+		if textOnly(page, f.Name) {
 			r.TextOnly = append(r.TextOnly, f.Name)
 		}
 	}
@@ -256,13 +251,18 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, r
 	}
 	sort.Strings(r.Rules)
 	t := time.Now()
-	accepted, kind, generic, err := j.Refine(ctx, raw, r.frames, retriever.Find(page.Haystack(), 24)...)
+	accepted, err := j.Refine(ctx, raw, r.frames)
 	r.JudgeMs = ms(time.Since(t))
 	if err != nil {
 		r.Err, r.err = err.Error(), err
 		return r
 	}
-	inspected, err := j.Inspect(ctx, raw, r.frames, retriever.Find(page.Haystack(), 24)...)
+	inspected, err := j.Inspect(ctx, raw, r.frames)
+	if err != nil {
+		r.Err, r.err = err.Error(), err
+		return r
+	}
+	kind, generic, err := j.Classify(ctx, raw)
 	if err != nil {
 		r.Err, r.err = err.Error(), err
 		return r
@@ -275,27 +275,32 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, r
 	r.frames = inspected
 	r.JudgeGenVer = versionOf(accepted, product)
 	for _, name := range r.TextOnly {
-		if f := r.frames[name]; f != nil && !judge.Is(f, judge.Rejected) {
+		if f := r.frames[name]; f != nil && (f.Judge == nil || !f.Judge.Rejected) {
 			r.TextOnlyKept++
 		}
 	}
 	r.Kind, r.Generic, r.Layers = kind, generic, map[string]string{}
 	for _, f := range r.frames {
-		if l := judge.LayerOf(f); l != "" {
-			r.Layers[f.Name] = string(l)
+		v := f.Judge
+		if v == nil {
+			r.Accepted = append(r.Accepted, f.Name)
+			continue
+		}
+		if v.Layer != "" {
+			r.Layers[f.Name] = v.Layer
 		}
 		switch {
-		case judge.Is(f, judge.Rejected):
+		case v.Rejected:
 			r.Rejected = append(r.Rejected, f.Name)
-		case judge.Is(f, judge.Duplicate):
+		case v.Duplicate:
 		default:
 			r.Accepted = append(r.Accepted, f.Name)
 		}
-		if judge.Is(f, judge.Recalled) {
+		if v.Recalled {
 			r.Recall = append(r.Recall, f.Name)
 		}
 	}
-	if p := judge.PrimaryOf(r.frames); p != nil {
+	if p := r.frames.Primary(); p != nil {
 		r.Primary, r.Version = p.Name, p.Version
 		r.JudgeVersion = p.Version != "" && p.Version != versions[p.Name]
 	}
@@ -307,6 +312,24 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, r
 	sort.Strings(r.Accepted)
 	sort.Strings(r.Rejected)
 	return r
+}
+
+// textOnly reports whether name occurs in the page's visible text and in no
+// structural evidence: the code-only proxy for a false positive.
+func textOnly(p *judge.Page, name string) bool {
+	n := strings.ToLower(name)
+	if len(n) < 3 || !strings.Contains(strings.ToLower(p.Text), n) {
+		return false
+	}
+	var structural []string
+	for k, v := range p.Headers {
+		structural = append(structural, k+":"+v)
+	}
+	structural = append(structural, p.Title, p.Generator, p.Description)
+	for _, list := range [][]string{p.Cookies, p.Scripts, p.Styles, p.InlineHints, p.Comments, p.Forms} {
+		structural = append(structural, list...)
+	}
+	return !strings.Contains(strings.ToLower(strings.Join(structural, " ")), n)
 }
 
 func report(b *strings.Builder, rows []*row, providerID string, j *judge.Judge, tokens int64, took time.Duration) {
@@ -364,7 +387,7 @@ func report(b *strings.Builder, rows []*row, providerID string, j *judge.Judge, 
 			newFingers = append(newFingers, r.ID)
 		}
 		for _, f := range r.frames {
-			rejected := judge.Is(f, judge.Rejected)
+			rejected := f.Judge != nil && f.Judge.Rejected
 			for _, e := range r.ruleEngines[f.Name] {
 				add(byEngine, e, rejected)
 				add(byRule, e+"/"+f.Name, rejected)
@@ -387,7 +410,7 @@ func report(b *strings.Builder, rows []*row, providerID string, j *judge.Judge, 
 	w("| 新指纹候选 | — | %d |", newFinger)
 	w("| 每页耗时 p50 / p95 | %.1fms / %.1fms | +%.0fms / +%.0fms |", pct(ruleMs, 50), pct(ruleMs, 95), pct(judgeMs, 50), pct(judgeMs, 95))
 	w("| 成本 | 0 | %d 次请求（缓存直接答完 %d 轮），%d input tokens（jev 按 $0.042/Mtok ≈ $%.3f，折合每万页 $%.2f） |",
-		j.Requests, j.CacheHits, tokens, float64(tokens)*0.042/1e6, float64(tokens)*0.042/1e6/float64(max(pages, 1))*1e4)
+		j.Requests, j.CacheHits, tokens, float64(tokens)*0.042/1e6, float64(tokens)*0.042/1e6/math.Max(float64(pages), 1)*1e4)
 	w("\n## page kind\n")
 	for _, k := range sortedKeys(kinds, func(k string) int { return kinds[k] }) {
 		w("- %s: %d", k, kinds[k])
@@ -497,7 +520,7 @@ func evaluate(b *strings.Builder, rows []*row, path string) error {
 func find(frames common.Frameworks, name string, strict bool) *common.Framework {
 	want := judge.NormalizeName(name)
 	var found *common.Framework
-	for _, f := range judge.Accepted(frames) {
+	for _, f := range frames.Accepted() {
 		got := judge.NormalizeName(f.Name)
 		if got == "" || !(strings.Contains(got, want) || !strict && strings.Contains(want, got)) {
 			continue
@@ -586,10 +609,11 @@ func div(a, b int) float64 {
 	return float64(a) / float64(b)
 }
 
-func sortedKeys[V any](m map[string]V, weight func(string) int) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+// sortedKeys returns the keys of m, a map with string keys, by descending weight.
+func sortedKeys(m interface{}, weight func(string) int) []string {
+	var keys []string
+	for _, k := range reflect.ValueOf(m).MapKeys() {
+		keys = append(keys, k.String())
 	}
 	sort.Slice(keys, func(a, b int) bool {
 		if wa, wb := weight(keys[a]), weight(keys[b]); wa != wb {
@@ -600,14 +624,15 @@ func sortedKeys[V any](m map[string]V, weight func(string) int) []string {
 	return keys
 }
 
-// fileCache is an exact judge.Cache on disk, one file per request.
+// fileCache is an exact judge.Cache on disk, one file per answer: the
+// signature is part of the file name, so distance is ignored.
 type fileCache string
 
 func (d fileCache) path(key string, sig uint64) string {
 	return filepath.Join(string(d), fmt.Sprintf("%s_%016x.json", key, sig))
 }
 
-func (d fileCache) Get(key string, sig uint64) ([]byte, bool) {
+func (d fileCache) Get(key string, sig uint64, _ int) ([]byte, bool) {
 	data, err := os.ReadFile(d.path(key, sig))
 	return data, err == nil
 }
@@ -659,8 +684,8 @@ func (c *simCheck) nearest(key string, sig uint64) (simNear, bool) {
 	return best, ok
 }
 
-func (c *simCheck) Get(key string, sig uint64) ([]byte, bool) {
-	value, ok := c.fileCache.Get(key, sig)
+func (c *simCheck) Get(key string, sig uint64, distance int) ([]byte, bool) {
+	value, ok := c.fileCache.Get(key, sig, distance)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	near, found := c.nearest(key, sig)

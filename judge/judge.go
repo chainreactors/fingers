@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/bits"
 	"sort"
 	"strings"
 	"sync"
@@ -20,13 +21,21 @@ import (
 type Judge struct {
 	Provider Provider
 	// Cache keeps answers per question, so a question asked again about the
-	// same or a similar page (see SimilarDistance) is not sent again, however
-	// questions are grouped into rounds. New sets an in-memory cache; nil
-	// disables it. Concurrent rounds are merged either way.
+	// same or a similar page is not sent again, however questions are grouped
+	// into requests. New sets an in-memory cache; nil disables it. Concurrent
+	// requests are merged either way.
 	Cache Cache
+	// Known finds fingerprint names that occur in a page (typically
+	// NewRetriever(engine.Names())). Refine and Inspect judge those the rules
+	// did not report, and add the confirmed ones as Recalled. nil disables recall.
+	Known *Retriever
 	// Threshold is the Yes probability that counts as "yes"; VersionConfidence
 	// the confidence at which a picked version is adopted.
 	Threshold, VersionConfidence float64
+	// SimilarDistance is how many of the 64 signature bits two pages with the
+	// same title may differ in to share answers; 0 shares answers only between
+	// identical signatures. See DefaultSimilarDistance.
+	SimilarDistance int
 
 	// Totals, for cost monitoring; read with atomic.LoadInt64. Requests went
 	// to the provider; CacheHits are rounds answered without one.
@@ -36,13 +45,19 @@ type Judge struct {
 	flights map[string][]*flight
 }
 
-// DefaultCacheSize is the number of answers the cache New creates holds.
-const DefaultCacheSize = 1 << 16
+const (
+	// DefaultCacheSize is the number of answers the cache New creates holds.
+	DefaultCacheSize = 1 << 16
+	// DefaultSimilarDistance was measured with cmd/judgeeval on 1070 real
+	// pages: every answer reused at distance <= 1 matched the page's own
+	// answer (159/159), at 2 it was 98.5%, at 3 96.9%.
+	DefaultSimilarDistance = 1
+)
 
 // New returns a Judge with an in-memory cache and the provider's
 // calibration, or 0.5 / 0.9 for providers that report none.
 func New(p Provider) *Judge {
-	j := &Judge{Provider: p, Cache: NewMemoryCache(DefaultCacheSize), Threshold: 0.5, VersionConfidence: 0.9}
+	j := &Judge{Provider: p, Cache: NewMemoryCache(DefaultCacheSize), Threshold: 0.5, VersionConfidence: 0.9, SimilarDistance: DefaultSimilarDistance}
 	if c, ok := p.(Calibrated); ok {
 		j.Threshold, j.VersionConfidence = c.Calibration()
 	}
@@ -50,7 +65,7 @@ func New(p Provider) *Judge {
 }
 
 // Ask asks questions about state, which must match exactly for cached
-// answers to apply. Most callers use Round, which also matches similar pages.
+// answers to apply. Yes, Choose and Score are the one-question forms.
 func (j *Judge) Ask(ctx context.Context, state interface{}, questions map[string]Question) (map[string]Answer, error) {
 	scope, err := json.Marshal(state)
 	if err != nil {
@@ -189,7 +204,7 @@ func (j *Judge) cached(key string, sig uint64) (Answer, bool) {
 	if j.Cache == nil {
 		return a, false
 	}
-	v, ok := j.Cache.Get(key, sig)
+	v, ok := j.Cache.Get(key, sig, j.SimilarDistance)
 	return a, ok && json.Unmarshal(v, &a) == nil
 }
 
@@ -197,7 +212,7 @@ func (j *Judge) join(key string, sig uint64) (*flight, bool) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	for _, f := range j.flights[key] {
-		if Similar(f.sig, sig) {
+		if bits.OnesCount64(f.sig^sig) <= j.SimilarDistance {
 			return f, false
 		}
 	}

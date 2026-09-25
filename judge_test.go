@@ -16,12 +16,20 @@ func TestRefineWithJudge(t *testing.T) {
 	raw := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Welcome to nginx!</title>")
 	frames, _ := engine.DetectContent(raw)
 	j := judge.New(server{})
-	accepted, kind, _, err := j.Refine(context.Background(), raw, frames)
+	j.Known = judge.NewRetriever(engine.Names())
+	accepted, err := j.Refine(context.Background(), raw, frames)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kind != judge.KindDefault || judge.LayerOf(accepted["nginx"]) != judge.LayerServer || judge.Judged(frames["nginx"]) {
-		t.Fatalf("kind %q, accepted %v, input %v", kind, accepted["nginx"], frames["nginx"])
+	kind, _, err := j.Classify(context.Background(), raw)
+	if err != nil || kind != judge.KindDefault {
+		t.Fatalf("kind %q, %v", kind, err)
+	}
+	if nginx := accepted["nginx"]; nginx == nil || nginx.Judge == nil || nginx.Judge.Layer != judge.LayerServer || frames["nginx"].Judge != nil {
+		t.Fatalf("accepted %v, input %v", accepted["nginx"], frames["nginx"])
+	}
+	if len(engine.Names()) == 0 {
+		t.Fatal("engine has no names")
 	}
 }
 
