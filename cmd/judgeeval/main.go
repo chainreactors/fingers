@@ -6,7 +6,7 @@
 //	TYPESAFE_API_KEY=... judgeeval -provider jev -samples cc/samples -cache cache -out report
 //
 // Answers are cached on disk, so reruns are free and an interrupted run
-// resumes. Build with -tags goregexp.
+// resumes. Build with any Go >= 1.17.
 package main
 
 import (

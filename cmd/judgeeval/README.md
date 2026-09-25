@@ -2,12 +2,12 @@
 
 ## 可回放真实数据评估
 
-`-manifest` 模式覆盖保存结果清洗、逐产品补全版本、名称召回和原生指纹生成。SDK 接口不变，结果写入独立目录。
+`-manifest` 模式覆盖保存结果清洗、逐产品补全版本、名称召回和原生指纹生成，结果写入独立目录。
 
 ```powershell
 # urls.txt 每行一个 URL；新采集用新目录。IP 证书不匹配时显式加 --insecure。
 python scripts/capture_judge.py --urls urls.txt --out .judge-data/corpus --workers 6
-go build -tags goregexp -o bin/judgeeval.exe ./cmd/judgeeval
+go build -o bin/judgeeval.exe ./cmd/judgeeval
 # TYPESAFE_API_KEY 仅通过进程环境提供。
 ./bin/judgeeval.exe -manifest .judge-data/corpus/manifest.json -cache .judge-data/cache -out .judge-data/run-01 -rps 8
 # 同一快照及原结果用于验证历史清洗机制。
@@ -40,12 +40,12 @@ go build -tags goregexp -o bin/judgeeval.exe ./cmd/judgeeval
 
 - `manifest.json` / `samples/*.http` / `build.json`：本次实际输入及 Go 构建信息，响应可独立加载；离线模型答案仍需同时保留 `-cache` 目录。
 - `baseline.jsonl`：原生 Frameworks，来源是当前规则或 `-history`。历史记录按 ID、SHA256 严格对齐，缺失即报错。
-- `cleaned.jsonl`：成功清洗并逐产品补版本的原生 Frameworks。
-- `rows.jsonl`：基线、Refine、补版本及拒绝/合并/新增/错误。
+- `cleaned.jsonl`：成功清洗并补版本的原生 Frameworks。
+- `rows.jsonl`：基线、Refine 及拒绝/合并/新增/补版本/错误。
 - `metrics.json` / `report.md`：标注范围内的 TP/FP/FN/TN、误删、自然漏报恢复、版本正确/错误/缺失/无依据填值。失败和未标注输出单列。
 - `generation.json` / `fingerprints/*.yaml`：候选指纹、独立验证结果及排除的样本。
 
-`Refine` 只补主产品版本；回放另对保留产品的空版本调用 `Version`，比较两阶段。已有非空版本保留，错误由报告揭示。缓存按模型、endpoint、完整 state 和问题精确复用，评估不使用近似页面缓存。
+`Refine` 给每个保留产品补版本；报告比较原结果和 Refine 两个阶段。已有非空版本保留，错误由报告揭示。缓存按模型、endpoint、完整 state 和问题精确复用，评估不使用近似页面缓存。
 
 新增版本按产品及显式别名合并计数，原基线任一别名已有版本即不算新增。名称建议单独统计，不能算作已补回漏报。生成器训练样本的自动版本结果在 `training_versions` / `training_cases` 单列，错误时标记 `failed_training`；训练标签只在导出后打分。
 
@@ -78,10 +78,10 @@ go build -tags goregexp -o bin/judgeeval.exe ./cmd/judgeeval
 
 ## 目录模式
 
-在一批原始 HTTP 响应上，用和 SDK 调用方完全相同的路径（`engine.DetectContent` → `judge.Refine`）跑一遍，逐项对比纯规则结果和经过判定之后的结果。它也用来校准新的 Provider。
+在一批原始 HTTP 响应上，用和 SDK 调用方完全相同的路径（`engine.DetectContent` → `j.Refine`）跑一遍，逐项对比纯规则结果和经过判定之后的结果。它也用来校准新的 Provider。
 
 ```bash
-go build -buildvcs=false -tags goregexp -o judgeeval ./cmd/judgeeval
+go build -buildvcs=false -o judgeeval ./cmd/judgeeval
 
 # 标注集（仓库自带 40 页合成样本，含真值）
 TYPESAFE_API_KEY=... ./judgeeval -provider jev -samples testdata/samples -labels testdata/labels.json
@@ -90,7 +90,7 @@ TYPESAFE_API_KEY=... ./judgeeval -provider jev -samples testdata/samples -labels
 TYPESAFE_API_KEY=... ./judgeeval -provider jev -samples cc/samples -cache judgecache -out judgereport -rps 15
 ```
 
-- 答案缓存在 `-cache` 目录，重跑不花钱，中断后可以接着跑。这个目录用的是精确缓存，另外会模拟相似度缓存：按签名距离分档，统计每一档能复用多少答案、与真实答案的一致率，用来确定 `judge.SimilarDistance` 的取值。
+- 答案缓存在 `-cache` 目录，重跑不花钱，中断后可以接着跑。这个目录用的是精确缓存，另外会模拟相似度缓存：按签名距离分档，统计每一档能复用多少答案、与真实答案的一致率，用来确定 `Judge.SimilarDistance` 的取值。
 - `report.md`：对比表，另附页面类型分布、各引擎的否决率、否决率最高的规则（需要修复），以及新指纹候选。
 - `rows.jsonl`：每页一行，用于人工复核。
 - 给了 `-labels` 时，额外按真值统计误报剔除、真实命中保留、页面类型、通用页面和版本号的正确率。

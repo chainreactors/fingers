@@ -38,6 +38,12 @@ fingers的拓展引擎, 有更全更大的指纹库.
 
 `go get github.com/chainreactors/fingers@master`
 
+支持 Go 1.17 及以上。规则正则默认使用标准库；在 Go 1.24 及以上可以换成更快的 RE2，只需额外引入一行：
+
+```golang
+import _ "github.com/chainreactors/fingers/re2" // go get github.com/chainreactors/fingers/re2
+```
+
 ### Example
 
 document: https://chainreactors.github.io/wiki/libs/fingers/
@@ -86,21 +92,32 @@ func TestFavicon(t *testing.T) {
 
 ## 判定层 judge
 
-规则引擎召回能力强，但会有误报、多个引擎的同名重复，也分不清主应用和底层组件，版本号更是难以拿准。`judge` 包在规则结果之上加了一层判定（判别 + rerank）：规则和代码负责召回，Provider（模型）只对证据做判断，最终决策由代码做出。它不是新的引擎，`WebMatch` 和 `DetectContent` 的行为保持不变。Provider 可以替换，目前内置 [TypeSafe Jev](https://docs.typesafe.ai/api.md)（`judge/jev`）。
+规则引擎召回能力强，但会有误报、多个引擎的同名重复，也分不清主应用和底层组件，版本号更是难以拿准。`judge` 包在规则结果之上加了一层判定：规则和代码负责召回与抽取，Provider（模型）只对证据做判断，最终决策由代码做出。它不是新的引擎，`WebMatch` 和 `DetectContent` 的行为保持不变。Provider 可以替换，目前内置 [TypeSafe Jev](https://docs.typesafe.ai/api.md)（`judge/jev`）。
 
 ```golang
-j, _ := jev.NewJudge("")                         // 读取 TYPESAFE_API_KEY；自带缓存和相似页面去重
+j, _ := jev.NewJudge("")                          // 读取 TYPESAFE_API_KEY；一个扫描任务共用一个 Judge
+j.Known = judge.NewRetriever(engine.Names())      // 召回规则漏掉、但页面里出现的已知产品
 
-frames, _ := engine.DetectContent(raw)           // 同步，纯规则
-accepted, kind, generic, err := j.Refine(ctx, raw, frames)
-if err == nil {
-    fmt.Println(kind, generic, accepted)           // frames 保持原始规则命中
+hits, _ := engine.DetectContent(raw)              // 同步，纯规则
+accepted, err := j.Refine(ctx, raw, hits)         // 去误报、去重复、召回，并给每个产品补版本
+if err != nil {
+    accepted = hits                               // 判定失败时退回纯规则结果；hits 从不被修改
 }
+for _, f := range accepted {
+    if f.Judge != nil {                           // nil：未经判定（如超过每页 40 个产品的上限）
+        fmt.Println(f.Name, f.Version, f.Judge.Layer, f.Judge.Primary)
+    }
+}
+kind, generic, _ := j.Classify(ctx, raw)          // 页面类型；Refine 之后命中缓存，不再请求
 ```
 
-在 1070 个真实页面上：每页结果从 13.4 条降到 6.5 条，同名重复全部归并，版本号对照 generator 从 43 个正确提升到 191 个，并额外召回了 468 个规则漏掉的产品。成本约每万页 $3.4。
+判定结论是 `Framework.Judge` 字段（层级、置信度、误报、重复、主应用、召回），随现有输出一起序列化；下游不 import judge 也能用 `frames.Accepted()` / `frames.Primary()` 读取。需要看被剔除的条目和原因时用 `j.Inspect`。
 
-完整的能力、`Inspect` 诊断、未知产品判定、指纹生成器、缓存和 Provider 接口，见 [judge/README.md](judge/README.md)；设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
+**数据外发**：判定时会把响应的精简视图发给 Provider，包括响应头（去掉 Date、Set-Cookie 值等无关头）、Cookie 名、标题、generator/description、脚本和样式路径、内联脚本开头、HTML 注释、表单字段名，以及正文前 1500 字。扫描授权范围内的目标前，请确认允许把这些内容发送给第三方服务。
+
+2026-09-25 在一批已标注的真实响应上：误报 24 → 0，真实命中误删 0，正确版本 3 → 23、错误 0，见 [验证报告](docs/jev-real-validation-20260925.md)。这些数字是本次版本算法调整之前测得的，新算法需要用 `cmd/judgeeval` 重新验证。
+
+完整的能力、缓存和 Provider 接口见 [judge/README.md](judge/README.md)；用正反样本生成原生指纹见 `judge/gen`；设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
 
 ## fingers 引擎
 
