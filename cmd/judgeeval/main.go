@@ -1,5 +1,5 @@
 // judgeeval compares the rule engines alone with rules plus a judge provider,
-// exactly as SDK callers run it (fingers.Engine.Refine), on a directory of
+// exactly as SDK callers run it (judge.Judge.Refine), on a directory of
 // raw HTTP responses; it is also how a new provider is calibrated.
 //
 //	TYPESAFE_API_KEY=... judgeeval -provider jev -samples testdata/samples -labels testdata/labels.json
@@ -66,6 +66,11 @@ type row struct {
 }
 
 func main() {
+	manifest := flag.String("manifest", "", "replay evidence manifest with labels and generation plans")
+	history := flag.String("history", "", "optional baseline.jsonl from a previous replay")
+	offline := flag.Bool("offline", false, "manifest replay using exact cached answers only; no provider requests")
+	maintain := flag.Bool("maintain", false, "audit novel products and validate a native additive fingerprint library")
+	library := flag.String("library", "", "existing local native YAML library to load before manifest replay")
 	samples := flag.String("samples", "testdata/samples", "directory of raw HTTP responses (*.http)")
 	labels := flag.String("labels", "", "optional ground truth (see testdata/labels.json)")
 	provider := flag.String("provider", "jev", "judge provider: jev")
@@ -77,6 +82,17 @@ func main() {
 	endpoint := flag.String("endpoint", "", "provider API endpoint (default: the provider's)")
 	flag.Parse()
 	logs.Log.SetLevel(logs.ErrorLevel)
+	if *manifest != "" {
+		if err := replay(*manifest, *history, *provider, *endpoint, *cache, *out, *rps, *offline, *maintain, *library); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+	if *offline || *maintain || *library != "" {
+		fmt.Fprintln(os.Stderr, "-offline, -maintain and -library require -manifest")
+		os.Exit(1)
+	}
 	if err := run(*provider, *samples, *labels, *cache, *out, *endpoint, *rps, *workers, *limit); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -130,7 +146,13 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 	if err != nil {
 		return err
 	}
-	engine.AttachJudge(j)
+	var names []string
+	if engine.Aliases != nil {
+		for name := range engine.Aliases.Aliases {
+			names = append(names, name)
+		}
+	}
+	retriever := judge.NewRetriever(names)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -144,7 +166,7 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				rows[i] = evaluatePage(ctx, engine, files[i])
+				rows[i] = evaluatePage(ctx, engine, j, retriever, files[i])
 				var apiErr *jev.APIError
 				if rows[i].err != nil && errors.As(rows[i].err, &apiErr) && apiErr.Status == 401 {
 					once.Do(func() { fatal = errors.New("unauthorized: check " + jev.EnvAPIKey); cancel() })
@@ -190,7 +212,7 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 	return os.WriteFile(filepath.Join(out, "report.md"), []byte(b.String()), 0o644)
 }
 
-func evaluatePage(ctx context.Context, engine *fingers.Engine, path string) (r *row) {
+func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, retriever *judge.Retriever, path string) (r *row) {
 	r = &row{ID: filepath.Base(path), ruleEngines: map[string][]string{}}
 	defer func() {
 		if p := recover(); p != nil { // one malformed page must not stop a long run
@@ -234,20 +256,30 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, path string) (r *
 	}
 	sort.Strings(r.Rules)
 	t := time.Now()
-	page, err = engine.Refine(ctx, raw, r.frames)
+	accepted, kind, generic, err := j.Refine(ctx, raw, r.frames, retriever.Find(page.Haystack(), 24)...)
 	r.JudgeMs = ms(time.Since(t))
 	if err != nil {
 		r.Err, r.err = err.Error(), err
 		return r
 	}
-	r.JudgeGenVer = versionOf(judge.Accepted(r.frames), product)
+	inspected, err := j.Inspect(ctx, raw, r.frames, retriever.Find(page.Haystack(), 24)...)
+	if err != nil {
+		r.Err, r.err = err.Error(), err
+		return r
+	}
+	for name, f := range accepted {
+		if target := inspected[name]; target != nil {
+			target.Attributes = f.Attributes
+		}
+	}
+	r.frames = inspected
+	r.JudgeGenVer = versionOf(accepted, product)
 	for _, name := range r.TextOnly {
 		if f := r.frames[name]; f != nil && !judge.Is(f, judge.Rejected) {
 			r.TextOnlyKept++
 		}
 	}
-	r.Kind, r.Generic, r.Layers = page.Kind, page.Generic, map[string]string{}
-	identified := false // an accepted application or device: the page's product is known
+	r.Kind, r.Generic, r.Layers = kind, generic, map[string]string{}
 	for _, f := range r.frames {
 		if l := judge.LayerOf(f); l != "" {
 			r.Layers[f.Name] = string(l)
@@ -258,10 +290,6 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, path string) (r *
 		case judge.Is(f, judge.Duplicate):
 		default:
 			r.Accepted = append(r.Accepted, f.Name)
-			switch judge.Layer(r.Layers[f.Name]) {
-			case judge.LayerApplication, judge.LayerDevice:
-				identified = true
-			}
 		}
 		if judge.Is(f, judge.Recalled) {
 			r.Recall = append(r.Recall, f.Name)
@@ -271,10 +299,11 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, path string) (r *
 		r.Primary, r.Version = p.Name, p.Version
 		r.JudgeVersion = p.Version != "" && p.Version != versions[p.Name]
 	}
-	// A stock page nobody identified is material for a new rule; a server's
-	// own default, error or index page is identified by the server.
-	serverPage := r.Kind == judge.KindDefault || r.Kind == judge.KindError || r.Kind == judge.KindDirListing
-	r.NewFinger = r.Generic && r.Primary == "" && !identified && !serverPage
+	r.NewFinger, err = j.IsUnknownProduct(ctx, raw, accepted)
+	if err != nil {
+		r.Err, r.err = err.Error(), err
+		return r
+	}
 	sort.Strings(r.Accepted)
 	sort.Strings(r.Rejected)
 	return r

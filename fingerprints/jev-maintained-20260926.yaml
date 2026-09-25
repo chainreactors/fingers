@@ -1,0 +1,47 @@
+- name: IT Tools
+  part: ""
+  vendor: ""
+  product: ""
+  protocol: http
+  default_port:
+    - "80"
+  rule:
+    - version: _
+      regexps:
+        body:
+            - <title>it tools - handy online tools for developers</title>
+- name: Wakapi
+  part: ""
+  vendor: ""
+  product: ""
+  protocol: http
+  default_port:
+    - "80"
+  rule:
+    - version: _
+      regexps:
+        regexp:
+            - (?s)<title>wakapi – coding statistics</title>.*?<link\s+href="assets/css/app\.dist\.css\?v=v([0-9]{1,4}(?:\.[0-9]{1,4}){1,3}(?:[A-Za-z]+[0-9]*|[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)(?:[^0-9A-Za-z.+-]|$)
+            - (?s)<title>wakapi – coding statistics</title>.*?<div\s+class="text-xs\s+font-mono\s+font-semibold">\s+v([0-9]{1,4}(?:\.[0-9]{1,4}){1,3}(?:[A-Za-z]+[0-9]*|[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)(?:[^0-9A-Za-z.+-]|$)
+            - (?s)<title>wakapi – coding statistics</title>.*?<script\s+src="assets/js/icons\.dist\.js\?v=v([0-9]{1,4}(?:\.[0-9]{1,4}){1,3}(?:[A-Za-z]+[0-9]*|[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)(?:[^0-9A-Za-z.+-]|$)
+            - (?s)<title>wakapi – coding statistics</title>.*?<script\s+src="assets/js/base\.js\?v=v([0-9]{1,4}(?:\.[0-9]{1,4}){1,3}(?:[A-Za-z]+[0-9]*|[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)(?:[^0-9A-Za-z.+-]|$)
+    - version: _
+      regexps:
+        body:
+            - <title>wakapi – coding statistics</title>
+- name: searxng
+  part: ""
+  vendor: ""
+  product: ""
+  protocol: http
+  default_port:
+    - "80"
+  rule:
+    - version: _
+      regexps:
+        regexp:
+            - <meta name="generator" content="searxng/([0-9]{1,4}(?:\.[0-9]{1,4}){1,3}(?:[A-Za-z]+[0-9]*|[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?|[0-9]+)
+    - version: _
+      regexps:
+        body:
+            - <meta name="generator" content="searxng/

@@ -1,0 +1,4298 @@
+{
+  "batch": "expansion-20260926",
+  "scope": "Products and versions supported by archived HTTP evidence; not an audit of installed software. Host-isolated regression set reused during development, not an untouched external benchmark.",
+  "model": "jev/jev-1.13.0",
+  "library": "jev-maintained-20260926.yaml",
+  "library_sha256": "522a85806592e10bdffa87ccb70be90e22098fdeba85cc52452235132520065a",
+  "final_run": ".judge-data/expansion-20260926/run-07-final",
+  "offline_run": ".judge-data/expansion-20260926/run-08-offline",
+  "loaded_library_run": ".judge-data/expansion-20260926/run-06-with-library",
+  "new_capture": {
+    "attempts": 53,
+    "successes": 34,
+    "failures": 19
+  },
+  "corpus": {
+    "samples": 69,
+    "unique_hosts": 59,
+    "unique_responses": 65,
+    "labelled_pairs": 682
+  },
+  "manifest_sha256": "699557708fdec2d6f0404c3c0f37978a6b01d984cdebf3e4b01eae6feba0cfb3",
+  "target_selection": {
+    "selection": "SearXNG official-directory seeded sample plus project demos and search-indexed public installations; docs are mention-only negative controls",
+    "seed": 20260926,
+    "batch1": "targets-batch1.txt",
+    "batch2": "targets-batch2.txt"
+  },
+  "sources": [
+    {
+      "name": "searxng-instances",
+      "url": "https://searx.space/data/instances.json",
+      "status": 200,
+      "bytes": 413354,
+      "file": ".judge-data\\expansion-20260926\\searxng-instances.json",
+      "sha256": "e17431b01ccb60b9885139be4d0ecd9f5baf0f45ce2bc169501fd4c8a3495a4f"
+    },
+    {
+      "name": "wakapi-readme",
+      "url": "https://raw.githubusercontent.com/muety/wakapi/master/README.md",
+      "status": 200,
+      "bytes": 58370,
+      "file": ".judge-data\\expansion-20260926\\wakapi-readme.md",
+      "sha256": "626b3574cb6d1732ecd8ae76a0b0969a8a83993022dea67b1be43385eb3a38d0"
+    },
+    {
+      "name": "pairdrop-readme",
+      "url": "https://raw.githubusercontent.com/schlagmichdoch/PairDrop/master/README.md",
+      "status": 200,
+      "bytes": 7156,
+      "file": ".judge-data\\expansion-20260926\\pairdrop-readme.md",
+      "sha256": "fe1fcf4cb27f732477160c00ec0c9313bcdfa95bed89f482a5dda12c6d24cac7"
+    },
+    {
+      "name": "gatus-readme",
+      "url": "https://raw.githubusercontent.com/TwiN/gatus/master/README.md",
+      "status": 200,
+      "bytes": 215037,
+      "file": ".judge-data\\expansion-20260926\\gatus-readme.md",
+      "sha256": "e1156f61879dcac5dcb3cc5931f5ae542aa757cc2c4973507664fe69661121ad"
+    },
+    {
+      "name": "karakeep-readme",
+      "url": "https://raw.githubusercontent.com/karakeep-app/karakeep/main/README.md",
+      "status": 200,
+      "bytes": 8186,
+      "file": ".judge-data\\expansion-20260926\\karakeep-readme.md",
+      "sha256": "ecc3cd2eb9a38a919bea7ccb71cd9e83c2dfc01d03601a70879433e0d3f326d9"
+    }
+  ],
+  "catalogs": [
+    {
+      "source": "fingers",
+      "sha256": "770208a0f55ab01d6d983f1ff304e501ab8c717d7812d4ad774518b39c00d1f5",
+      "names": 4289
+    },
+    {
+      "source": "goby",
+      "sha256": "b1cdffe4eca50c0140ee27ddebf23ec007a3337b9a3f528c889d704ad0218fe1",
+      "names": 7083
+    },
+    {
+      "source": "ehole",
+      "sha256": "0e673c5569b04c3ffb3eed8410048807a8103a62a4e7e500e445ec2e8d2193af",
+      "names": 811
+    },
+    {
+      "source": "wappalyzer",
+      "sha256": "18b47fc3deec61c8260f1f1da9efe8301d292cc0f14f0f57885181482eed71b9",
+      "names": 7226
+    },
+    {
+      "source": "fingerprinthub",
+      "sha256": "e4b2faa806e032e09b72c6e17d5a63e72f9a80449d6aedee82ee88138213a4c6",
+      "names": 3483
+    },
+    {
+      "source": "aliases",
+      "sha256": "24316f010fd85c9d8d7d68d1a9241e10f770851cbfc939c2f78124ae9291dc6b",
+      "names": 87
+    },
+    {
+      "source": "runtime-fingers",
+      "sha256": "3f8303600efb5aa5e4ce668f418e4ac5c46b7e029643f2bc2d216872638c47d3",
+      "names": 4289
+    }
+  ],
+  "maintenance": {
+    "library": "library.yaml",
+    "catalog_file": "catalog-before.json",
+    "min_positive_hosts": 2,
+    "min_negative_hosts": 5,
+    "products": [
+      {
+        "plan": "searxng-new",
+        "product": "SearXNG",
+        "status": "validated_library",
+        "existing_catalog_matches": null,
+        "positive_samples": 10,
+        "suggested_positives": 10,
+        "unknown_positives": 9,
+        "holdout_positive_hosts": 8,
+        "holdout_negative_hosts": 42,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 47,
+            "fn": 8
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 8
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 8,
+            "fp": 0,
+            "tn": 47,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 8,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "05346dbcf28946f0",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fb25cf0e86ffcd7d",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e80f19b7afe3d734",
+          "e173c09a7713b5b0",
+          "3ee248ced1fa920a",
+          "65b15b71fa6f508f",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "24c03d50574b79f2",
+          "302f5cbbc6e1596b",
+          "a04da6570878fb03",
+          "09e85a53a7b4850d",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "fba6e296e0acdccc",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      },
+      {
+        "plan": "wakapi-new",
+        "product": "Wakapi",
+        "status": "validated_library",
+        "existing_catalog_matches": null,
+        "positive_samples": 4,
+        "suggested_positives": 4,
+        "unknown_positives": 4,
+        "holdout_positive_hosts": 3,
+        "holdout_negative_hosts": 48,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 53,
+            "fn": 3
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 3
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 3,
+            "fp": 0,
+            "tn": 53,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 3,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "05346dbcf28946f0",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fb25cf0e86ffcd7d",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e80f19b7afe3d734",
+          "e173c09a7713b5b0",
+          "7c727a84546a6bba",
+          "3ee248ced1fa920a",
+          "65b15b71fa6f508f",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "a40e20d96d920f67",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "24c03d50574b79f2",
+          "a04da6570878fb03",
+          "09e85a53a7b4850d",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "fba6e296e0acdccc",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      },
+      {
+        "plan": "it-tools-new",
+        "product": "IT Tools",
+        "status": "validated_library",
+        "existing_catalog_matches": null,
+        "positive_samples": 3,
+        "suggested_positives": 3,
+        "unknown_positives": 0,
+        "holdout_positive_hosts": 2,
+        "holdout_negative_hosts": 49,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 54,
+            "fn": 2
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 2
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 2,
+            "fp": 0,
+            "tn": 54,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 2,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "05346dbcf28946f0",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fb25cf0e86ffcd7d",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e80f19b7afe3d734",
+          "7c727a84546a6bba",
+          "3ee248ced1fa920a",
+          "65b15b71fa6f508f",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "a40e20d96d920f67",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "24c03d50574b79f2",
+          "302f5cbbc6e1596b",
+          "a04da6570878fb03",
+          "09e85a53a7b4850d",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "fba6e296e0acdccc",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      },
+      {
+        "plan": "pairdrop-new",
+        "product": "PairDrop",
+        "status": "insufficient_holdout",
+        "existing_catalog_matches": null,
+        "positive_samples": 1,
+        "suggested_positives": 1,
+        "unknown_positives": 0,
+        "holdout_positive_hosts": 0,
+        "holdout_negative_hosts": 51,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "05346dbcf28946f0",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fb25cf0e86ffcd7d",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e80f19b7afe3d734",
+          "e173c09a7713b5b0",
+          "7c727a84546a6bba",
+          "3ee248ced1fa920a",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "a40e20d96d920f67",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "24c03d50574b79f2",
+          "302f5cbbc6e1596b",
+          "a04da6570878fb03",
+          "09e85a53a7b4850d",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "fba6e296e0acdccc",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      },
+      {
+        "plan": "docmost-new",
+        "product": "Docmost",
+        "status": "insufficient_holdout",
+        "existing_catalog_matches": null,
+        "positive_samples": 1,
+        "suggested_positives": 1,
+        "unknown_positives": 1,
+        "holdout_positive_hosts": 0,
+        "holdout_negative_hosts": 51,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "05346dbcf28946f0",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e80f19b7afe3d734",
+          "e173c09a7713b5b0",
+          "7c727a84546a6bba",
+          "3ee248ced1fa920a",
+          "65b15b71fa6f508f",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "a40e20d96d920f67",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "24c03d50574b79f2",
+          "302f5cbbc6e1596b",
+          "a04da6570878fb03",
+          "09e85a53a7b4850d",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "fba6e296e0acdccc",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      },
+      {
+        "plan": "linkwarden-new",
+        "product": "Linkwarden",
+        "status": "insufficient_holdout",
+        "existing_catalog_matches": null,
+        "positive_samples": 1,
+        "suggested_positives": 1,
+        "unknown_positives": 0,
+        "holdout_positive_hosts": 0,
+        "holdout_negative_hosts": 51,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "05346dbcf28946f0",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fb25cf0e86ffcd7d",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e173c09a7713b5b0",
+          "7c727a84546a6bba",
+          "3ee248ced1fa920a",
+          "65b15b71fa6f508f",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "a40e20d96d920f67",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "24c03d50574b79f2",
+          "302f5cbbc6e1596b",
+          "a04da6570878fb03",
+          "09e85a53a7b4850d",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "fba6e296e0acdccc",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      },
+      {
+        "plan": "karakeep-new",
+        "product": "Karakeep",
+        "status": "insufficient_holdout",
+        "existing_catalog_matches": null,
+        "positive_samples": 3,
+        "suggested_positives": 3,
+        "unknown_positives": 0,
+        "holdout_positive_hosts": 0,
+        "holdout_negative_hosts": 51,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "05346dbcf28946f0",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fb25cf0e86ffcd7d",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e80f19b7afe3d734",
+          "e173c09a7713b5b0",
+          "7c727a84546a6bba",
+          "3ee248ced1fa920a",
+          "65b15b71fa6f508f",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "a40e20d96d920f67",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "302f5cbbc6e1596b",
+          "a04da6570878fb03",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      },
+      {
+        "plan": "new-api-new",
+        "product": "New API",
+        "status": "insufficient_holdout",
+        "existing_catalog_matches": null,
+        "positive_samples": 1,
+        "suggested_positives": 1,
+        "unknown_positives": 1,
+        "holdout_positive_hosts": 0,
+        "holdout_negative_hosts": 51,
+        "before": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "after": {
+          "detection": {
+            "tp": 0,
+            "fp": 0,
+            "tn": 0,
+            "fn": 0
+          },
+          "versions": {
+            "correct": 0,
+            "wrong": 0,
+            "missing": 0,
+            "correct_abstentions": 0,
+            "unsupported": 0,
+            "product_missing": 0
+          },
+          "unlabelled_predictions": 0
+        },
+        "test_ids": [
+          "36f6645c0290996f",
+          "145e314623e76dfd",
+          "7a415cdbb6244358",
+          "e3651c67dbb2ad17",
+          "718e4c943a25a995",
+          "c31d254bc1fd0230",
+          "e7d23d9f3c44fee1",
+          "867e79ba27f05078",
+          "bc537dc669808db3",
+          "e13843bffacca3e0",
+          "6025845b2aa21eb7",
+          "f288433c7ec32303",
+          "51ccb99538406996",
+          "1700c6017ed82aaf",
+          "f7039343f41ed237",
+          "7c56b28279b128c0",
+          "afac5614625bfc6f",
+          "d79b4325363f7010",
+          "f349b9e30f493cb5",
+          "b8c2c3d64f1947fa",
+          "087a771998e8460b",
+          "0a87b2d06772daf3",
+          "2ee69d30ad1b9ba1",
+          "6290a947cc8369e7",
+          "846e9f943798d3ab",
+          "86e96862d2e6618c",
+          "335745c8550b1062",
+          "ebc3a07dd3e76b6e",
+          "fb25cf0e86ffcd7d",
+          "fa1b267c4911f7a0",
+          "33481799a00eb89a",
+          "e80f19b7afe3d734",
+          "e173c09a7713b5b0",
+          "7c727a84546a6bba",
+          "3ee248ced1fa920a",
+          "65b15b71fa6f508f",
+          "a8f7be21e03253d3",
+          "2b89e57a9b28bfbf",
+          "d9b5eaa66bdc7bec",
+          "b2382b7ca202c344",
+          "9a8481abc3453d0b",
+          "a40e20d96d920f67",
+          "8e2c3affdcca9c97",
+          "bfba0e0e48f5eb54",
+          "97544c226c577151",
+          "68eb99ccb687369d",
+          "24c03d50574b79f2",
+          "302f5cbbc6e1596b",
+          "a04da6570878fb03",
+          "09e85a53a7b4850d",
+          "e331de721c086202",
+          "0dabb37b2a7b3687",
+          "91315c96894dcfd3",
+          "fba6e296e0acdccc",
+          "e693fe9346caa44c",
+          "28276d6b56102882"
+        ]
+      }
+    ],
+    "lost_existing_hits": null,
+    "changed_existing_versions": null,
+    "integration_errors": null
+  },
+  "generation": [
+    {
+      "name": "searxng-new",
+      "product": "searxng",
+      "status": "passed_holdout",
+      "file": "fingerprints/searxng-new.yaml",
+      "detection": {
+        "tp": 8,
+        "fp": 0,
+        "tn": 47,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 8,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 2,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 2,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e"
+      ]
+    },
+    {
+      "name": "wakapi-new",
+      "product": "Wakapi",
+      "status": "passed_holdout",
+      "file": "fingerprints/wakapi-new.yaml",
+      "detection": {
+        "tp": 3,
+        "fp": 0,
+        "tn": 53,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 3,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 1,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e"
+      ]
+    },
+    {
+      "name": "it-tools-new",
+      "product": "IT Tools",
+      "status": "passed_holdout",
+      "file": "fingerprints/it-tools-new.yaml",
+      "detection": {
+        "tp": 2,
+        "fp": 0,
+        "tn": 54,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 2,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 1,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e"
+      ]
+    },
+    {
+      "name": "pairdrop-new",
+      "product": "PairDrop",
+      "status": "insufficient_holdout",
+      "file": "fingerprints/pairdrop-new.yaml",
+      "detection": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 56,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 1,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e"
+      ]
+    },
+    {
+      "name": "docmost-new",
+      "product": "Docmost",
+      "status": "insufficient_holdout",
+      "file": "fingerprints/docmost-new.yaml",
+      "detection": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 56,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 1,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e"
+      ]
+    },
+    {
+      "name": "linkwarden-new",
+      "product": "Linkwarden",
+      "status": "insufficient_holdout",
+      "file": "fingerprints/linkwarden-new.yaml",
+      "detection": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 56,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 1,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e"
+      ]
+    },
+    {
+      "name": "karakeep-new",
+      "product": "Karakeep",
+      "status": "insufficient_holdout",
+      "file": "fingerprints/karakeep-new.yaml",
+      "detection": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 54,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 1,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e",
+        "24c03d50574b79f2",
+        "09e85a53a7b4850d"
+      ]
+    },
+    {
+      "name": "new-api-new",
+      "product": "New API",
+      "status": "insufficient_holdout",
+      "file": "fingerprints/new-api-new.yaml",
+      "detection": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 56,
+        "fn": 0
+      },
+      "versions": {
+        "correct": 0,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "training_detection": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 7,
+        "fn": 0
+      },
+      "training_versions": {
+        "correct": 1,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 0,
+        "unsupported": 0,
+        "product_missing": 0
+      },
+      "excluded": [
+        "9b0d62c13f476614",
+        "aaef32bb77101a86",
+        "45c65575b6da19ac",
+        "1a125b61fc8b7dd7",
+        "acede3e046de943e"
+      ]
+    }
+  ],
+  "repeated_maintenance": [
+    {
+      "product": "SearXNG",
+      "status": "already_catalogued",
+      "existing_catalog_matches": [
+        "runtime-fingers:searxng"
+      ]
+    },
+    {
+      "product": "Wakapi",
+      "status": "already_catalogued",
+      "existing_catalog_matches": [
+        "runtime-fingers:Wakapi"
+      ]
+    },
+    {
+      "product": "IT Tools",
+      "status": "already_catalogued",
+      "existing_catalog_matches": [
+        "runtime-fingers:IT Tools"
+      ]
+    },
+    {
+      "product": "PairDrop",
+      "status": "insufficient_holdout",
+      "existing_catalog_matches": null
+    },
+    {
+      "product": "Docmost",
+      "status": "insufficient_holdout",
+      "existing_catalog_matches": null
+    },
+    {
+      "product": "Linkwarden",
+      "status": "insufficient_holdout",
+      "existing_catalog_matches": null
+    },
+    {
+      "product": "Karakeep",
+      "status": "insufficient_holdout",
+      "existing_catalog_matches": null
+    },
+    {
+      "product": "New API",
+      "status": "insufficient_holdout",
+      "existing_catalog_matches": null
+    }
+  ],
+  "loaded_library_cleanup": {
+    "model": "jev/jev-1.13.0",
+    "baseline_source": "current_rules_on_saved_responses",
+    "samples": 69,
+    "unique_hosts": 59,
+    "unique_responses": 65,
+    "errors": 0,
+    "labelled_pairs": 682,
+    "baseline": {
+      "detection": {
+        "tp": 63,
+        "fp": 24,
+        "tn": 586,
+        "fn": 9
+      },
+      "versions": {
+        "correct": 17,
+        "wrong": 0,
+        "missing": 20,
+        "correct_abstentions": 26,
+        "unsupported": 0,
+        "product_missing": 9
+      },
+      "unlabelled_predictions": 301
+    },
+    "refined": {
+      "detection": {
+        "tp": 63,
+        "fp": 0,
+        "tn": 610,
+        "fn": 9
+      },
+      "versions": {
+        "correct": 23,
+        "wrong": 0,
+        "missing": 14,
+        "correct_abstentions": 26,
+        "unsupported": 0,
+        "product_missing": 9
+      },
+      "unlabelled_predictions": 148
+    },
+    "completed": {
+      "detection": {
+        "tp": 63,
+        "fp": 0,
+        "tn": 610,
+        "fn": 9
+      },
+      "versions": {
+        "correct": 37,
+        "wrong": 0,
+        "missing": 0,
+        "correct_abstentions": 26,
+        "unsupported": 0,
+        "product_missing": 9
+      },
+      "unlabelled_predictions": 148
+    },
+    "false_hits_removed": 24,
+    "true_hits_removed": 0,
+    "natural_misses_recovered": 0,
+    "missed_products_suggested": 8,
+    "version_fills": 27,
+    "correct_version_fills": 20,
+    "incorrect_version_fills": 0,
+    "unlabelled_version_fills": 7,
+    "provider_requests": 306,
+    "exact_cache_hits": 181,
+    "input_tokens": 741618
+  },
+  "offline": {
+    "provider_requests": 0,
+    "cache_hits": 483,
+    "same_semantic_metrics": true,
+    "identical_files": {
+      "library.yaml": true,
+      "generation.json": true,
+      "maintenance.json": true,
+      "rows.jsonl": true,
+      "baseline.jsonl": true,
+      "cleaned.jsonl": true
+    }
+  },
+  "label_revisions": [
+    {
+      "product": "PairDrop",
+      "id": "65b15b71fa6f508f",
+      "previous_version": "",
+      "corrected_version": "1.11.2",
+      "basis": "Adjacent PairDrop product heading and visible release declaration in the original saved HTML; not inferred from a provider answer.",
+      "evidence": "<div class=\"font-subheading\">v1.11.2</div>"
+    }
+  ],
+  "samples": [
+    {
+      "id": "36f6645c0290996f",
+      "url": "http://47.239.11.1/",
+      "group": "47.239.11.1",
+      "captured_at": "2026-09-25T14:18:17.927604+00:00",
+      "sha256": "01c9933b1ea5a0ffbb8ccfc911a548f4c6c53500d2f2fffe08aa54ad00524859",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "145e314623e76dfd",
+      "url": "http://47.239.11.117/",
+      "group": "47.239.11.117",
+      "captured_at": "2026-09-25T14:18:17.927604+00:00",
+      "sha256": "6f4b55cad227274d1acbf3575a76308a395588c51e84c41790d6e5eb9a580634",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "7a415cdbb6244358",
+      "url": "http://47.239.11.119/",
+      "group": "47.239.11.119",
+      "captured_at": "2026-09-25T14:18:17.928110+00:00",
+      "sha256": "3094c7260747f35b8f46b973da195908f64734bf5fa138bc1fe3335c7058bc7d",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "e3651c67dbb2ad17",
+      "url": "http://47.239.11.120/",
+      "group": "47.239.11.120",
+      "captured_at": "2026-09-25T14:18:17.928110+00:00",
+      "sha256": "58cf9c0f520cd99dfd8377e28181b7b26b4e35a0cdf56c93fac2613dd683b1f4",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "718e4c943a25a995",
+      "url": "http://47.239.11.121/",
+      "group": "47.239.11.121",
+      "captured_at": "2026-09-25T14:18:17.926596+00:00",
+      "sha256": "9cf03440fe1d5d60261b8ef9434d05b2dd7702ec789ff6cb289b41fa4753aa55",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": false
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "c31d254bc1fd0230",
+      "url": "http://47.239.11.134/",
+      "group": "47.239.11.134",
+      "captured_at": "2026-09-25T14:18:17.928110+00:00",
+      "sha256": "dffc9b4b13160201cb54898cbe83629a654b1aa91f7139f02ce0f0c44672815e",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "e7d23d9f3c44fee1",
+      "url": "http://47.239.11.151/",
+      "group": "47.239.11.151",
+      "captured_at": "2026-09-25T14:18:17.970662+00:00",
+      "sha256": "2e39b279754a9dcc613fd51f66647804701ca795715d6b3e4c7a5f6898ce9a91",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": false
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "867e79ba27f05078",
+      "url": "http://47.239.11.151/robots.txt",
+      "group": "47.239.11.151",
+      "captured_at": "2026-09-25T14:18:17.922561+00:00",
+      "sha256": "d920d770512d4605376b8269e3bddb42b2a301f6791829edc1f03bb0ed4009ca",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "bc537dc669808db3",
+      "url": "http://47.239.11.155/",
+      "group": "47.239.11.155",
+      "captured_at": "2026-09-25T14:18:18.168005+00:00",
+      "sha256": "8ee30984aa2b1cf9ed38f45ce449ed75cc4f09b0d51622285f3cf8f8039f6102",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "e13843bffacca3e0",
+      "url": "http://47.239.11.156/",
+      "group": "47.239.11.156",
+      "captured_at": "2026-09-25T14:18:18.038424+00:00",
+      "sha256": "073eb56c353211f2e01597d85a12496d14f1f710590442978303d7ea4a43ff55",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": false
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "6025845b2aa21eb7",
+      "url": "http://47.239.11.169/",
+      "group": "47.239.11.169",
+      "captured_at": "2026-09-25T14:18:18.052902+00:00",
+      "sha256": "b7905ab6f47917366f3412c5588cc7388d722a9377d7d69929affc8181438070",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": false
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "f288433c7ec32303",
+      "url": "http://47.239.11.22/",
+      "group": "47.239.11.22",
+      "captured_at": "2026-09-25T14:18:18.044381+00:00",
+      "sha256": "64bc64f6243ee12859cdd7428e3a9fb6543007c38889410d519308154dfb0f39",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "51ccb99538406996",
+      "url": "http://47.239.11.226/",
+      "group": "47.239.11.226",
+      "captured_at": "2026-09-25T14:18:18.044381+00:00",
+      "sha256": "e25d8751b8b9e8a4d3358a67b9f5dec50b4bb8a78203531023c084f5805f10c3",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "1700c6017ed82aaf",
+      "url": "http://47.239.11.25/",
+      "group": "47.239.11.25",
+      "captured_at": "2026-09-25T14:18:18.096093+00:00",
+      "sha256": "73a98b2721ffcbee6c24860eb35d77699b8078a44feda6bba403f431884b023f",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "9b0d62c13f476614",
+      "url": "http://47.239.11.25/robots.txt",
+      "group": "47.239.11.25",
+      "captured_at": "2026-09-25T14:18:18.040055+00:00",
+      "sha256": "d920d770512d4605376b8269e3bddb42b2a301f6791829edc1f03bb0ed4009ca",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "f7039343f41ed237",
+      "url": "http://47.239.11.26/",
+      "group": "47.239.11.26",
+      "captured_at": "2026-09-25T14:18:18.068707+00:00",
+      "sha256": "c618035e4ce2e29cd00081e9ee5c1d44a21e29e2e45bb0776b4e8a28157905fd",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "7c56b28279b128c0",
+      "url": "http://47.239.11.31/",
+      "group": "47.239.11.31",
+      "captured_at": "2026-09-25T14:18:18.503310+00:00",
+      "sha256": "8bb71aca1f485344ddcab8b24fb60d0d3024674b374c042755f7afc8afdfefcc",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": false
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "afac5614625bfc6f",
+      "url": "http://47.239.11.37/",
+      "group": "47.239.11.37",
+      "captured_at": "2026-09-25T14:18:18.227548+00:00",
+      "sha256": "964afc12b6a7cf669d5e5cc1c273817243e8556cdda804288f568fa527b23949",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "d79b4325363f7010",
+      "url": "http://47.239.11.81/",
+      "group": "47.239.11.81",
+      "captured_at": "2026-09-25T14:18:18.135189+00:00",
+      "sha256": "80a65f5096d6484405f30628730b819e71b006bbc076629bd219b090a8bd0210",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "aaef32bb77101a86",
+      "url": "http://47.239.11.88/",
+      "group": "47.239.11.88",
+      "captured_at": "2026-09-25T14:18:18.145815+00:00",
+      "sha256": "b6c6c656c2ab14ae11e9a193fbceec59e00f55c2dd144c8855e2a484a1c7822e",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": false
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "f0bd3986b1f949f9",
+      "url": "http://47.239.11.9/",
+      "group": "47.239.11.9",
+      "captured_at": "2026-09-25T14:18:18.360498+00:00",
+      "sha256": "ef6be733b856d9360d413b70c68c1e9215d721abd47719c44a42fc0c8c098ca5",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": false
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "45c65575b6da19ac",
+      "url": "http://47.239.11.9/robots.txt",
+      "group": "47.239.11.9",
+      "captured_at": "2026-09-25T14:18:18.362502+00:00",
+      "sha256": "1b09dc6a8fda8fc5d9542cfd51c0d117bf8920247024f967258cddc94e28ac31",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "f349b9e30f493cb5",
+      "url": "http://47.239.11.90/",
+      "group": "47.239.11.90",
+      "captured_at": "2026-09-25T14:18:18.204350+00:00",
+      "sha256": "20fbdce2fbcf59605ceaac8c5b2abd19ffe9f221d06e16492f10a406abcd3ca8",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "1a125b61fc8b7dd7",
+      "url": "http://47.239.11.98/",
+      "group": "47.239.11.98",
+      "captured_at": "2026-09-25T14:18:18.238181+00:00",
+      "sha256": "01c9933b1ea5a0ffbb8ccfc911a548f4c6c53500d2f2fffe08aa54ad00524859",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "b8c2c3d64f1947fa",
+      "url": "https://47.239.11.1/",
+      "group": "47.239.11.1",
+      "captured_at": "2026-09-25T14:18:18.293071+00:00",
+      "sha256": "0bc50587714d9b9dd614f10d14e5c189753e82c3556c52510386cddb790db595",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "087a771998e8460b",
+      "url": "https://47.239.11.107/",
+      "group": "47.239.11.107",
+      "captured_at": "2026-09-25T14:18:18.408116+00:00",
+      "sha256": "fb18c6b1cbd965735c819dd7cf481ae3a43ee56fc594653c9e9275658be337c7",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "05346dbcf28946f0",
+      "url": "https://47.239.11.123/",
+      "group": "47.239.11.123",
+      "captured_at": "2026-09-25T14:18:18.740314+00:00",
+      "sha256": "321ddf27f33ffe2d6c5a2cf46912a37532afbaa09e6ec95e836ab17cbf4d160e",
+      "product_labels": [
+        {
+          "product": "New API",
+          "present": true,
+          "version": "1.0.0-rc.35"
+        },
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "0a87b2d06772daf3",
+      "url": "https://47.239.11.167/",
+      "group": "47.239.11.167",
+      "captured_at": "2026-09-25T14:18:18.389966+00:00",
+      "sha256": "b8dc990fcf6c2da2a577a434b663d77e38e3e4121e2f81409f2e2d2678237c1c",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "2ee69d30ad1b9ba1",
+      "url": "https://47.239.11.189/",
+      "group": "47.239.11.189",
+      "captured_at": "2026-09-25T14:18:18.391967+00:00",
+      "sha256": "fa3774df099c5131e279010cb96c2405ad9504fad1f24b65e436e312e2f30def",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "6290a947cc8369e7",
+      "url": "https://47.239.11.196/",
+      "group": "47.239.11.196",
+      "captured_at": "2026-09-25T14:18:18.617358+00:00",
+      "sha256": "bcdc6b21d56ce3e1cdbb410eaa16817cafd2c308946da41a7faf001e45894689",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "877f11f543fab972",
+      "url": "https://47.239.11.201/",
+      "group": "47.239.11.201",
+      "captured_at": "2026-09-25T14:18:19.980167+00:00",
+      "sha256": "19094cdce76f6db2b41180c2b886d83fb8f4565845e01b3745016e2009d1630b",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "846e9f943798d3ab",
+      "url": "https://47.239.11.205/",
+      "group": "47.239.11.205",
+      "captured_at": "2026-09-25T14:18:18.571434+00:00",
+      "sha256": "53daeaa2e944eebe9763104e20f2f87744fb88105ab21d542fa1961611a53f53",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "86e96862d2e6618c",
+      "url": "https://47.239.11.31/",
+      "group": "47.239.11.31",
+      "captured_at": "2026-09-25T14:18:18.585630+00:00",
+      "sha256": "6610cfe1cb5781ca48d4ee66d9f770161894e181288d0eab100bc3b6ef3a5c27",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "acede3e046de943e",
+      "url": "https://47.239.11.42/",
+      "group": "47.239.11.42",
+      "captured_at": "2026-09-25T14:18:18.667816+00:00",
+      "sha256": "bcdc6b21d56ce3e1cdbb410eaa16817cafd2c308946da41a7faf001e45894689",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "335745c8550b1062",
+      "url": "https://47.239.11.56/",
+      "group": "47.239.11.56",
+      "captured_at": "2026-09-25T14:18:18.620892+00:00",
+      "sha256": "30cabb65837840a343e98d1f32fe73aeab525ca76ea5575002e0bd6be348f15e",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "ebc3a07dd3e76b6e",
+      "url": "https://auth.seddens.net/?rd=https://search.seddens.net/",
+      "group": "auth.seddens.net",
+      "captured_at": "2026-09-25T16:02:44.182709+00:00",
+      "sha256": "0a1e86f1d97559a345f2330854612ba467fca23fec7bc9fbaf4e8fb3360e383d",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "fb25cf0e86ffcd7d",
+      "url": "https://demo.docmost.com/",
+      "group": "demo.docmost.com",
+      "captured_at": "2026-09-25T16:02:44.705457+00:00",
+      "sha256": "af7efc632705f747e3678d8d5433d985d38e4265b988d1254d243cc9075fd8bc",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "fa1b267c4911f7a0",
+      "url": "https://demo.gatus.io/",
+      "group": "demo.gatus.io",
+      "captured_at": "2026-09-25T16:02:44.046979+00:00",
+      "sha256": "80fca347a00ecf6b8447090e38b86772bd3e2496c1c1ebcb232e63d7860bca43",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "33481799a00eb89a",
+      "url": "https://demo.immich.app/",
+      "group": "demo.immich.app",
+      "captured_at": "2026-09-25T16:02:46.028922+00:00",
+      "sha256": "b0285892e15d87f89f5cbf0069b787bd76cfdf263c2f55fd8ba95317293062fa",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "e80f19b7afe3d734",
+      "url": "https://demo.linkwarden.app/",
+      "group": "demo.linkwarden.app",
+      "captured_at": "2026-09-25T16:02:44.753890+00:00",
+      "sha256": "f8003078dff0c362781ba26cac30b46b773bdd0cbbad92c64043ae7a380e4f04",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "e173c09a7713b5b0",
+      "url": "https://it-tools.tech/",
+      "group": "it-tools.tech",
+      "captured_at": "2026-09-25T16:02:46.944395+00:00",
+      "sha256": "aa5123f269ffc06cb6c267e61d0928c812757cd79dd45644488217947d0dcf7e",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "7c727a84546a6bba",
+      "url": "https://libresearch.space/",
+      "group": "libresearch.space",
+      "captured_at": "2026-09-25T16:02:47.592975+00:00",
+      "sha256": "933c9c1838412c7c2e28a93995c700dca04d59072197db72b8402b580fda848e",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.23+3cd69d30e"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "3ee248ced1fa920a",
+      "url": "https://linkding.link/demo/",
+      "group": "linkding.link",
+      "captured_at": "2026-09-25T16:02:47.193117+00:00",
+      "sha256": "cbef1330a4de2184b8500644dfc2da1c219482b5f73bdcd96868569b48559d28",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "65b15b71fa6f508f",
+      "url": "https://pairdrop.net/",
+      "group": "pairdrop.net",
+      "captured_at": "2026-09-25T16:02:48.304311+00:00",
+      "sha256": "544859141ca31286fd7ad3396b7e4111cd40df06e37af8d6ef8c700400da753b",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": true,
+          "version": "1.11.2"
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "a8f7be21e03253d3",
+      "url": "https://privacyredirect.com/",
+      "group": "privacyredirect.com",
+      "captured_at": "2026-09-25T16:02:48.791402+00:00",
+      "sha256": "2862ecff85a029752274e65e36f1cd975aeb5aa882263c3c51324357e9469bb3",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "2b89e57a9b28bfbf",
+      "url": "https://search.liuzj.net/",
+      "group": "search.liuzj.net",
+      "captured_at": "2026-09-25T16:02:50.042863+00:00",
+      "sha256": "a0729317e8d6efc1761808e2bcfa6aa3d0f1dc012b59b2083e12ba273b92ef52",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.23+3cd69d30e"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "d9b5eaa66bdc7bec",
+      "url": "https://search.minus27315.dev/",
+      "group": "search.minus27315.dev",
+      "captured_at": "2026-09-25T16:02:49.494654+00:00",
+      "sha256": "1ec95f79589ea486f8b229f5465e3eb7cfe526a7c6bb027d0cb5e46d7a8a74c6",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.23+3cd69d30e"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "b2382b7ca202c344",
+      "url": "https://search.mizuki.st/",
+      "group": "search.mizuki.st",
+      "captured_at": "2026-09-25T16:02:50.068114+00:00",
+      "sha256": "f052900e00a4761ffeaf166c20476d3ace37e9273399fc9da4cdefffd62400d7",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.25+487f51922"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "9a8481abc3453d0b",
+      "url": "https://search.serpensin.com/",
+      "group": "search.serpensin.com",
+      "captured_at": "2026-09-25T16:02:50.801354+00:00",
+      "sha256": "d44354e6a04543536be6657dc9cf6455545623186be9254cb337a861b04bdb3a",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.25+d8ae3abd5"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "a40e20d96d920f67",
+      "url": "https://search.undertale.uk/",
+      "group": "search.undertale.uk",
+      "captured_at": "2026-09-25T16:02:51.784166+00:00",
+      "sha256": "12631af1a6b39d5f1ae3cdf9b4aa4375aded4402bbd51d6de97a968406ae7503",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.12+d4f00d15"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "8e2c3affdcca9c97",
+      "url": "https://searx.linxx.net/",
+      "group": "searx.linxx.net",
+      "captured_at": "2026-09-25T16:02:52.064348+00:00",
+      "sha256": "6a1d74981c9c690fc68166125f25f7e6f1dd591701e3e3728323d62324ddc082",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.23+3cd69d30e"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "bfba0e0e48f5eb54",
+      "url": "https://searx.ononoki.org/",
+      "group": "searx.ononoki.org",
+      "captured_at": "2026-09-25T16:02:52.089914+00:00",
+      "sha256": "1cfe7a92e63295863796002845a691a81d27ca89ed5d69812d7f8add32366b9f",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.25+d8ae3abd5"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "97544c226c577151",
+      "url": "https://searxng.paralaxitaentomology.org/",
+      "group": "searxng.paralaxitaentomology.org",
+      "captured_at": "2026-09-25T16:02:54.679780+00:00",
+      "sha256": "6ab60af098c988d1edae89ecc9e20f209dd93169d9e0e0a656bc71a4f6234d88",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "68eb99ccb687369d",
+      "url": "https://searxng.website/",
+      "group": "searxng.website",
+      "captured_at": "2026-09-25T16:02:55.674788+00:00",
+      "sha256": "6c2450e80e7b0a6ebfad345dd75604703a27e93a0223de4410d03e4e68561720",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.25+1667fe364"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "24c03d50574b79f2",
+      "url": "https://try.karakeep.app/",
+      "group": "karakeep.app",
+      "captured_at": "2026-09-25T16:02:57.656703+00:00",
+      "sha256": "277c85209de80220e5e51e2967bd67b7bf52b3be2f6573ef9dae1b4173bda6c8",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "302f5cbbc6e1596b",
+      "url": "https://wakapi.dev/",
+      "group": "wakapi.dev",
+      "captured_at": "2026-09-25T16:02:56.614578+00:00",
+      "sha256": "94421406e8ac6431d018d9df8c32896cf57d41bf4a4df2f9c0012a504e5e90e5",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": true,
+          "version": "2.18.0-be6aeb4"
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "a04da6570878fb03",
+      "url": "https://www.isci.si/",
+      "group": "www.isci.si",
+      "captured_at": "2026-09-25T16:02:57.538684+00:00",
+      "sha256": "adc7023023f3c2afe2d1da333a77e5b211f738afc3625e264b9e9ad632660275",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": true,
+          "version": "2026.9.23+3cd69d30e"
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "09e85a53a7b4850d",
+      "url": "https://cloud.karakeep.app/signin",
+      "group": "karakeep.app",
+      "captured_at": "2026-09-25T16:05:50.702001+00:00",
+      "sha256": "77074091f1d359b4b834054eef368cd0e94bacb7363b21294b452d9d3984159b",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "e331de721c086202",
+      "url": "https://codingstats.realzone22.de/",
+      "group": "codingstats.realzone22.de",
+      "captured_at": "2026-09-25T16:05:50.303704+00:00",
+      "sha256": "731deda0f5c0eb0bea2e4f97fd9ca41bbc3de1941606b0ce8c234fda4c2de8cf",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": true,
+          "version": "2.18.0"
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "8dd6d80787caae8a",
+      "url": "https://docs.searxng.org/",
+      "group": "docs.searxng.org",
+      "captured_at": "2026-09-25T16:05:51.770395+00:00",
+      "sha256": "66862f9d00640d603cfd43a50910f74006234fbdbeb66a30dfe92db1a5385755",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "fbd19c030c2a721b",
+      "url": "https://raw.githubusercontent.com/CorentinTh/it-tools/main/README.md",
+      "group": "raw.githubusercontent.com",
+      "captured_at": "2026-09-25T16:05:49.692493+00:00",
+      "sha256": "1a3a4c3665beaa75cbe790e4bb88fecea7353e278274290fd1df15bbb3a0bec1",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "0a5bca2c75194b89",
+      "url": "https://raw.githubusercontent.com/docmost/docmost/main/README.md",
+      "group": "raw.githubusercontent.com",
+      "captured_at": "2026-09-25T16:05:50.626716+00:00",
+      "sha256": "5dbb7ec0f3cf18b6225a366e424dff7d90de9c7fee00faf600f23b17f74dd768",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "81a3a968cecaaa27",
+      "url": "https://raw.githubusercontent.com/muety/wakapi/master/README.md",
+      "group": "raw.githubusercontent.com",
+      "captured_at": "2026-09-25T16:05:50.376033+00:00",
+      "sha256": "747e660c59224621d7ad89f29c77833d9d6ecd16b43908f81b8814b8a56a876b",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "ed7fbc949fd767e2",
+      "url": "https://raw.githubusercontent.com/schlagmichdoch/PairDrop/master/README.md",
+      "group": "raw.githubusercontent.com",
+      "captured_at": "2026-09-25T16:05:50.874980+00:00",
+      "sha256": "4e96b5c538e4d47f4b68e8c09dbc372093949f30bc0ef7e8529510fe24a49b1e",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "0dabb37b2a7b3687",
+      "url": "https://tools.code.pro.vn/",
+      "group": "tools.code.pro.vn",
+      "captured_at": "2026-09-25T16:05:54.693801+00:00",
+      "sha256": "4908ff993998339aefc32b3a5c1517a9fe83dc2e5a1e9c4988b5a8033b7cc69d",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "91315c96894dcfd3",
+      "url": "https://tools.quitw.org/",
+      "group": "tools.quitw.org",
+      "captured_at": "2026-09-25T16:05:52.563429+00:00",
+      "sha256": "69d5c4c23f61a2403f372dc297964d7f5303b41568702a8c4f1fddca3df5c16f",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "fba6e296e0acdccc",
+      "url": "https://try.karakeep.app/signin",
+      "group": "karakeep.app",
+      "captured_at": "2026-09-25T16:05:53.634556+00:00",
+      "sha256": "94544d1086d031186e6accc94b82c73f76d01a872c67fe98f592aaa417608bf0",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": false
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": true,
+          "version": ""
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "e693fe9346caa44c",
+      "url": "https://wakapi.anneraud.fr/",
+      "group": "wakapi.anneraud.fr",
+      "captured_at": "2026-09-25T16:05:53.080022+00:00",
+      "sha256": "c9f9b05fdbc2da2234c1f152dab418ae6ffeeaafdab6677e44f2f3a814166763",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": true,
+          "version": "2.18.0"
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "28276d6b56102882",
+      "url": "https://wakapi.m1000.fr/",
+      "group": "wakapi.m1000.fr",
+      "captured_at": "2026-09-25T16:05:53.920039+00:00",
+      "sha256": "bb456f874905c48d870d5571c445128554c3d04fa8dc8a643cd6cf22f1a61865",
+      "product_labels": [
+        {
+          "product": "SearXNG",
+          "present": false
+        },
+        {
+          "product": "Wakapi",
+          "present": true,
+          "version": "2.12.0"
+        },
+        {
+          "product": "IT Tools",
+          "present": false
+        },
+        {
+          "product": "PairDrop",
+          "present": false
+        },
+        {
+          "product": "Docmost",
+          "present": false
+        },
+        {
+          "product": "Linkwarden",
+          "present": false
+        },
+        {
+          "product": "Karakeep",
+          "present": false
+        },
+        {
+          "product": "New API",
+          "present": false
+        }
+      ]
+    }
+  ],
+  "source_revision": "2d296928c8847bbc60dbfedad77e68bbfea00d14",
+  "source_worktree_dirty": true,
+  "code_sha256": {
+    "judge/cache.go": "5c80af5ec1e0fc210ce650282f9f38568b7c0323e841426d9150980753a6c345",
+    "judge/classify.go": "60471102fecea7e10bbeac81ec61ed65dc7f503721f7f6452986c303ffb39de5",
+    "judge/discovery.go": "b9281f9eceac0e09ff4d93f06557450dc17446956a7b5b686914880954bdcacd",
+    "judge/doc.go": "505a382e87b75d706bfd7962088fe62d4c408597bc41920bfe00e2e1d711fbae",
+    "judge/generator.go": "8fc8537de9c6aaf233efafc12090e9d9db387154f5ee01a0ebc263e7a3aa3745",
+    "judge/judge.go": "56ec5d8da51b4edf5bbaa3b2f76b7b80da1926cba7695094f1ce918e8d903535",
+    "judge/judge_test.go": "6ae85fd3db383235fa76b53fe18e8c5be6d8117420b6cbd68d089d9101eba8a3",
+    "judge/mark.go": "6c8a7be884737668f54399acb2efd7c262fb5f4bed25183c490ab12561432f56",
+    "judge/operations.go": "ae5fb0f3b655e008c40ceafcf9c454c4148e654b1badbceeff8454158d83b57c",
+    "judge/operations_test.go": "417525756c47ff90487b3184d8628b95865894363075839035d8d97d13653777",
+    "judge/page.go": "d935eba4d1f80d4ac9747e0c7da5090270dcb5a886c1df73ff1f363bcc4a2029",
+    "judge/provider.go": "722dcdc8bb7339444cb9b831aa1c6f4e2f7f89ead5f7786aa1f9de26c97c6c92",
+    "judge/real_evidence_test.go": "ccb2e1ee43ade119ac4229f69507ab027ab37b8bd76004c148750016b5ab586a",
+    "judge/recall.go": "1f27353e28455daf593aa3cacccc46a158bfe41c9f70611cc46f906386bc5b68",
+    "judge/refine.go": "94cbd144fe3d8694cc2d1ea2fa0770e8ae977f7fdacfc8865a9dad8f3d5915bb",
+    "judge/round.go": "5750ca5939311685ec7db1d16db1437d7a07cba3d953d7c9ef7381197aa22593",
+    "judge/stack.go": "a513102b88af5d1fa0e91bb661cb8518b03e9b0dfc4141885082b600376331bf",
+    "judge/verify.go": "92a1be4b91eeb3553154ec7977c3b087914112b09c06d3421e029b5c31e303f5",
+    "judge/version.go": "ade768f2f2c93761d2769487c106758f7139707bd548a5aaaeecdcd021f911a1",
+    "cmd/judgeeval/main.go": "bc401d84036b9beee951bdac2bbe38098b54ecc33eb6c36815b201070d577afa",
+    "cmd/judgeeval/maintenance.go": "12e80ffd99b5e91a47a1bc72e991190396731b358a1604e19151adf19e6d7574",
+    "cmd/judgeeval/maintenance_test.go": "0640e8764a867cb5429613df3e05347b1da8ffa717aa21887565e4d97fe6d2a1",
+    "cmd/judgeeval/replay.go": "1f1a470d3bef3ce1936205407db8a5d42ec893f27fb43c8824aa6340f0f5aa6f",
+    "cmd/judgeeval/replay_generation.go": "9792c010021381863237d7ca204df024c308339bf8b4387f949db0600cb53e66",
+    "cmd/judgeeval/replay_metrics.go": "1c1db0deaf9bfa9e87527e83b2cbadf6c96c770aa958f13764ccdeff39f95d5f",
+    "cmd/judgeeval/replay_test.go": "9a10f9f6ea907f34f2b99d283b85378a2b86f9d0ae97ff84a4e4b45e44891168"
+  }
+}

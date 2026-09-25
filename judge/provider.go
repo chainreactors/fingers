@@ -12,7 +12,7 @@ type Provider interface {
 	// change it whenever the same question may be answered differently.
 	ID() string
 	// Judge answers every question in one call, keyed as questions are.
-	// A missing answer is treated as no answer, not as an error.
+	// Every requested key must have an answer; missing answers fail the round.
 	Judge(ctx context.Context, state interface{}, questions map[string]Question) (map[string]Answer, error)
 }
 

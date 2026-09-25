@@ -69,7 +69,7 @@ func PrimaryOf(frames common.Frameworks) *common.Framework {
 func Accepted(frames common.Frameworks) common.Frameworks {
 	out := common.Frameworks{}
 	for k, f := range frames {
-		if !Is(f, Rejected) && !Is(f, Duplicate) {
+		if f != nil && !Is(f, Rejected) && !Is(f, Duplicate) {
 			out[k] = f
 		}
 	}

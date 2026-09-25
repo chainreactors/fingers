@@ -23,6 +23,7 @@ type Page struct {
 	Cookies     []string          `json:"cookie_names,omitempty"`
 	Title       string            `json:"title,omitempty"`
 	Generator   string            `json:"meta_generator,omitempty"`
+	Description string            `json:"meta_description,omitempty"`
 	Scripts     []string          `json:"script_src,omitempty"`
 	Styles      []string          `json:"stylesheet_href,omitempty"`
 	InlineHints []string          `json:"inline_script_starts,omitempty"` // first chars of inline scripts, e.g. "(function(w,d,s,l,i){ ... GTM"
@@ -47,23 +48,27 @@ var (
 		// per-request values: no signal, and they would defeat the cache
 		"X-Request-Id": true, "X-Amzn-Trace-Id": true, "Cf-Ray": true, "X-Runtime": true, "Server-Timing": true}
 
-	reTitle     = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reGenerator = regexp.MustCompile(`(?is)<meta[^>]+name=["']generator["'][^>]*content=["']([^"']+)|<meta[^>]+content=["']([^"']+)["'][^>]*name=["']generator["']`)
-	reScript    = regexp.MustCompile(`(?is)<script[^>]+src=["']([^"']+)`)
-	reStyle     = regexp.MustCompile(`(?is)<link[^>]+rel=["']?stylesheet[^>]*href=["']([^"']+)|<link[^>]+href=["']([^"']+)["'][^>]*rel=["']?stylesheet`)
-	reInline    = regexp.MustCompile(`(?is)<script(?:\s[^>]*)?>(.*?)</script>`)
-	reComment   = regexp.MustCompile(`(?s)<!--(.*?)-->`)
-	reInput     = regexp.MustCompile(`(?is)<input[^>]*>`)
-	reAttrName  = regexp.MustCompile(`(?is)\b(?:name|id)=["']([^"']+)`)
-	reAttrType  = regexp.MustCompile(`(?is)\btype=["']([^"']+)`)
-	reDropBlock = regexp.MustCompile(`(?is)<(script|style|noscript)[^>]*>.*?</(script|style|noscript)>`)
-	reTag       = regexp.MustCompile(`(?s)<[^>]+>`)
-	reSpace     = regexp.MustCompile(`\s+`)
+	reTitle       = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	reGenerator   = regexp.MustCompile(`(?is)<meta[^>]+name=["']generator["'][^>]*content=["']([^"']+)|<meta[^>]+content=["']([^"']+)["'][^>]*name=["']generator["']`)
+	reDescription = regexp.MustCompile(`(?is)<meta[^>]+name=["']description["'][^>]*content=["']([^"']+)|<meta[^>]+content=["']([^"']+)["'][^>]*name=["']description["']`)
+	reScript      = regexp.MustCompile(`(?is)<script[^>]+src=["']([^"']+)`)
+	reStyle       = regexp.MustCompile(`(?is)<link[^>]+rel=["']?stylesheet[^>]*href=["']([^"']+)|<link[^>]+href=["']([^"']+)["'][^>]*rel=["']?stylesheet`)
+	reInline      = regexp.MustCompile(`(?is)<script(?:\s[^>]*)?>(.*?)</script>`)
+	reComment     = regexp.MustCompile(`(?s)<!--(.*?)-->`)
+	reInput       = regexp.MustCompile(`(?is)<input[^>]*>`)
+	reAttrName    = regexp.MustCompile(`(?is)\b(?:name|id)=["']([^"']+)`)
+	reAttrType    = regexp.MustCompile(`(?is)\btype=["']([^"']+)`)
+	reDropBlock   = regexp.MustCompile(`(?is)<(script|style|noscript)[^>]*>.*?</(script|style|noscript)>`)
+	reTag         = regexp.MustCompile(`(?s)<[^>]+>`)
+	reSpace       = regexp.MustCompile(`\s+`)
 	// Allows a v/V/x/X prefix ("X3.4", "V8.1SP2") and a letter suffix; rejects
 	// digits glued to other digits or dots so IPs and long builds stay out.
 	reGenMajor = regexp.MustCompile(`(?i)generator["'][^>]*content=["'][A-Za-z][^"']*?\s[vV]?(\d{1,3})(?:[\s"'(]|$)|content=["'][A-Za-z][^"']*?\s[vV]?(\d{1,3})(?:[\s(][^"']*)?["'][^>]*name=["']generator`)
-	reVersion  = regexp.MustCompile(`(?:^|[^0-9A-Za-z.])[vVxX]?(\d{1,3}\.\d{1,3}(?:\.\d{1,4}){0,2})(?:[^0-9.]|$)`)
+	reVersion  = regexp.MustCompile(`(?:^|[^0-9A-Za-z.])[vVxX]?(` + versionToken + `)(?:[^0-9A-Za-z.]|\.[A-Za-z]|$)`)
 )
+
+// Keep release suffixes and calendar versions (e.g. 2026.9.23+3cd69d30e).
+const versionToken = `[0-9]{1,4}(?:\.[0-9]{1,4}){1,3}(?:[A-Za-z]+[0-9]*|[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?`
 
 const (
 	maxHeaderValue = 160
@@ -94,6 +99,9 @@ func NewPage(raw []byte) (*Page, error) {
 	}
 	if m := reGenerator.FindStringSubmatch(html); m != nil {
 		s.Generator = m[1] + m[2]
+	}
+	if m := reDescription.FindStringSubmatch(html); m != nil {
+		s.Description = truncate(clean(m[1]+m[2]), 300)
 	}
 	for _, m := range reScript.FindAllStringSubmatch(html, 8) {
 		s.Scripts = append(s.Scripts, m[1])
@@ -136,6 +144,7 @@ func (s *Page) Haystack() string {
 	}
 	b.WriteString(strings.Join(s.Cookies, " ") + "\n")
 	b.WriteString(s.Title + "\n" + s.Generator + "\n")
+	b.WriteString(s.Description + "\n")
 	b.WriteString(strings.Join(s.Scripts, " ") + "\n")
 	b.WriteString(strings.Join(s.Styles, " ") + "\n")
 	b.WriteString(strings.Join(s.InlineHints, " ") + "\n")
@@ -178,6 +187,7 @@ func (s *Page) Evidence(name string) []string {
 	check("cookie", strings.Join(s.Cookies, " "))
 	check("title", s.Title)
 	check("meta", s.Generator)
+	check("description", s.Description)
 	check("script", strings.Join(s.Scripts, " ")+" "+strings.Join(s.InlineHints, " "))
 	check("style", strings.Join(s.Styles, " "))
 	check("comment", strings.Join(s.Comments, " "))
@@ -230,6 +240,7 @@ func (s *Page) Signature() uint64 {
 		}
 	}
 	add("status", s.Status, 3)
+	add("description", s.Description, 3)
 	for k, val := range s.Headers {
 		add("header", k+": "+val, 3)
 	}

@@ -90,18 +90,17 @@ func TestFavicon(t *testing.T) {
 
 ```golang
 j, _ := jev.NewJudge("")                         // 读取 TYPESAFE_API_KEY；自带缓存和相似页面去重
-engine.AttachJudge(j)
 
 frames, _ := engine.DetectContent(raw)           // 同步，纯规则
-page, err := engine.Refine(ctx, raw, frames)     // 通常异步执行；原地标注 frames，失败时保持规则结果
+accepted, kind, generic, err := j.Refine(ctx, raw, frames)
 if err == nil {
-    fmt.Println(page.Kind, judge.Accepted(frames)) // 页面类型；去掉误报和重复后的结果
+    fmt.Println(kind, generic, accepted)           // frames 保持原始规则命中
 }
 ```
 
 在 1070 个真实页面上：每页结果从 13.4 条降到 6.5 条，同名重复全部归并，版本号对照 generator 从 43 个正确提升到 191 个，并额外召回了 468 个规则漏掉的产品。成本约每万页 $3.4。
 
-完整的能力、标注方式（`judge.Is(f, judge.Rejected)` 等）、缓存、自定义问题以及如何接入新的 Provider，见 [judge/README.md](judge/README.md)；设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
+完整的能力、`Inspect` 诊断、未知产品判定、指纹生成器、缓存和 Provider 接口，见 [judge/README.md](judge/README.md)；设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
 
 ## fingers 引擎
 

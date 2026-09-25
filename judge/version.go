@@ -92,9 +92,6 @@ func extractVersions(raw []byte, max int) []versionString {
 			}
 			continue
 		}
-		if len(out) >= max {
-			continue
-		}
 		seen[v] = len(out)
 		out = append(out, versionString{Value: v, Context: ctx})
 	}
@@ -104,13 +101,19 @@ func extractVersions(raw []byte, max int) []versionString {
 		if lo < 0 {
 			lo, hi = m[4], m[5]
 		}
-		if v := text[lo:hi]; len(out) < max {
+		if v := text[lo:hi]; v != "" {
 			if _, ok := seen[v]; ok {
 				continue
 			}
 			seen[v] = len(out)
 			out = append(out, versionString{Value: v, Context: clean(strings.ToValidUTF8(text[m[0]:m[1]], ""))})
 		}
+	}
+	// Select evidence after scanning: SVG numbers or early library assets must
+	// not crowd later generator/header/script versions out of the shortlist.
+	if len(out) > max {
+		sort.SliceStable(out, func(i, j int) bool { return contextWeight(out[i].Context) > contextWeight(out[j].Context) })
+		out = out[:max]
 	}
 	return out
 }
@@ -121,9 +124,11 @@ func contextWeight(ctx string) int {
 	c := strings.ToLower(ctx)
 	switch {
 	case strings.Contains(c, "generator"):
-		return 3
+		return 5
 	case strings.Contains(c, "server:") || strings.Contains(c, "x-powered-by:") || strings.Contains(c, "product:"):
-		return 2
+		return 4
+	case strings.Contains(c, "<script") || strings.Contains(c, "<link") || strings.Contains(c, ".js") || strings.Contains(c, ".css"):
+		return 3
 	case strings.Contains(c, "/plugins/") || strings.Contains(c, "/themes/"):
 		return 0
 	}

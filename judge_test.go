@@ -15,17 +15,13 @@ func TestRefineWithJudge(t *testing.T) {
 	}
 	raw := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Welcome to nginx!</title>")
 	frames, _ := engine.DetectContent(raw)
-	if _, err := engine.Refine(context.Background(), raw, frames); err != ErrNoJudge {
-		t.Fatalf("want ErrNoJudge, got %v", err)
-	}
-
-	engine.AttachJudge(judge.New(server{}))
-	page, err := engine.Refine(context.Background(), raw, frames)
+	j := judge.New(server{})
+	accepted, kind, _, err := j.Refine(context.Background(), raw, frames)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if page.Kind != judge.KindDefault || judge.LayerOf(frames["nginx"]) != judge.LayerServer {
-		t.Fatalf("kind %q, nginx %v", page.Kind, frames["nginx"].Tags)
+	if kind != judge.KindDefault || judge.LayerOf(accepted["nginx"]) != judge.LayerServer || judge.Judged(frames["nginx"]) {
+		t.Fatalf("kind %q, accepted %v, input %v", kind, accepted["nginx"], frames["nginx"])
 	}
 }
 
@@ -42,6 +38,8 @@ func (server) Judge(ctx context.Context, state interface{}, questions map[string
 			answers[k] = judge.Answer{Choice: string(judge.LayerServer)}
 		case k == "page_kind":
 			answers[k] = judge.Answer{Choice: string(judge.KindDefault)}
+		case k == "primary":
+			answers[k] = judge.Answer{Choice: "none_of_these"}
 		default:
 			answers[k] = judge.Answer{Yes: 0.9, Choice: "not_stated"}
 		}

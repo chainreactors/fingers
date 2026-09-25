@@ -28,7 +28,7 @@ var layerCriteria = map[string]string{
 	string(LayerServer):      "The HTTP server or proxy software, such as nginx, Apache httpd, IIS, Tomcat",
 	string(LayerRuntime):     "A programming language or runtime, such as PHP, Java, ASP.NET, Node.js",
 	string(LayerFramework):   "A backend web framework, such as Spring, Django, Laravel, ThinkPHP",
-	string(LayerApplication): "The application or product the page belongs to: CMS, OA, admin console, SaaS app, forum, monitoring tool",
+	string(LayerApplication): "The application whose interface this is: CMS, OA, admin console, SaaS app, forum, monitoring tool, search engine, or packaged static/browser-side tools; a documentation subject is not the application serving the docs",
 	string(LayerFrontend):    "A browser-side library, UI kit, analytics or tag script, such as jQuery, Bootstrap, Google Analytics",
 	string(LayerDevice):      "An operating system or the firmware of a hardware device such as a router, camera, NAS or firewall",
 	string(LayerNotPresent):  "Not part of the software serving this response: only mentioned in text, or absent",

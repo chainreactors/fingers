@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -111,12 +113,27 @@ func (j *Judge) ask(ctx context.Context, state interface{}, questions map[string
 				continue // the request we waited on failed: try again, possibly as the leader
 			}
 			for k := range missing {
-				answers[k] = f.answers[keys[k]]
+				if a, ok := f.answers[keys[k]]; ok {
+					answers[k] = a
+				}
 			}
 			atomic.AddInt64(&j.CacheHits, 1)
 			return answers, nil
 		}
 		got, err := j.Provider.Judge(ctx, state, missing)
+		if err == nil {
+			for k, q := range missing {
+				a, ok := got[k]
+				if !ok {
+					err = fmt.Errorf("judge: provider omitted answer %q", k)
+					break
+				}
+				if err = validateAnswer(q, a); err != nil {
+					err = fmt.Errorf("judge: answer %q: %w", k, err)
+					break
+				}
+			}
+		}
 		var byKey map[string]Answer
 		if err == nil {
 			atomic.AddInt64(&j.Requests, 1)
@@ -139,6 +156,32 @@ func (j *Judge) ask(ctx context.Context, state interface{}, questions map[string
 		}
 		return answers, nil
 	}
+}
+
+func validateAnswer(q Question, a Answer) error {
+	validProbability := func(value float64) bool {
+		return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0 && value <= 1
+	}
+	switch q.Type {
+	case TypeBinary:
+		if !validProbability(a.Yes) {
+			return fmt.Errorf("invalid yes probability %v", a.Yes)
+		}
+	case TypeChoice:
+		if _, ok := q.Options[a.Choice]; !ok {
+			return fmt.Errorf("unknown choice %q", a.Choice)
+		}
+		if !validProbability(a.Confidence) {
+			return fmt.Errorf("invalid confidence %v", a.Confidence)
+		}
+	case TypeScore:
+		if !validProbability(a.Score) {
+			return fmt.Errorf("invalid score %v", a.Score)
+		}
+	default:
+		return fmt.Errorf("unknown question type %q", q.Type)
+	}
+	return nil
 }
 
 func (j *Judge) cached(key string, sig uint64) (Answer, bool) {

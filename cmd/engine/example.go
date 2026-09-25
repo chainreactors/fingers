@@ -220,25 +220,19 @@ func main() {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			engine.AttachJudge(j)
-			page, err := engine.Refine(context.Background(), content, frames)
+			accepted, kind, generic, err := j.Refine(context.Background(), content, frames)
 			if err != nil {
 				fmt.Printf("jev failed, showing the rule result: %v\n", err)
 			} else {
-				fmt.Printf("page: %s, generic: %v\n", page.Kind, page.Generic)
-				for _, frame := range frames {
+				fmt.Printf("page: %s, generic: %v\n", kind, generic)
+				for _, frame := range accepted {
 					verdict := "accepted"
-					for _, m := range []judge.Mark{judge.Rejected, judge.Duplicate} {
-						if judge.Is(frame, m) {
-							verdict = string(m)
-						}
-					}
 					if judge.Is(frame, judge.Primary) {
 						verdict += ",primary"
 					}
 					fmt.Printf("  %-40s %-10s %-18s %s\n", frame.Name, frame.Version, judge.LayerOf(frame), verdict)
 				}
-				fmt.Printf("accepted: %s\n", judge.Accepted(frames).String())
+				fmt.Printf("accepted: %s\n", accepted.String())
 				return
 			}
 		}

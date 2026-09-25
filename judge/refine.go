@@ -6,20 +6,50 @@ import (
 	"github.com/chainreactors/fingers/common"
 )
 
-// Refine is the default pipeline: Verify and Classify in one request, then
-// the version of the page's subject in a second one. frames and p are
-// annotated in place; on error the second round's annotations are missing,
-// the first round's are complete or absent.
-func Refine(ctx context.Context, j *Judge, p *Page, frames common.Frameworks, recall []string) error {
-	r := p.Round()
-	Verify(r, frames, recall)
+// refine keeps the first round's output private until version resolution ends.
+func runRefine(ctx context.Context, j *Judge, p *Page, frames common.Frameworks, recall []string) (common.Frameworks, error) {
+	working := cloneFrameworks(frames)
+	page := *p
+	r := page.Round()
+	Verify(r, working, recall)
 	Classify(r)
 	if err := r.Ask(ctx, j); err != nil {
-		return err
+		return nil, err
 	}
-	r = p.Round()
-	Version(r, subject(frames))
-	return r.Ask(ctx, j)
+	r = page.Round()
+	Version(r, subject(working))
+	if err := r.Ask(ctx, j); err != nil {
+		return nil, err
+	}
+	p.Kind, p.Generic = page.Kind, page.Generic
+	return working, nil
+}
+
+func cloneFrameworks(frames common.Frameworks) common.Frameworks {
+	working := make(common.Frameworks, len(frames))
+	for name, f := range frames {
+		working[name] = cloneFramework(f)
+	}
+	return working
+}
+
+func cloneFramework(f *common.Framework) *common.Framework {
+	if f == nil {
+		return nil
+	}
+	copy := *f
+	copy.Tags = append([]string(nil), f.Tags...)
+	if f.Froms != nil {
+		copy.Froms = make(map[common.From]bool, len(f.Froms))
+		for from, present := range f.Froms {
+			copy.Froms[from] = present
+		}
+	}
+	if f.Attributes != nil {
+		attrs := *f.Attributes
+		copy.Attributes = &attrs
+	}
+	return &copy
 }
 
 // subject is the product whose version the page most likely shows: the

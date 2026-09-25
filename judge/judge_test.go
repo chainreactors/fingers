@@ -60,9 +60,9 @@ type mock struct {
 func newMock() *mock {
 	return &mock{
 		versionP: 0.95,
-		present:  map[string]float64{"nginx": 0.1, "wordpress": 0.05, "jenkins": 0.97, "apache tomcat": 0.8, "Prototype": 0.9},
+		present:  map[string]float64{"nginx": 0.1, "wordpress": 0.05, "jenkins": 0.97, "apache tomcat": 0.8, "prototype": 0.9},
 		layer: map[string]Layer{"nginx": LayerServer, "wordpress": LayerNotPresent, "jenkins": LayerApplication,
-			"apache tomcat": LayerServer, "Prototype": LayerFrontend},
+			"apache tomcat": LayerServer, "prototype": LayerFrontend},
 		primary: "jenkins",
 	}
 }
@@ -92,7 +92,7 @@ func (m *mock) Judge(ctx context.Context, state interface{}, questions map[strin
 	var keys []string
 	for k, q := range questions {
 		keys = append(keys, k)
-		name := named(q)
+		name := strings.ToLower(named(q))
 		switch {
 		case strings.HasPrefix(k, "is_"):
 			answers[k] = Answer{Yes: m.present[name]}
@@ -105,7 +105,16 @@ func (m *mock) Judge(ctx context.Context, state interface{}, questions map[strin
 		case k == "generic":
 			answers[k] = Answer{Yes: 0.9}
 		case k == "version":
-			answers[k] = Answer{Choice: "2.401.3", Confidence: m.versionP}
+			choice := "2.401.3"
+			if _, ok := q.Options[choice]; !ok {
+				for candidate := range q.Options {
+					if candidate != notStated {
+						choice = candidate
+						break
+					}
+				}
+			}
+			answers[k] = Answer{Choice: choice, Confidence: m.versionP}
 		default:
 			answers[k] = Answer{Yes: 0.7}
 		}
@@ -133,7 +142,13 @@ func refine(t *testing.T, c *Judge, frames common.Frameworks) (*Page, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return p, Refine(context.Background(), c, p, frames, []string{"Jenkins", "Prototype"})
+	out, err := runRefine(context.Background(), c, p, frames, []string{"Jenkins", "Prototype"})
+	if err == nil {
+		for name, f := range out {
+			frames[name] = f
+		}
+	}
+	return p, err
 }
 
 func TestRefine(t *testing.T) {
@@ -328,7 +343,7 @@ func TestExtractVersionsPrefixes(t *testing.T) {
 	for _, c := range extractVersions([]byte(raw), 10) {
 		got = append(got, c.Value)
 	}
-	if strings.Join(got, ",") != "3.4,8.1,3.7.1" {
+	if strings.Join(got, ",") != "3.4,8.1SP2,3.7.1" {
 		t.Fatalf("got %v", got)
 	}
 }
@@ -387,11 +402,13 @@ func TestVersionWithoutPrimary(t *testing.T) {
 	defer stop()
 	frames := common.Frameworks{}
 	frames.Add(common.NewFramework("nginx", common.FrameFromFingers))
-	if _, err := refine(t, c, frames); err != nil {
+	p, _ := NewPage([]byte(jenkinsRaw))
+	result, err := runRefine(context.Background(), c, p, frames, nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if PrimaryOf(frames) != nil || frames["nginx"].Version == "" {
-		t.Fatalf("subject version not asked: %+v", frames["nginx"])
+	if PrimaryOf(result) != nil || result["nginx"].Version == "" {
+		t.Fatalf("subject version not asked: %+v", result["nginx"])
 	}
 }
 
