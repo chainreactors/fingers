@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: openresty
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html><head><title>智慧园区综合管理平台</title><script src="/static/js/app.8f3a.js"></script></head><body><div id="app"><h3>智慧园区综合管理平台 V3.2.1</h3><input name="username" type="text"><input name="password" type="password"><input name="captcha" type="text"><button>登录</button><p>技术支持：某某科技有限公司</p></div></body></html>

@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: nginx
+Set-Cookie: ACME_SID=5d1e; path=/; HttpOnly
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>ACME Corp · Employee Portal</title><link rel="stylesheet" href="/static/portal.css?build=20260902"><script src="/static/vendor/react.production.min.js"></script><script src="/static/portal.bundle.js?build=20260902"></script></head><body><div id="app"><img src="/static/acme-logo.svg" alt="ACME Corp"><h2>Sign in to the ACME Employee Portal</h2><form action="/auth/login" method="post"><input name="employee_id" type="text" placeholder="Employee ID"><input name="password" type="password"><button type="submit">Sign in</button></form><p>Trouble signing in? Contact the ACME IT Service Desk at ext. 4400.</p></div></body></html>

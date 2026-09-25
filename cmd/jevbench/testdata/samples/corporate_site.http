@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html><head><title>Northwind Logistics - Freight and Warehousing</title><script src="/assets/main.js"></script></head><body><h1>Northwind Logistics</h1><p>We move freight across 40 countries. Contact our sales team for a quote.</p><a href="/about">About</a> <a href="/careers">Careers</a></body></html>

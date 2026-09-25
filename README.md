@@ -84,6 +84,50 @@ func TestFavicon(t *testing.T) {
 
 更多用法请见: https://chainreactors.github.io/wiki/libs/fingers/sdk/
 
+## Jev 判定层
+
+规则引擎召回能力强，但会有误报、多个引擎的同名重复，也分不清主应用和底层组件，版本号更是难以拿准。`jev` 包在规则结果之上接入 [TypeSafe Jev](https://docs.typesafe.ai/api.md)，做一层判定：由规则和代码负责召回，Jev 只对证据做判断，最终决策由代码做出。它不是新的引擎，`WebMatch` 和 `DetectContent` 的行为保持不变。设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
+
+```golang
+client, _ := jev.NewClient("")           // 读取 TYPESAFE_API_KEY
+client.Cache = jev.NewMemoryCache(10000) // 可选，按请求内容缓存
+engine.AttachJev(client)
+
+frames, _ := engine.DetectContent(raw)            // 同步，纯规则
+page, err := engine.Refine(ctx, raw, frames)      // 通常异步执行；原地标注 frames
+if err == nil {
+    fmt.Println(page.Kind, jev.Accepted(frames))  // 页面类型；去掉误报和重复后的结果
+}
+```
+
+`Refine` 在 frames 上原地打标签，不删除任何条目：
+
+| 标签 | 含义 |
+|---|---|
+| `jev:rejected` | 误报：不在技术栈里，或者只是正文里提到。名字出现在 header/cookie 中的命中永远不会被否决 |
+| `jev:dup` | 另一个引擎对同一产品的另一种写法 |
+| `jev:layer=<layer>` | 所属层级：`cdn_or_waf`、`web_server`、`language_runtime`、`web_framework`、`application`、`frontend_library`、`os_or_device` |
+| `jev:primary` | 本页所属的主应用。主应用没有版本号时，由 Jev 从页面上的版本字符串中选出，置信度 ≥0.9 才写入 |
+| `jev:recall` | 漏报：规则没有命中，但指纹名在页面中出现且经 Jev 确认，以 `guess` 来源加入 |
+
+每页最多 2 次请求。请求失败时 frames 保持规则结果不变。
+
+各项能力都是可以单独使用的函数，组合在一个 `Round`（即一次请求）里：
+
+```golang
+page, _ := jev.NewPage(raw)
+r := page.Round()
+jev.Classify(r)                               // 只做页面类型 / 是否通用页面，例如用于 404 识别
+r.Add("honeypot", jev.Noul("Is this a honeypot?"), func(a jev.Answer) { /* 自定义问题 */ })
+err := r.Ask(ctx, client)
+
+r = page.Round()
+jev.Version(r, frame)                         // 只给某个已确定的产品补版本号
+err = r.Ask(ctx, client)
+```
+
+边界：改过品牌的产品 Jev 认不出来，召回仍然靠规则；阈值针对 `jev.DefaultModel` 调过，换模型后要用 `cmd/jevbench` 重新评测。
+
 ## fingers 引擎
 
 fingers指纹引擎是目前特性最丰富, 性能最强的指纹规则库.

@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Set-Cookie: JSESSIONID.8f3c2a1b=node0abc; Path=/; HttpOnly
+X-Content-Type-Options: nosniff
+Content-Type: text/html;charset=utf-8
+
+<!DOCTYPE html><html><head resURL="/static/5e7f1a2b" data-rooturl="" data-resurl="/static/5e7f1a2b"><title>Sign in [ACME Build]</title><link rel="stylesheet" href="/static/5e7f1a2b/jsbundles/simple-page.css" type="text/css"><script src="/static/5e7f1a2b/scripts/prototype.js"></script><script src="/static/5e7f1a2b/scripts/hudson-behavior.js"></script></head><body><div class="simple-page" role="main"><form method="post" name="login" action="j_spring_security_check"><div class="logo"><h1>Welcome to ACME Build!</h1></div><input name="j_username" id="j_username" type="text" autocapitalize="off" aria-label="Username"><input name="j_password" id="j_password" type="password" aria-label="Password"><input name="from" type="hidden" value="/"><input id="remember_me" name="remember_me" type="checkbox"><button type="submit" name="Submit" class="submit-button">Sign in</button></form></div></body></html>

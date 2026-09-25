@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/jev"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/encode"
 	"github.com/chainreactors/utils/httputils"
@@ -34,6 +37,9 @@ var opts struct {
 
 	// 是否只检测favicon
 	FaviconOnly bool `short:"f" long:"favicon" description:"Only detect favicon"`
+
+	// 在规则结果之上运行 Jev 判定层, 需要 TYPESAFE_API_KEY
+	Jev bool `long:"jev" description:"Judge the rule result with Jev (needs TYPESAFE_API_KEY)"`
 
 	// 资源文件覆盖
 	GobyFile                  string `long:"goby" description:"Override goby.json.gz with custom file"`
@@ -196,7 +202,32 @@ func main() {
 			frames.Add(frame)
 		}
 	} else {
+		var content []byte
+		if opts.Jev { // Refine needs the raw response; put the body back for Match
+			content = httputils.ReadRaw(resp)
+			body, _, _ := httputils.SplitHttpRaw(content)
+			resp.Body = ioutil.NopCloser(bytes.NewReader(body))
+		}
 		frames = engine.Match(resp)
+		if opts.Jev {
+			client, err := jev.NewClient("")
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			engine.AttachJev(client)
+			page, err := engine.Refine(context.Background(), content, frames)
+			if err != nil {
+				fmt.Printf("jev failed, showing the rule result: %v\n", err)
+			} else {
+				fmt.Printf("page: %s, generic: %v\n", page.Kind, page.Generic)
+				for _, frame := range frames {
+					fmt.Printf("  %-40s %-10s %v\n", frame.Name, frame.Version, frame.Tags)
+				}
+				fmt.Printf("accepted: %s\n", jev.Accepted(frames).String())
+				return
+			}
+		}
 	}
 
 	// 输出结果

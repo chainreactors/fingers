@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: Apache/2.4.41 (Ubuntu)
+Content-Type: text/html;charset=UTF-8
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN"><html><head><title>Index of /backup</title></head><body><h1>Index of /backup</h1><table><tr><th>Name</th><th>Last modified</th><th>Size</th></tr><tr><td><a href="/">Parent Directory</a></td></tr><tr><td><a href="db_2026-09-01.sql.gz">db_2026-09-01.sql.gz</a></td><td>2026-09-01 03:00</td><td>12M</td></tr></table><address>Apache/2.4.41 (Ubuntu) Server at 10.0.0.5 Port 80</address></body></html>

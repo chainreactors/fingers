@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+Server: nginx
+X-Gitlab-Meta: {"correlation_id":"01HB2X","version":"1"}
+X-Request-Id: 01HB2X
+Set-Cookie: _gitlab_session=3f1c; path=/; HttpOnly
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html class="gl-light" lang="en"><head><meta charset="utf-8"><title>Sign in · GitLab</title><meta content="GitLab" property="og:site_name"><meta content="GitLab Community Edition" property="og:description"><link rel="stylesheet" href="/assets/application-6ff4ea.css"><script src="/assets/webpack/runtime.1a2b3c4d.bundle.js" defer="defer"></script><script src="/assets/webpack/main.5e6f7a8b.chunk.js" defer="defer"></script></head><body class="login-page navless" data-page="sessions:new"><div class="container"><h1>GitLab Community Edition</h1><form class="gl-show-field-errors" action="/users/sign_in" method="post"><input type="text" name="user[login]" id="user_login" autocomplete="username"><input type="password" name="user[password]" id="user_password"><input type="checkbox" name="user[remember_me]" id="user_remember_me"><button type="submit">Sign in</button></form><p>Don't have an account yet? <a href="/users/sign_up">Register now</a></p></div></body></html>

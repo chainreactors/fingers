@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: cloudflare
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html><head><title>Migrating our CI from Jenkins to GitHub Actions | DevNotes</title><meta name="generator" content="Hugo 0.121.1"></head><body><article><h1>Migrating our CI from Jenkins to GitHub Actions</h1><p>For five years our team ran Jenkins with a pile of Groovy pipelines. We also had a legacy ThinkPHP admin panel that depended on it. This post explains why we moved to GitHub Actions and what we learned.</p><p>Tags: ci, jenkins, devops</p></article></body></html>

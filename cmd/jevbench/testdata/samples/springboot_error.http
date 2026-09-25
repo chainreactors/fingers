@@ -1,0 +1,4 @@
+HTTP/1.1 404 Not Found
+Content-Type: text/html;charset=UTF-8
+
+<html><body><h1>Whitelabel Error Page</h1><p>This application has no explicit mapping for /error, so you are seeing this as a fallback.</p><div id='created'>Tue Sep 24 10:00:00 CST 2026</div><div>There was an unexpected error (type=Not Found, status=404).</div></body></html>
