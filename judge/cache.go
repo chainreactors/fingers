@@ -1,4 +1,4 @@
-package jev
+package judge
 
 import (
 	"container/list"
@@ -6,17 +6,22 @@ import (
 	"sync"
 )
 
-// SimilarDistance is how many of the 64 signature bits two pages may differ
-// in to share cached answers; 0 shares answers only between identical pages.
-var SimilarDistance = 3
+// SimilarDistance is how many of the 64 signature bits two pages with the
+// same title may differ in to share cached answers; 0 shares answers only
+// between pages with identical signatures. Measured with cmd/judgeeval on
+// 1070 real pages: every answer reused at distance <= 1 matched the page's
+// own answer (159/159), at 2 it was 98.5%, at 3 96.9%.
+var SimilarDistance = 1
 
-// Cache stores successful responses. key covers everything that must match
-// exactly: model, questions and named evidence such as version strings. sig
-// is the page's Signature: a cache may return the answers of a page whose
-// signature is within SimilarDistance bits, so near-identical pages (the
-// same product's login page on many hosts) cost one request. Jev answers an
-// identical request identically, so an exact hit is always valid.
-// Implementations must be safe for concurrent use.
+// Cache stores answers, one per question. key covers everything that must
+// match exactly: model, question and named evidence such as version strings.
+// sig is the page's Signature: Get may return the answer stored for a page
+// whose signature is within SimilarDistance bits, so near-identical pages
+// (one product's login page on many hosts, one site's 404 page on every
+// path) are asked once. Providers answer identical input identically, so an exact
+// hit is always valid. Implementations must be safe for concurrent use; the
+// in-memory NewMemoryCache is the default, a shared one (redis, disk) lets
+// several scanners share answers.
 type Cache interface {
 	Get(key string, sig uint64) ([]byte, bool)
 	Put(key string, sig uint64, value []byte)

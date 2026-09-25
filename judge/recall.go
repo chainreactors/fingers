@@ -1,4 +1,4 @@
-package jev
+package judge
 
 import (
 	"sort"
@@ -7,8 +7,8 @@ import (
 )
 
 // Retriever finds fingerprint names that literally occur in a page. Every
-// candidate handed to Jev is therefore anchored to evidence found by code,
-// so Jev only ranks and verifies, it never invents a product.
+// candidate handed to the provider is therefore anchored to evidence found
+// by code, so the provider only ranks and verifies, it never invents a product.
 type Retriever struct {
 	names []string // display names
 	keys  []string // lowercase match keys, same index as names

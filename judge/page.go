@@ -1,4 +1,4 @@
-package jev
+package judge
 
 import (
 	"bufio"
@@ -12,8 +12,9 @@ import (
 )
 
 // Page is the entry point of the judgement layer: the compact, named view of
-// one HTTP response that Jev judges (serialized as the request state), plus
-// the page-level conclusions written back by Classify. Jev only judges the
+// one HTTP response that providers judge (serialized as the request state),
+// plus the page-level conclusions written back by Classify. A provider only
+// judges the
 // evidence it is given and loses accuracy on large states full of irrelevant
 // detail, so the fields below are the ones that carry fingerprint signal.
 type Page struct {
@@ -29,8 +30,8 @@ type Page struct {
 	Forms       []string          `json:"form_inputs,omitempty"`
 	Text        string            `json:"visible_text,omitempty"`
 
-	Kind    string `json:"-"` // one of PageKinds, set by Classify
-	Generic bool   `json:"-"` // stock page of a packaged product, set by Classify
+	Kind    Kind `json:"-"` // set by Classify
+	Generic bool `json:"-"` // stock page of a packaged product, set by Classify
 
 	raw []byte
 }
@@ -187,10 +188,32 @@ func (s *Page) Evidence(name string) []string {
 
 var reDigits = regexp.MustCompile(`[0-9]+`)
 
+// bigrams are overlapping two-rune shingles of text with spaces removed, so
+// text without word separators (Chinese, Japanese) weighs like any other.
+func bigrams(text string) []string {
+	rs := []rune(strings.Join(strings.Fields(strings.ToLower(text)), " "))
+	var out []string
+	for i := 0; i+1 < len(rs); i++ {
+		if rs[i] != ' ' && rs[i+1] != ' ' {
+			out = append(out, string(rs[i:i+2]))
+		}
+	}
+	return out
+}
+
+// similarityScope is what similar pages must share exactly: their title
+// (digits folded). Signatures alone collide on sparse pages dominated by
+// common headers and assets; pages that really are one product's stock page
+// share a title.
+func (s *Page) similarityScope() string {
+	return reDigits.ReplaceAllString(strings.ToLower(strings.TrimSpace(s.Title)), "0")
+}
+
 // Signature is a 64-bit simhash of the page's evidence. Digits are folded so
 // timestamps, build ids and tokens do not matter; structure (headers,
-// assets, forms) weighs more than visible text. Pages of one product on
-// different hosts get signatures a few bits apart; see SimilarDistance.
+// assets, forms) weighs more than visible text, which counts by two-rune
+// shingles. Near-identical pages get signatures a few bits apart; see
+// SimilarDistance. The cache also requires equal titles.
 func (s *Page) Signature() uint64 {
 	var v [64]int
 	add := func(kind, feature string, weight int) {
@@ -219,11 +242,11 @@ func (s *Page) Signature() uint64 {
 		}
 	}
 	add("generator", s.Generator, 3)
-	for _, w := range strings.Fields(s.Title) {
-		add("title", w, 2)
+	for _, g := range bigrams(s.Title) {
+		add("title", g, 2)
 	}
-	for _, w := range strings.Fields(s.Text) {
-		add("text", w, 1)
+	for _, g := range bigrams(s.Text) {
+		add("text", g, 1)
 	}
 	var sig uint64
 	for i := 0; i < 64; i++ {

@@ -11,7 +11,7 @@ import (
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
-	"github.com/chainreactors/fingers/jev"
+	"github.com/chainreactors/fingers/judge"
 	gonmap "github.com/chainreactors/fingers/nmap"
 	"github.com/chainreactors/fingers/resources"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
@@ -88,9 +88,9 @@ type Engine struct {
 	Enabled      map[string]bool
 	Capabilities map[string]common.EngineCapability // 新增：记录各引擎能力
 
-	// 可选的 Jev 判定层, 见 AttachJev
-	jevClient *jev.Client
-	jevRecall *jev.Retriever
+	// 可选的判定层, 见 AttachJudge
+	judge  *judge.Judge
+	recall *judge.Retriever
 }
 
 func (engine *Engine) String() string {

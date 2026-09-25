@@ -1,4 +1,4 @@
-package jev
+package judge
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// Round is the Jev primitive: questions about one page, each with a callback,
+// Round is the judge primitive: questions about one page, each with a callback,
 // sent as a single request. Capabilities (Verify, Classify, Version) are
 // functions that add to a Round; callers may add their own questions too.
 // Callbacks run only after the whole request succeeded, so a failed Round
@@ -17,6 +17,7 @@ type Round struct {
 	apply     map[string]func(Answer)
 	evidence  map[string]interface{}
 	done      []func()
+	judge     *Judge // set by Ask, for thresholds in callbacks
 	err       error
 }
 
@@ -29,7 +30,7 @@ func (r *Round) Page() *Page { return r.page }
 // Add asks q under key; apply receives its answer. Keys must be unique in a Round.
 func (r *Round) Add(key string, q Question, apply func(Answer)) {
 	if _, dup := r.questions[key]; dup && r.err == nil {
-		r.err = fmt.Errorf("jev: duplicate question key %q", key)
+		r.err = fmt.Errorf("judge: duplicate question key %q", key)
 	}
 	r.questions[key] = q
 	r.apply[key] = apply
@@ -39,9 +40,10 @@ func (r *Round) Add(key string, q Question, apply func(Answer)) {
 // order: for decisions that combine several answers.
 func (r *Round) Done(f func()) { r.done = append(r.done, f) }
 
-// Evidence shows Jev a named piece of evidence besides the page; the state
-// becomes {"response": page, name: value}. Jev reads literally: evidence it is
-// asked about by name weighs more than the same text in option descriptions.
+// Evidence shows the provider a named piece of evidence besides the page; the state
+// becomes {"response": page, name: value}. Providers read literally: evidence
+// they are asked about by name weighs more than the same text in option
+// descriptions.
 func (r *Round) Evidence(name string, value interface{}) {
 	if r.evidence == nil {
 		r.evidence = map[string]interface{}{}
@@ -50,7 +52,7 @@ func (r *Round) Evidence(name string, value interface{}) {
 }
 
 // Ask sends the round; a round without questions sends nothing.
-func (r *Round) Ask(ctx context.Context, c *Client) error {
+func (r *Round) Ask(ctx context.Context, j *Judge) error {
 	if r.err != nil {
 		return r.err
 	}
@@ -65,18 +67,19 @@ func (r *Round) Ask(ctx context.Context, c *Client) error {
 		}
 		state = m
 	}
-	// Similar pages share answers: the cache matches the page by signature,
-	// everything else (questions, named evidence such as version strings) exactly.
-	exact, err := json.Marshal([]interface{}{r.questions, r.evidence})
+	// Answers are cached per question: the page matches by signature (similar
+	// pages share answers) plus its title, named evidence exactly.
+	scope, err := json.Marshal([]interface{}{r.page.similarityScope(), r.evidence})
 	if err != nil {
 		return err
 	}
-	resp, err := c.ask(ctx, state, r.questions, exact, r.page.Signature())
+	answers, err := j.ask(ctx, state, r.questions, scope, r.page.Signature())
 	if err != nil {
 		return err
 	}
+	r.judge = j
 	for key, apply := range r.apply {
-		if a, ok := resp.Answers[key]; ok && apply != nil {
+		if a, ok := answers[key]; ok && apply != nil {
 			apply(a)
 		}
 	}

@@ -14,7 +14,8 @@ import (
 
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
-	"github.com/chainreactors/fingers/jev"
+	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/fingers/judge/jev"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/encode"
 	"github.com/chainreactors/utils/httputils"
@@ -38,8 +39,8 @@ var opts struct {
 	// 是否只检测favicon
 	FaviconOnly bool `short:"f" long:"favicon" description:"Only detect favicon"`
 
-	// 在规则结果之上运行 Jev 判定层, 需要 TYPESAFE_API_KEY
-	Jev bool `long:"jev" description:"Judge the rule result with Jev (needs TYPESAFE_API_KEY)"`
+	// 在规则结果之上运行判定层, 目前支持的 provider: jev (需要 TYPESAFE_API_KEY)
+	Judge string `long:"judge" description:"Judge the rule result with a provider: jev (needs TYPESAFE_API_KEY)"`
 
 	// 资源文件覆盖
 	GobyFile                  string `long:"goby" description:"Override goby.json.gz with custom file"`
@@ -203,28 +204,41 @@ func main() {
 		}
 	} else {
 		var content []byte
-		if opts.Jev { // Refine needs the raw response; put the body back for Match
+		if opts.Judge != "" { // Refine needs the raw response; put the body back for Match
 			content = httputils.ReadRaw(resp)
 			body, _, _ := httputils.SplitHttpRaw(content)
 			resp.Body = ioutil.NopCloser(bytes.NewReader(body))
 		}
 		frames = engine.Match(resp)
-		if opts.Jev {
-			client, err := jev.NewClient("")
+		if opts.Judge != "" {
+			if opts.Judge != "jev" {
+				fmt.Printf("unknown judge provider %q\n", opts.Judge)
+				os.Exit(1)
+			}
+			j, err := jev.NewJudge("")
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			engine.AttachJev(client)
+			engine.AttachJudge(j)
 			page, err := engine.Refine(context.Background(), content, frames)
 			if err != nil {
 				fmt.Printf("jev failed, showing the rule result: %v\n", err)
 			} else {
 				fmt.Printf("page: %s, generic: %v\n", page.Kind, page.Generic)
 				for _, frame := range frames {
-					fmt.Printf("  %-40s %-10s %v\n", frame.Name, frame.Version, frame.Tags)
+					verdict := "accepted"
+					for _, m := range []judge.Mark{judge.Rejected, judge.Duplicate} {
+						if judge.Is(frame, m) {
+							verdict = string(m)
+						}
+					}
+					if judge.Is(frame, judge.Primary) {
+						verdict += ",primary"
+					}
+					fmt.Printf("  %-40s %-10s %-18s %s\n", frame.Name, frame.Version, judge.LayerOf(frame), verdict)
 				}
-				fmt.Printf("accepted: %s\n", jev.Accepted(frames).String())
+				fmt.Printf("accepted: %s\n", judge.Accepted(frames).String())
 				return
 			}
 		}

@@ -1,11 +1,12 @@
-// jevbench measures the Jev judgement layer, exactly as SDK callers run it
-// (fingers.Engine.Refine), on a directory of raw HTTP responses.
+// judgeeval compares the rule engines alone with rules plus a judge provider,
+// exactly as SDK callers run it (fingers.Engine.Refine), on a directory of
+// raw HTTP responses; it is also how a new provider is calibrated.
 //
-//	TYPESAFE_API_KEY=... jevbench -samples testdata/samples -labels testdata/labels.json
-//	TYPESAFE_API_KEY=... jevbench -samples cclogin/samples -cache cache -out report
+//	TYPESAFE_API_KEY=... judgeeval -provider jev -samples testdata/samples -labels testdata/labels.json
+//	TYPESAFE_API_KEY=... judgeeval -provider jev -samples cc/samples -cache cache -out report
 //
-// Jev answers are cached on disk by request content, so reruns are free and
-// an interrupted run resumes. Build with -tags goregexp.
+// Answers are cached on disk, so reruns are free and an interrupted run
+// resumes. Build with -tags goregexp.
 package main
 
 import (
@@ -14,6 +15,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math/bits"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,40 +23,42 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
-	"github.com/chainreactors/fingers/jev"
+	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/fingers/judge/jev"
 	"github.com/chainreactors/logs"
 )
 
 // row is the outcome for one page, written to rows.jsonl for review.
 type row struct {
-	ID         string            `json:"id"`
-	Rules      []string          `json:"rules"` // name@engine of every rule hit
-	Accepted   []string          `json:"accepted"`
-	Rejected   []string          `json:"rejected,omitempty"`
-	Recall     []string          `json:"recall,omitempty"`
-	Layers     map[string]string `json:"layers,omitempty"`
-	Primary    string            `json:"primary,omitempty"`
-	Version    string            `json:"version,omitempty"`
-	JevVersion bool              `json:"jev_version,omitempty"` // Version written by Jev, not by a rule
-	Kind       string            `json:"kind"`
-	Generic    bool              `json:"generic"`
-	NewFinger  bool              `json:"new_fingerprint_candidate,omitempty"`
-	Err        string            `json:"error,omitempty"`
+	ID           string            `json:"id"`
+	Rules        []string          `json:"rules"` // name@engine of every rule hit
+	Accepted     []string          `json:"accepted"`
+	Rejected     []string          `json:"rejected,omitempty"`
+	Recall       []string          `json:"recall,omitempty"`
+	Layers       map[string]string `json:"layers,omitempty"`
+	Primary      string            `json:"primary,omitempty"`
+	Version      string            `json:"version,omitempty"`
+	JudgeVersion bool              `json:"judge_version,omitempty"` // Version written by the judge, not by a rule
+	Kind         judge.Kind        `json:"kind"`
+	Generic      bool              `json:"generic"`
+	NewFinger    bool              `json:"new_fingerprint_candidate,omitempty"`
+	Err          string            `json:"error,omitempty"`
 
-	// rules vs rules+Jev on the same page
+	// rules vs rules+judge on the same page
 	RuleProducts int      `json:"rule_products"`       // rule hits after folding spellings
 	TextOnly     []string `json:"text_only,omitempty"` // rule hits named only in visible text: likely false positives
-	TextOnlyKept int      `json:"text_only_kept"`      // of those, accepted by Jev
+	TextOnlyKept int      `json:"text_only_kept"`      // of those, accepted by the judge
 	Generator    string   `json:"generator,omitempty"` // "wordpress 6.4.2": the reference version
 	RuleGenVer   string   `json:"rule_gen_version,omitempty"`
-	JevGenVer    string   `json:"jev_gen_version,omitempty"`
+	JudgeGenVer  string   `json:"judge_gen_version,omitempty"`
 	RuleMs       float64  `json:"rule_ms"`
-	JevMs        float64  `json:"jev_ms"`
+	JudgeMs      float64  `json:"judge_ms"`
 
 	frames      common.Frameworks   // annotated
 	ruleEngines map[string][]string // rule name -> engines
@@ -64,21 +68,40 @@ type row struct {
 func main() {
 	samples := flag.String("samples", "testdata/samples", "directory of raw HTTP responses (*.http)")
 	labels := flag.String("labels", "", "optional ground truth (see testdata/labels.json)")
-	cache := flag.String("cache", "jevcache", "directory caching Jev answers")
-	out := flag.String("out", "jevreport", "output directory")
-	rps := flag.Float64("rps", 15, "max Jev requests per second")
+	provider := flag.String("provider", "jev", "judge provider: jev")
+	cache := flag.String("cache", "judgecache", "directory caching answers")
+	out := flag.String("out", "judgereport", "output directory")
+	rps := flag.Float64("rps", 15, "max provider requests per second")
 	workers := flag.Int("workers", 16, "concurrent pages")
 	limit := flag.Int("limit", 0, "only the first N samples (0 = all)")
-	endpoint := flag.String("endpoint", jev.DefaultEndpoint, "Jev API endpoint")
+	endpoint := flag.String("endpoint", "", "provider API endpoint (default: the provider's)")
 	flag.Parse()
 	logs.Log.SetLevel(logs.ErrorLevel)
-	if err := run(*samples, *labels, *cache, *out, *endpoint, *rps, *workers, *limit); err != nil {
+	if err := run(*provider, *samples, *labels, *cache, *out, *endpoint, *rps, *workers, *limit); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(samples, labelsPath, cacheDir, out, endpoint string, rps float64, workers, limit int) error {
+// newProvider builds a provider by name; add new providers here. tokens
+// reports input tokens sent, where the provider counts them.
+func newProvider(name, endpoint string, transport http.RoundTripper) (p judge.Provider, tokens func() int64, err error) {
+	switch name {
+	case "jev":
+		jp, err := jev.New("")
+		if err != nil {
+			return nil, nil, err
+		}
+		if endpoint != "" {
+			jp.Endpoint = endpoint
+		}
+		jp.HTTP.Transport = transport
+		return jp, func() int64 { return atomic.LoadInt64(&jp.InputTokens) }, nil
+	}
+	return nil, nil, fmt.Errorf("unknown provider %q", name)
+}
+
+func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps float64, workers, limit int) error {
 	files, err := filepath.Glob(filepath.Join(samples, "*.http"))
 	if err != nil {
 		return err
@@ -92,20 +115,22 @@ func run(samples, labelsPath, cacheDir, out, endpoint string, rps float64, worke
 			return err
 		}
 	}
-	client, err := jev.NewClient("")
+	provider, tokens, err := newProvider(providerName, endpoint, &limited{tick: time.NewTicker(time.Duration(float64(time.Second) / rps)).C})
 	if err != nil {
 		return err
 	}
-	client.Endpoint = endpoint
+	j := judge.New(provider)
+	// Measure similarity rather than use it: every page gets its own answers.
+	defaultDistance := judge.SimilarDistance
+	judge.SimilarDistance = 0
 	sim := newSimCheck(cacheDir)
-	client.Cache = sim
-	client.HTTP.Transport = &limited{tick: time.NewTicker(time.Duration(float64(time.Second) / rps)).C}
+	j.Cache = sim
 
 	engine, err := fingers.NewEngine(fingers.FingersEngine, fingers.FingerPrintEngine, fingers.EHoleEngine, fingers.GobyEngine, fingers.WappalyzerEngine)
 	if err != nil {
 		return err
 	}
-	engine.AttachJev(client)
+	engine.AttachJudge(j)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -119,7 +144,7 @@ func run(samples, labelsPath, cacheDir, out, endpoint string, rps float64, worke
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				rows[i] = judge(ctx, engine, files[i])
+				rows[i] = evaluatePage(ctx, engine, files[i])
 				var apiErr *jev.APIError
 				if rows[i].err != nil && errors.As(rows[i].err, &apiErr) && apiErr.Status == 401 {
 					once.Do(func() { fatal = errors.New("unauthorized: check " + jev.EnvAPIKey); cancel() })
@@ -154,13 +179,8 @@ func run(samples, labelsPath, cacheDir, out, endpoint string, rps float64, worke
 	f.Close()
 
 	var b strings.Builder
-	report(&b, rows, client, time.Since(start))
-	fmt.Fprintf(&b, "\n## 相似度缓存（SimilarDistance=%d，模拟）\n\n", jev.SimilarDistance)
-	fmt.Fprintf(&b, "- 请求 %d 次，其中 %d 次（%.1f%%）可以直接复用相似页面的答案；复用答案与真实答案在所有决策上完全一致的占 %d/%d（%.1f%%）\n",
-		sim.requests, sim.hits, 100*div(sim.hits, sim.requests), sim.agree, sim.hits, 100*div(sim.agree, sim.hits))
-	for _, k := range sortedKeys(sim.diffs, func(k string) int { return sim.diffs[k] }) {
-		fmt.Fprintf(&b, "  - 不一致的题目 %s: %d\n", k, sim.diffs[k])
-	}
+	report(&b, rows, provider.ID(), j, tokens(), time.Since(start))
+	sim.report(&b, defaultDistance)
 	if labelsPath != "" {
 		if err := evaluate(&b, rows, labelsPath); err != nil {
 			return err
@@ -170,7 +190,7 @@ func run(samples, labelsPath, cacheDir, out, endpoint string, rps float64, worke
 	return os.WriteFile(filepath.Join(out, "report.md"), []byte(b.String()), 0o644)
 }
 
-func judge(ctx context.Context, engine *fingers.Engine, path string) (r *row) {
+func evaluatePage(ctx context.Context, engine *fingers.Engine, path string) (r *row) {
 	r = &row{ID: filepath.Base(path), ruleEngines: map[string][]string{}}
 	defer func() {
 		if p := recover(); p != nil { // one malformed page must not stop a long run
@@ -178,9 +198,9 @@ func judge(ctx context.Context, engine *fingers.Engine, path string) (r *row) {
 		}
 	}()
 	raw, err := os.ReadFile(path)
-	var page *jev.Page
+	var page *judge.Page
 	if err == nil {
-		page, err = jev.NewPage(raw) // for code-only evidence; Refine builds its own
+		page, err = judge.NewPage(raw) // for code-only evidence; Refine builds its own
 	}
 	if err == nil {
 		t := time.Now()
@@ -197,7 +217,7 @@ func judge(ctx context.Context, engine *fingers.Engine, path string) (r *row) {
 	}
 	keys := map[string]bool{}
 	for _, f := range r.frames {
-		keys[jev.NormalizeName(f.Name)] = true
+		keys[judge.NormalizeName(f.Name)] = true
 		if ev := page.Evidence(f.Name); len(ev) == 1 && ev[0] == "text" {
 			r.TextOnly = append(r.TextOnly, f.Name)
 		}
@@ -215,60 +235,58 @@ func judge(ctx context.Context, engine *fingers.Engine, path string) (r *row) {
 	sort.Strings(r.Rules)
 	t := time.Now()
 	page, err = engine.Refine(ctx, raw, r.frames)
-	r.JevMs = ms(time.Since(t))
+	r.JudgeMs = ms(time.Since(t))
 	if err != nil {
 		r.Err, r.err = err.Error(), err
 		return r
 	}
-	r.JevGenVer = versionOf(jev.Accepted(r.frames), product)
+	r.JudgeGenVer = versionOf(judge.Accepted(r.frames), product)
 	for _, name := range r.TextOnly {
-		if f := r.frames[name]; f != nil && !f.HasTag(jev.TagRejected) {
+		if f := r.frames[name]; f != nil && !judge.Is(f, judge.Rejected) {
 			r.TextOnlyKept++
 		}
 	}
 	r.Kind, r.Generic, r.Layers = page.Kind, page.Generic, map[string]string{}
 	identified := false // an accepted application or device: the page's product is known
 	for _, f := range r.frames {
-		for _, t := range f.Tags {
-			if strings.HasPrefix(t, jev.TagLayer) {
-				r.Layers[f.Name] = strings.TrimPrefix(t, jev.TagLayer)
-			}
+		if l := judge.LayerOf(f); l != "" {
+			r.Layers[f.Name] = string(l)
 		}
 		switch {
-		case f.HasTag(jev.TagRejected):
+		case judge.Is(f, judge.Rejected):
 			r.Rejected = append(r.Rejected, f.Name)
-		case f.HasTag(jev.TagDup):
+		case judge.Is(f, judge.Duplicate):
 		default:
 			r.Accepted = append(r.Accepted, f.Name)
-			switch jev.Layer(r.Layers[f.Name]) {
-			case jev.LayerApplication, jev.LayerDevice:
+			switch judge.Layer(r.Layers[f.Name]) {
+			case judge.LayerApplication, judge.LayerDevice:
 				identified = true
 			}
 		}
-		if f.HasTag(jev.TagRecall) {
+		if judge.Is(f, judge.Recalled) {
 			r.Recall = append(r.Recall, f.Name)
 		}
 	}
-	if p := jev.Primary(r.frames); p != nil {
+	if p := judge.PrimaryOf(r.frames); p != nil {
 		r.Primary, r.Version = p.Name, p.Version
-		r.JevVersion = p.Version != "" && p.Version != versions[p.Name]
+		r.JudgeVersion = p.Version != "" && p.Version != versions[p.Name]
 	}
 	// A stock page nobody identified is material for a new rule; a server's
 	// own default, error or index page is identified by the server.
-	serverPage := r.Kind == "default_install" || r.Kind == "error_page" || r.Kind == "directory_listing"
+	serverPage := r.Kind == judge.KindDefault || r.Kind == judge.KindError || r.Kind == judge.KindDirListing
 	r.NewFinger = r.Generic && r.Primary == "" && !identified && !serverPage
 	sort.Strings(r.Accepted)
 	sort.Strings(r.Rejected)
 	return r
 }
 
-func report(b *strings.Builder, rows []*row, c *jev.Client, took time.Duration) {
+func report(b *strings.Builder, rows []*row, providerID string, j *judge.Judge, tokens int64, took time.Duration) {
 	w := func(format string, a ...interface{}) { fmt.Fprintf(b, format+"\n", a...) }
 	var pages, errs, rules, accepted, recall, primary, generic, newFinger int
 	var ruleProducts, textOnly, textOnlyKept, rejected, genPages int
-	var genRule, genJev [3]int // correct, wrong, missing
-	var perRule, perJev []int
-	var ruleMs, jevMs []float64
+	var genRule, genJudge [3]int // correct, wrong, missing
+	var perRule, perJudge []int
+	var ruleMs, judgeMs []float64
 	kinds := map[string]int{}
 	type stat struct{ hits, rejected int }
 	byEngine, byRule := map[string]*stat{}, map[string]*stat{}
@@ -296,10 +314,10 @@ func report(b *strings.Builder, rows []*row, c *jev.Client, took time.Duration) 
 		textOnlyKept += r.TextOnlyKept
 		rejected += len(r.Rejected)
 		perRule = append(perRule, len(r.frames)-len(r.Recall))
-		perJev = append(perJev, len(r.Accepted))
+		perJudge = append(perJudge, len(r.Accepted))
 		ruleMs = append(ruleMs, r.RuleMs)
-		jevMs = append(jevMs, r.JevMs)
-		kinds[r.Kind]++
+		judgeMs = append(judgeMs, r.JudgeMs)
+		kinds[string(r.Kind)]++
 		if r.Primary != "" {
 			primary++
 		}
@@ -307,7 +325,7 @@ func report(b *strings.Builder, rows []*row, c *jev.Client, took time.Duration) 
 			genPages++
 			want := r.Generator[strings.LastIndex(r.Generator, " ")+1:]
 			grade(&genRule, r.RuleGenVer, want)
-			grade(&genJev, r.JevGenVer, want)
+			grade(&genJudge, r.JudgeGenVer, want)
 		}
 		if r.Generic {
 			generic++
@@ -317,30 +335,30 @@ func report(b *strings.Builder, rows []*row, c *jev.Client, took time.Duration) 
 			newFingers = append(newFingers, r.ID)
 		}
 		for _, f := range r.frames {
-			rejected := f.HasTag(jev.TagRejected)
+			rejected := judge.Is(f, judge.Rejected)
 			for _, e := range r.ruleEngines[f.Name] {
 				add(byEngine, e, rejected)
 				add(byRule, e+"/"+f.Name, rejected)
 			}
 		}
 	}
-	w("# 纯规则 vs 规则 + Jev\n")
+	w("# 纯规则 vs 规则 + judge（%s）\n", providerID)
 	w("pages %d, errors %d, took %s\n", pages, errs, took.Round(time.Second))
-	w("| 指标 | 纯规则 | 规则 + Jev |\n|---|---|---|")
-	w("| 每页结果条数 mean / p90 | %.2f / %d | %.2f / %d |", mean(perRule), p90(perRule), mean(perJev), p90(perJev))
+	w("| 指标 | 纯规则 | 规则 + judge |\n|---|---|---|")
+	w("| 每页结果条数 mean / p90 | %.2f / %d | %.2f / %d |", mean(perRule), p90(perRule), mean(perJudge), p90(perJudge))
 	w("| 每页不同产品数（按名字归并） | %.2f | %.2f |", div(ruleProducts, pages), div(accepted, pages))
-	w("| 同名重复条目 | %d | 0（标 jev:dup） |", rules-ruleProducts)
+	w("| 同名重复条目 | %d | 0（标为 Duplicate） |", rules-ruleProducts)
 	w("| 仅正文出现的命中（疑似误报） | %d | %d |", textOnly, textOnlyKept)
 	w("| 被否决的规则命中 | — | %d / %d（%.1f%%） |", rejected, rules, 100*div(rejected, rules))
-	w("| 召回（规则漏掉、Jev 确认） | 0 | %d |", recall)
+	w("| 召回（规则漏掉、judge 确认） | 0 | %d |", recall)
 	w("| 主应用 | — | %d 页 |", primary)
 	w("| 版本号 vs generator：正确 / 错误 / 缺失（%d 页） | %d / %d / %d | %d / %d / %d |", genPages,
-		genRule[0], genRule[1], genRule[2], genJev[0], genJev[1], genJev[2])
+		genRule[0], genRule[1], genRule[2], genJudge[0], genJudge[1], genJudge[2])
 	w("| 页面类型 / 是否通用页面 | — | ✓ / 通用 %d 页 |", generic)
 	w("| 新指纹候选 | — | %d |", newFinger)
-	w("| 每页耗时 p50 / p95 | %.1fms / %.1fms | +%.0fms / +%.0fms |", pct(ruleMs, 50), pct(ruleMs, 95), pct(jevMs, 50), pct(jevMs, 95))
-	w("| 成本 | 0 | %d 次请求（缓存命中 %d），%d input tokens，≈ $%.3f，折合每万页 $%.2f |",
-		c.Requests, c.CacheHits, c.InputTokens, float64(c.InputTokens)*0.042/1e6, float64(c.InputTokens)*0.042/1e6/float64(max(pages, 1))*1e4)
+	w("| 每页耗时 p50 / p95 | %.1fms / %.1fms | +%.0fms / +%.0fms |", pct(ruleMs, 50), pct(ruleMs, 95), pct(judgeMs, 50), pct(judgeMs, 95))
+	w("| 成本 | 0 | %d 次请求（缓存直接答完 %d 轮），%d input tokens（jev 按 $0.042/Mtok ≈ $%.3f，折合每万页 $%.2f） |",
+		j.Requests, j.CacheHits, tokens, float64(tokens)*0.042/1e6, float64(tokens)*0.042/1e6/float64(max(pages, 1))*1e4)
 	w("\n## page kind\n")
 	for _, k := range sortedKeys(kinds, func(k string) int { return kinds[k] }) {
 		w("- %s: %d", k, kinds[k])
@@ -412,7 +430,7 @@ func evaluate(b *strings.Builder, rows []*row, path string) error {
 				misses = append(misses, r.ID+": kept "+name)
 			}
 		}
-		if r.Kind == l.PageKind {
+		if string(r.Kind) == l.PageKind {
 			kind++
 		}
 		if r.Generic == l.Generic {
@@ -448,10 +466,10 @@ func evaluate(b *strings.Builder, rows []*row, path string) error {
 // match is containment either way; strict (for false positive labels such as
 // "tomcat_jk_connector") only lets the framework name contain the label.
 func find(frames common.Frameworks, name string, strict bool) *common.Framework {
-	want := jev.NormalizeName(name)
+	want := judge.NormalizeName(name)
 	var found *common.Framework
-	for _, f := range jev.Accepted(frames) {
-		got := jev.NormalizeName(f.Name)
+	for _, f := range judge.Accepted(frames) {
+		got := judge.NormalizeName(f.Name)
 		if got == "" || !(strings.Contains(got, want) || !strict && strings.Contains(want, got)) {
 			continue
 		}
@@ -482,7 +500,7 @@ func versionOf(frames common.Frameworks, product string) string {
 	}
 	var got string
 	for _, f := range frames {
-		key := jev.NormalizeName(f.Name)
+		key := judge.NormalizeName(f.Name)
 		if f.Version == "" || !strings.HasPrefix(key, product) {
 			continue
 		}
@@ -553,7 +571,7 @@ func sortedKeys[V any](m map[string]V, weight func(string) int) []string {
 	return keys
 }
 
-// fileCache is an exact jev.Cache on disk, one file per request.
+// fileCache is an exact judge.Cache on disk, one file per request.
 type fileCache string
 
 func (d fileCache) path(key string, sig uint64) string {
@@ -572,41 +590,54 @@ func (d fileCache) Put(key string, sig uint64, value []byte) {
 	}
 }
 
-// simCheck measures the similarity cache without trusting it: every page is
-// still answered exactly, and whenever an earlier similar page would have
-// been served instead, the two answers are compared decision by decision.
+// simCheck measures the similarity cache without trusting it: every question
+// is still answered for its exact page (by the file cache), and whenever an
+// earlier page with the same key had a signature within maxProbe bits, its
+// answer is compared with the real one, bucketed by distance. That shows
+// which SimilarDistance is safe.
 type simCheck struct {
 	fileCache
-	mu                    sync.Mutex
-	seen                  map[string][]simEntry // key -> earlier answers
-	pending               map[string][]byte     // key+sig -> answer a similarity cache would have served
-	requests, hits, agree int
-	diffs                 map[string]int // question key prefix -> disagreements
+	mu      sync.Mutex
+	seen    map[string][]simEntry // key -> earlier answers
+	pending map[string]simNear    // key+sig -> nearest earlier answer, until the real one arrives
+	answers int
+	byDist  [maxProbe + 1]struct{ reusable, agree int }
 }
+
+const maxProbe = 10
 
 type simEntry struct {
 	sig   uint64
 	value []byte
 }
 
+type simNear struct {
+	dist  int
+	value []byte
+}
+
 func newSimCheck(dir string) *simCheck {
-	return &simCheck{fileCache: fileCache(dir), seen: map[string][]simEntry{}, pending: map[string][]byte{}, diffs: map[string]int{}}
+	return &simCheck{fileCache: fileCache(dir), seen: map[string][]simEntry{}, pending: map[string]simNear{}}
+}
+
+func (c *simCheck) nearest(key string, sig uint64) (simNear, bool) {
+	best, ok := simNear{dist: maxProbe + 1}, false
+	for _, e := range c.seen[key] {
+		if d := bits.OnesCount64(e.sig ^ sig); d < best.dist {
+			best, ok = simNear{d, e.value}, true
+		}
+	}
+	return best, ok
 }
 
 func (c *simCheck) Get(key string, sig uint64) ([]byte, bool) {
 	value, ok := c.fileCache.Get(key, sig)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var near []byte
-	for _, e := range c.seen[key] {
-		if e.sig != sig && jev.Similar(e.sig, sig) {
-			near = e.value
-			break
-		}
-	}
+	near, found := c.nearest(key, sig)
 	if ok {
-		c.observe(key, sig, near, value)
-	} else if near != nil {
+		c.observe(key, sig, near, found, value)
+	} else if found {
 		c.pending[fmt.Sprintf("%s_%x", key, sig)] = near
 	}
 	return value, ok
@@ -617,34 +648,39 @@ func (c *simCheck) Put(key string, sig uint64, value []byte) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	id := fmt.Sprintf("%s_%x", key, sig)
-	c.observe(key, sig, c.pending[id], value)
+	near, found := c.pending[id]
 	delete(c.pending, id)
+	c.observe(key, sig, near, found, value)
 }
 
-func (c *simCheck) observe(key string, sig uint64, near, value []byte) {
-	c.requests++
+func (c *simCheck) observe(key string, sig uint64, near simNear, found bool, value []byte) {
+	c.answers++
 	c.seen[key] = append(c.seen[key], simEntry{sig, value})
-	if near == nil {
+	if !found || near.dist > maxProbe {
 		return
 	}
-	c.hits++
-	var a, b jev.Response
-	json.Unmarshal(near, &a)
-	json.Unmarshal(value, &b)
-	same := true
-	for k, x := range b.Answers {
-		y := a.Answers[k]
-		if x.Choice != y.Choice || (x.Noul >= jev.Threshold) != (y.Noul >= jev.Threshold) {
-			same = false
-			c.diffs[strings.TrimRight(k, "0123456789")]++
-		}
-	}
-	if same {
-		c.agree++
+	var x, y judge.Answer
+	json.Unmarshal(near.value, &x)
+	json.Unmarshal(value, &y)
+	c.byDist[near.dist].reusable++
+	if x.Choice == y.Choice && (x.Yes >= 0.5) == (y.Yes >= 0.5) {
+		c.byDist[near.dist].agree++
 	}
 }
 
-// limited rate-limits Jev requests; cache hits never reach it.
+func (c *simCheck) report(b *strings.Builder, current int) {
+	fmt.Fprintf(b, "\n## 相似度缓存（模拟，当前默认 SimilarDistance=%d）\n\n", current)
+	fmt.Fprintf(b, "共 %d 个答案。下表：若 SimilarDistance 取 d，能由相似页面（同标题）复用的答案数，以及其中与真实答案一致的比例。\n\n", c.answers)
+	fmt.Fprintf(b, "| d | 可复用 | 一致 | 一致率 |\n|---|---|---|---|\n")
+	reusable, agree := 0, 0
+	for d := 0; d <= maxProbe; d++ {
+		reusable += c.byDist[d].reusable
+		agree += c.byDist[d].agree
+		fmt.Fprintf(b, "| %d | %d | %d | %.1f%% |\n", d, reusable, agree, 100*div(agree, reusable))
+	}
+}
+
+// limited rate-limits provider requests; cache hits never reach it.
 type limited struct{ tick <-chan time.Time }
 
 func (l *limited) RoundTrip(req *http.Request) (*http.Response, error) {

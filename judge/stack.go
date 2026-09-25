@@ -1,4 +1,4 @@
-package jev
+package judge
 
 import (
 	"strings"
@@ -22,8 +22,8 @@ const (
 	LayerNotPresent  Layer = "not_present"
 )
 
-// LayerCriteria is the Choice criteria for classifying one candidate's layer.
-var LayerCriteria = map[string]interface{}{
+// layerCriteria is the Choice criteria for classifying one candidate's layer.
+var layerCriteria = map[string]string{
 	string(LayerCDN):         "A CDN, reverse proxy cloud or web application firewall in front of the site",
 	string(LayerServer):      "The HTTP server or proxy software, such as nginx, Apache httpd, IIS, Tomcat",
 	string(LayerRuntime):     "A programming language or runtime, such as PHP, Java, ASP.NET, Node.js",
