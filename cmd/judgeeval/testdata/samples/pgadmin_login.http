@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: gunicorn
+Set-Cookie: pga4_session=0f1e2d3c!abc; HttpOnly; Path=/
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>pgAdmin 4</title><link rel="shortcut icon" href="/static/favicon.ico?ver=80000"><link type="text/css" rel="stylesheet" href="/static/js/generated/pgadmin.style.css?ver=80000"/><script type="application/javascript">window.resourceBasePath = "/static/js/generated/";</script></head><body><div id="root"></div><script type="application/javascript">window.pgAdmin = {"login":{"forgot_password":"Forgotten your password?","login":"Login"}};</script><script src="/static/js/generated/security.pages.js?ver=80000"></script><div class="d-none">pgAdmin 4 - PostgreSQL Tools</div></body></html>

@@ -4,6 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"net/http"
+	"sort"
+	"strings"
+
 	"github.com/chainreactors/fingers/alias"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
@@ -17,8 +21,6 @@ import (
 	xrayengine "github.com/chainreactors/fingers/xray"
 	"github.com/chainreactors/utils/httputils"
 	"github.com/pkg/errors"
-	"net/http"
-	"strings"
 )
 
 const (
@@ -86,6 +88,7 @@ type Engine struct {
 	*alias.Aliases
 	Enabled      map[string]bool
 	Capabilities map[string]common.EngineCapability // 新增：记录各引擎能力
+
 }
 
 func (engine *Engine) String() string {
@@ -94,6 +97,20 @@ func (engine *Engine) String() string {
 		s.WriteString(fmt.Sprintf(" %s:%d", name, impl.Len()))
 	}
 	return strings.TrimSpace(s.String())
+}
+
+// Names returns the canonical names of every fingerprint in the alias
+// table, sorted: what judge.NewRetriever takes to recall missed products.
+func (engine *Engine) Names() []string {
+	if engine.Aliases == nil {
+		return nil
+	}
+	names := make([]string, 0, len(engine.Aliases.Aliases))
+	for name := range engine.Aliases.Aliases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func (engine *Engine) Compile() error {
@@ -397,7 +414,9 @@ func (engine *Engine) MergeFrameworks(origin, other common.Frameworks) common.Fr
 		if aliasFrame != nil {
 			if ok {
 				frame.Name = aliasFrame.Name
-				frame.UpdateAttributes(aliasFrame.ToWFN())
+				// 复制一份: alias 的 Attributes 被所有页面共享, 直接引用会让一个页面写入的版本号泄漏到之后的页面
+				attrs := *aliasFrame.ToWFN()
+				frame.UpdateAttributes(&attrs)
 			}
 			if aliasFrame.IsBlocked(frame.From.String()) {
 				continue

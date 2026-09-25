@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+Server: Apache/2.4.54 (Debian)
+X-Powered-By: PHP/8.1.12
+Set-Cookie: phpMyAdmin=4b7c1d; path=/; HttpOnly
+Set-Cookie: pma_lang=en; path=/
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE HTML><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>phpMyAdmin</title><link rel="stylesheet" type="text/css" href="./themes/pmahomme/css/theme.css?v=5.2.1"><script src="js/vendor/jquery/jquery.min.js?v=5.2.1"></script><script src="js/vendor/jquery/jquery-migrate.js?v=5.2.1"></script><script src="js/vendor/bootstrap/bootstrap.bundle.min.js?v=5.2.1"></script></head><body><div class="container"><h1>Welcome to <bdo dir="ltr" lang="en">phpMyAdmin</bdo></h1><form method="post" id="login_form" action="index.php?route=/"><input type="text" name="pma_username" id="input_username"><input type="password" name="pma_password" id="input_password"><select name="server"><option value="1">localhost</option></select><input class="btn btn-primary" value="Log in" type="submit" id="input_go"></form></div></body></html>

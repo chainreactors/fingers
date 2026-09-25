@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: Tengine
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>Java 后端开发工程师 - 华东某物流科技有限公司招聘</title><script src="/static/js/jquery-1.12.4.min.js"></script></head><body><div class="job"><h1>Java 后端开发工程师</h1><p>薪资：20-35K · 上海 · 3-5年</p><h3>岗位要求</h3><ul><li>熟悉 Spring Boot、Spring Cloud、MyBatis 等框架；</li><li>熟悉 Redis、Kafka、Elasticsearch、Nacos 等中间件；</li><li>了解 ThinkPHP 或 Laravel 者优先，维护过泛微、致远 OA 二次开发者优先；</li><li>熟悉 Jenkins、GitLab CI 等持续集成工具。</li></ul><p>公司地址：上海市浦东新区张江路 88 号</p></div></body></html>

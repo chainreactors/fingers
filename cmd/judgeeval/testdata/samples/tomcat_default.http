@@ -1,0 +1,4 @@
+HTTP/1.1 200 OK
+Content-Type: text/html;charset=UTF-8
+
+<!DOCTYPE html><html lang="en"><head><title>Apache Tomcat/9.0.65</title><link href="tomcat.css" rel="stylesheet" type="text/css" /></head><body><div id="navigation"><a href="https://tomcat.apache.org/">Home</a></div><h2>If you're seeing this, you've successfully installed Tomcat. Congratulations!</h2><a href="/manager/status">Server Status</a> <a href="/manager/html">Manager App</a> <a href="/host-manager/html">Host Manager</a></body></html>

@@ -21,3 +21,5 @@ resources/nmap-service-probes.txt
 /CLAUDE.md
 /MIGRATION.md
 vendor/
+/.judge-data/
+/scripts/__pycache__/

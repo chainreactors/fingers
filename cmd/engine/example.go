@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -12,6 +14,8 @@ import (
 
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/fingers/judge/jev"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/encode"
 	"github.com/chainreactors/utils/httputils"
@@ -34,6 +38,9 @@ var opts struct {
 
 	// 是否只检测favicon
 	FaviconOnly bool `short:"f" long:"favicon" description:"Only detect favicon"`
+
+	// 在规则结果之上运行判定层, 目前支持的 provider: jev (需要 TYPESAFE_API_KEY)
+	Judge string `long:"judge" description:"Judge the rule result with a provider: jev (needs TYPESAFE_API_KEY)"`
 
 	// 资源文件覆盖
 	GobyFile                  string `long:"goby" description:"Override goby.json.gz with custom file"`
@@ -196,7 +203,54 @@ func main() {
 			frames.Add(frame)
 		}
 	} else {
+		var content []byte
+		if opts.Judge != "" { // Refine needs the raw response; put the body back for Match
+			content = httputils.ReadRaw(resp)
+			body, _, _ := httputils.SplitHttpRaw(content)
+			resp.Body = ioutil.NopCloser(bytes.NewReader(body))
+		}
 		frames = engine.Match(resp)
+		if opts.Judge != "" {
+			if opts.Judge != "jev" {
+				fmt.Printf("unknown judge provider %q\n", opts.Judge)
+				os.Exit(1)
+			}
+			j, err := jev.NewJudge("")
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			j.Known = judge.NewRetriever(engine.Names())
+			ctx := context.Background()
+			accepted, err := j.Refine(ctx, content, frames)
+			if err == nil {
+				var kind judge.Kind
+				var generic bool
+				if kind, generic, err = j.Classify(ctx, content); err == nil {
+					fmt.Printf("page: %s, generic: %v\n", kind, generic)
+				}
+			}
+			if err != nil {
+				fmt.Printf("jev failed, showing the rule result: %v\n", err)
+			} else {
+				for _, frame := range accepted {
+					verdict := "accepted"
+					if frame.Judge != nil && frame.Judge.Primary {
+						verdict += ",primary"
+					}
+					if frame.Judge != nil && frame.Judge.Recalled {
+						verdict += ",recalled"
+					}
+					layer := ""
+					if frame.Judge != nil {
+						layer = frame.Judge.Layer
+					}
+					fmt.Printf("  %-40s %-10s %-18s %s\n", frame.Name, frame.Version, layer, verdict)
+				}
+				fmt.Printf("accepted: %s\n", accepted.String())
+				return
+			}
+		}
 	}
 
 	// 输出结果

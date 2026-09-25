@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>江南精密机械集团有限公司 - 官方网站</title><meta name="keywords" content="精密机械,数控机床,江南精密"><script src="/skin/js/jquery.min.js"></script><script src="/skin/js/swiper.min.js"></script></head><body><div class="header"><a href="/">首页</a> <a href="/about/">关于我们</a> <a href="/product/">产品中心</a> <a href="/news/">新闻动态</a> <a href="/contact/">联系我们</a></div><div class="news"><h3>集团与用友网络签署数字化转型战略合作协议</h3><p>2026年9月，集团与用友网络科技股份有限公司签署合作协议，将在 ERP 与财务共享领域展开合作。</p></div><div class="footer">版权所有 © 2026 江南精密机械集团有限公司 苏ICP备12345678号</div></body></html>

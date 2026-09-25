@@ -5,8 +5,6 @@ import (
 
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/neutron/operators"
-	"github.com/chainreactors/neutron/protocols"
-	"github.com/chainreactors/neutron/templates"
 	"github.com/chainreactors/utils/encode"
 )
 
@@ -71,11 +69,7 @@ func TestFingerPrintHubEngine_WebMatch(t *testing.T) {
 // ============================================================================
 
 func newTestEngine(caseInsensitive bool) *FingerPrintHubEngine {
-	return &FingerPrintHubEngine{
-		CaseInsensitive: caseInsensitive,
-		webTemplates:    make([]*templates.Template, 0),
-		executerOptions: &protocols.ExecuterOptions{Options: &protocols.Options{Timeout: 10}},
-	}
+	return &FingerPrintHubEngine{CaseInsensitive: caseInsensitive}
 }
 
 const testHTTPRaw = "HTTP/1.1 200 OK\r\n" +
@@ -240,7 +234,7 @@ func TestCaseInsensitive_AllMatchers(t *testing.T) {
 	engine := newTestEngine(true)
 
 	tmpls := buildTestTemplates()
-	count, errs := engine.loadTemplates(tmpls, true)
+	count, errs := engine.loadPassiveTemplates(tmpls)
 	if count != len(tmpls) {
 		t.Fatalf("loaded %d/%d, errors: %v", count, len(tmpls), errs)
 	}
@@ -251,20 +245,20 @@ func TestCaseInsensitive_AllMatchers(t *testing.T) {
 
 	// CaseInsensitive=true 时，所有字面量/keywords/patterns 只要大小写无关就能匹配
 	expect := map[string]bool{
-		"word body mixed":    true,
-		"word body lower":    true,
-		"word body upper":    true,
-		"word header mixed":  true,
-		"word header lower":  true,
-		"word and body":      true,
-		"regex body version": true,
-		"regex body mixed":   false, // regex 引擎不受 CaseInsensitive 控制，pattern "Nacos" 匹配不到小写 body
+		"word body mixed":      true,
+		"word body lower":      true,
+		"word body upper":      true,
+		"word header mixed":    true,
+		"word header lower":    true,
+		"word and body":        true,
+		"regex body version":   true,
+		"regex body mixed":     false, // regex 引擎不受 CaseInsensitive 控制，pattern "Nacos" 匹配不到小写 body
 		"regex header version": true,
-		"dsl body lower":     true,
-		"dsl body mixed":     false, // body 已 ToLower，"<title>Nacos" 匹配不到
-		"dsl header":         true,
-		"status 200":         true,
-		"combo and":          true,
+		"dsl body lower":       true,
+		"dsl body mixed":       false, // body 已 ToLower，"<title>Nacos" 匹配不到
+		"dsl header":           true,
+		"status 200":           true,
+		"combo and":            true,
 	}
 
 	for name, shouldMatch := range expect {
@@ -280,7 +274,7 @@ func TestCaseSensitive_AllMatchers(t *testing.T) {
 	engine := newTestEngine(false)
 
 	tmpls := buildTestTemplates()
-	count, errs := engine.loadTemplates(tmpls, true)
+	count, errs := engine.loadPassiveTemplates(tmpls)
 	if count != len(tmpls) {
 		t.Fatalf("loaded %d/%d, errors: %v", count, len(tmpls), errs)
 	}
@@ -293,20 +287,20 @@ func TestCaseSensitive_AllMatchers(t *testing.T) {
 	// body: "<title>Nacos</title>...Nacos v2.1.0"
 	// header value: "Tengine/2.3.3", "Nacos-Server/2.1.0"
 	expect := map[string]bool{
-		"word body mixed":   true, // "Nacos" 在原始 body 中存在（case-sensitive word 无 ToLower）
-		"word body lower":   false, // "<title>nacos" 不在原始 body 中
-		"word body upper":   false, // "<TITLE>NACOS" 不在原始 body 中
-		"word header mixed": true,  // "Tengine/2.3.3" 在 header value 中
-		"word header lower": false, // "tengine/2.3.3" — header key 始终小写，但 value 保留原始 "Tengine/2.3.3"
-		"word and body":     false, // "nacos" 不在原始 body (小写 n)；即使 header 匹配，AND 也失败
-		"regex body version": false, // "nacos v[\d.]+" — body 中是 "Nacos v2.1.0"，小写 n 匹配不到
-		"regex body mixed":   true,  // "Nacos v[\d.]+" 精确匹配原始大小写
+		"word body mixed":      true,  // "Nacos" 在原始 body 中存在（case-sensitive word 无 ToLower）
+		"word body lower":      false, // "<title>nacos" 不在原始 body 中
+		"word body upper":      false, // "<TITLE>NACOS" 不在原始 body 中
+		"word header mixed":    true,  // "Tengine/2.3.3" 在 header value 中
+		"word header lower":    false, // "tengine/2.3.3" — header key 始终小写，但 value 保留原始 "Tengine/2.3.3"
+		"word and body":        false, // "nacos" 不在原始 body (小写 n)；即使 header 匹配，AND 也失败
+		"regex body version":   false, // "nacos v[\d.]+" — body 中是 "Nacos v2.1.0"，小写 n 匹配不到
+		"regex body mixed":     true,  // "Nacos v[\d.]+" 精确匹配原始大小写
 		"regex header version": false, // "tengine/[\d.]+" — header value 是 "Tengine/2.3.3"
-		"dsl body lower":     false, // contains(body, "<title>nacos</title>") — body 中是 Nacos
-		"dsl body mixed":     true,  // contains(body, "<title>Nacos</title>") 精确匹配
-		"dsl header":         false, // contains(all_headers, "nacos-server") — header value 保留了 "Nacos-Server"
-		"status 200":         true,  // 不受大小写影响
-		"combo and":          true,  // status=200 ✓, "Tengine" 在 header ✓, "console-ui" 在 body ✓
+		"dsl body lower":       false, // contains(body, "<title>nacos</title>") — body 中是 Nacos
+		"dsl body mixed":       true,  // contains(body, "<title>Nacos</title>") 精确匹配
+		"dsl header":           false, // contains(all_headers, "nacos-server") — header value 保留了 "Nacos-Server"
+		"status 200":           true,  // 不受大小写影响
+		"combo and":            true,  // status=200 ✓, "Tengine" 在 header ✓, "console-ui" 在 body ✓
 	}
 
 	for name, shouldMatch := range expect {
@@ -397,4 +391,3 @@ func TestFaviconMatcher_MatchHashValues(t *testing.T) {
 		t.Error("Expected no match")
 	}
 }
-

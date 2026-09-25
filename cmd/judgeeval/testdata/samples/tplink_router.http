@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: TP-LINK HTTPD/1.0
+Content-Type: text/html
+
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>TL-WR841N</title><link rel="stylesheet" href="/css/main.css"><script src="/js/lib.js"></script><script src="/js/oid_str.js"></script></head><body><div id="loginBox"><div class="logo"></div><p class="model">Wireless N Router WR841N</p><p class="hw">Hardware Version: WR841N v14 00000014</p><p class="fw">Firmware Version: 0.9.1 4.19 v0001.0 Build 230516 Rel.61208n</p><input type="password" id="pc-login-password" placeholder="Password"><button id="pc-login-btn">Log In</button><p class="copyright">Copyright &copy; 2023 TP-Link Corporation Limited. All rights reserved.</p></div></body></html>
