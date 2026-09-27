@@ -10,6 +10,8 @@ Claim 合约（Claim / Option / Outcome / Ruling / Provider）、校验、缓存
 
 ## 在线入口
 
+普通用户只需 `engine.EnableJudge(key)`：引擎的 Web 匹配入口自动调用 `Inspect` 并返回 `Accepted()`，失败时返回规则结果。需要全部注解（含被剔除条目）或自定义策略时，直接使用本包：
+
 ```go
 engine, _ := fingers.NewEngine()
 engine.EnableMatchDetail()

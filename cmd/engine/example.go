@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -14,11 +12,9 @@ import (
 
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
-	"github.com/chainreactors/fingers/judge"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/encode"
 	"github.com/chainreactors/utils/httputils"
-	"github.com/chainreactors/utils/jev"
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/yaml.v3"
 )
@@ -39,8 +35,8 @@ var opts struct {
 	// 是否只检测favicon
 	FaviconOnly bool `short:"f" long:"favicon" description:"Only detect favicon"`
 
-	// 在规则结果之上运行判定层, 目前支持的 provider: jev (需要 TYPESAFE_API_KEY)
-	Judge string `long:"judge" description:"Judge the rule result with a provider: jev (needs TYPESAFE_API_KEY)"`
+	// 配置 Jev key 后, 引擎自动去除误报与重复并补全版本
+	JevKey string `long:"jev-key" description:"Jev API key: review rule results to drop false positives and fill versions"`
 
 	// 资源文件覆盖
 	GobyFile                  string `long:"goby" description:"Override goby.json.gz with custom file"`
@@ -181,8 +177,11 @@ func main() {
 		fmt.Printf("Failed to create engine: %v\n", err)
 		os.Exit(1)
 	}
-	if opts.Judge != "" && engine.Fingers() != nil {
-		engine.EnableMatchDetail() // the judge quotes what each rule matched
+	if opts.JevKey != "" {
+		if err := engine.EnableJudge(opts.JevKey); err != nil {
+			fmt.Printf("Failed to enable Jev: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	if opts.Verbose {
@@ -206,42 +205,7 @@ func main() {
 			frames.Add(frame)
 		}
 	} else {
-		var content []byte
-		if opts.Judge != "" { // Inspect needs the raw response; put the body back for Match
-			content = httputils.ReadRaw(resp)
-			body, _, _ := httputils.SplitHttpRaw(content)
-			resp.Body = ioutil.NopCloser(bytes.NewReader(body))
-		}
 		frames = engine.Match(resp)
-		if opts.Judge != "" {
-			if opts.Judge != "jev" {
-				fmt.Printf("unknown judge provider %q\n", opts.Judge)
-				os.Exit(1)
-			}
-			c, err := jev.NewClient("")
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			j := judge.New(jev.Cached(c, jev.DefaultCacheSize))
-			ctx := context.Background()
-			judged, err := j.Inspect(ctx, content, frames)
-			accepted := judged.Accepted()
-			if err != nil {
-				fmt.Printf("jev failed, code-established facts only: %v\n", err)
-			}
-			for _, frame := range accepted {
-				option := "unjudged"
-				if frame.Judge != nil {
-					option = frame.Judge.Option
-				}
-				fmt.Printf("  %-40s %-10s %s\n", frame.Name, frame.Version, option)
-			}
-			if err == nil {
-				fmt.Printf("accepted: %s\n", accepted.String())
-				return
-			}
-		}
 	}
 
 	// 输出结果
