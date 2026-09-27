@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Cache-Control: no-store
+Content-Type: text/html; charset=UTF-8
+X-Content-Type-Options: nosniff
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Grafana</title><base href="/" /><link rel="icon" type="image/png" href="public/img/fav32.png"><link rel="stylesheet" href="public/build/grafana.dark.3c1d5f.css"></head><body class="theme-dark app-grafana"><div id="reactRoot"></div><script nonce="">window.grafanaBootData = {"user":{"isSignedIn":false},"settings":{"appSubUrl":"","buildInfo":{"hideVersion":false,"version":"10.2.3","commit":"1e84fede543","edition":"Open Source","env":"production"},"loginHint":"email or username"}};</script><script src="public/build/runtime.7f2a.js"></script><script src="public/build/app.91be.js"></script></body></html>

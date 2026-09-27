@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+X-Xss-Protection: 1; mode=block
+X-Content-Type-Options: nosniff
+Content-Type: text/html; charset=utf-8
+
+<!doctype html><html lang="en" ng-app="portainer" ng-strict-di><head><meta charset="utf-8"><title>Portainer</title><meta name="description" content=""><base id="base"><link rel="icon" type="image/png" href="dc4d092847be46242d8c013d1bc7c494.png"><script defer src="runtime.9b1a4c.js"></script><script defer src="vendor.2f3e5d.js"></script><script defer src="main.7c8d9e.js"></script></head><body ng-controller="MainController"><div id="page-wrapper"><div id="sideview" ui-view="sidebar"></div><div id="content-wrapper"><div class="page-content"><div class="page-wrapper"><div class="simple-box"><div>Loading Portainer...</div></div></div></div></div></div></body></html>

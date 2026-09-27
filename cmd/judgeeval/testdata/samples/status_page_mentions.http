@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Northwind Systems Status</title></head><body><h1>Northwind Systems Status</h1><table><tr><td>Customer Portal</td><td>Operational</td></tr><tr><td>Order API</td><td>Operational</td></tr><tr><td>Internal Grafana dashboards</td><td>Degraded performance</td></tr><tr><td>Jenkins build farm</td><td>Scheduled maintenance 02:00-04:00 UTC</td></tr><tr><td>GitLab mirror</td><td>Operational</td></tr></table><p>Last updated 2026-09-24 09:12 UTC. Subscribe to updates via RSS.</p></body></html>

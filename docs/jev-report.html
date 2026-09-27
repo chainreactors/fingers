@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jev 判定层效果</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f5f4f1;
+  --surface-1: #fcfcfb;
+  --border: #e4e2dc;
+  --track: #ecebe6;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #7a7974;
+  --jev: #2a78d6;
+  --rule: #9c9b95;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --border: #33332f;
+    --track: #262624;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e86;
+    --jev: #3987e5;
+    --rule: #6f6e68;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #121211;
+  --surface-1: #1a1a19;
+  --border: #33332f;
+  --track: #262624;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #8f8e86;
+  --jev: #3987e5;
+  --rule: #6f6e68;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+main { max-width: 880px; margin: 0 auto; padding: 40px 16px 64px; }
+h1 { font-size: 26px; line-height: 1.3; margin: 0 0 6px; font-weight: 650; }
+.lead { color: var(--text-secondary); margin: 0 0 24px; }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 20px; min-width: 0; }
+.card .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.card h2 { font-size: 16px; font-weight: 600; margin: 0; }
+.effect { font-size: 26px; font-weight: 650; white-space: nowrap; }
+.card .what { font-size: 13px; color: var(--text-muted); margin: 2px 0 16px; }
+.row { display: grid; grid-template-columns: 72px 1fr auto; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; color: var(--text-secondary); }
+.track { height: 22px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.bar { height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar.rule { background: var(--rule); }
+.bar.jev { background: var(--jev); }
+.num { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
+.strip .card { padding: 16px 20px; }
+.strip .label { font-size: 13px; color: var(--text-secondary); }
+.strip .value { font-size: 28px; font-weight: 650; line-height: 1.25; margin: 4px 0 0; }
+.strip .note { font-size: 12.5px; color: var(--text-muted); }
+.foot { margin-top: 28px; font-size: 12.5px; color: var(--text-muted); line-height: 1.7; }
+.foot a { color: var(--jev); }
+.theme-toggle { float: right; background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+@media (max-width: 420px) {
+  .grid { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 60px 1fr auto; }
+  .effect { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <button class="theme-toggle" id="theme" type="button" aria-label="切换明暗主题">明 / 暗</button>
+  <h1>Jev 判定层效果</h1>
+  <p class="lead">同样 1070 个真实网站，传统规则指纹 vs 规则 + Jev 判定</p>
+  <div class="legend"><span style="--c: var(--rule)">传统规则</span><span style="--c: var(--jev)">规则 + Jev</span></div>
+
+  <div class="grid" id="cards"></div>
+
+  <div class="strip">
+    <div class="card"><div class="label">可信度（40 页标准答案）</div><div class="value">0 误删</div><div class="note">误报剔除 37/37，真实结果保留 45/45</div></div>
+    <div class="card"><div class="label">速度代价</div><div class="value">+0.3 秒/页</div><div class="note">异步执行，原有规则识别不变慢</div></div>
+    <div class="card"><div class="label">成本</div><div class="value">$3.3</div><div class="note">每万页</div></div>
+  </div>
+
+  <p class="foot">
+    注意：改过品牌的产品 Jev 也认不出来，发现新产品仍靠规则；Jev 请求失败时自动保持传统规则的结果。<br>
+    数据来自 Common Crawl 公开抓取数据，每个网站只取一页；"误报"指产品名只出现在正文、不在任何页面结构中的命中；版本号以页面自带的 generator 标记为参考答案；模型 jev-1.13.0。文字版：<a href="jev-report.md">jev-report.md</a>
+  </p>
+</main>
+<script>
+(function () {
+  var metrics = [
+    { title: "误报", what: "只在正文里提到、实际并不存在的产品", effect: "−91%", unit: "个", rule: 138, jev: 13 },
+    { title: "重复", what: "每页结果条数；多个引擎报的同一产品合并为一条", effect: "减半", unit: "条", rule: 13.4, jev: 6.5 },
+    { title: "漏报", what: "规则没识别、被补回的产品", effect: "+467", unit: "个", rule: 0, jev: 467 },
+    { title: "版本号", what: "识别正确的页面（共 274 页有参考答案）", effect: "×4.7", unit: "页", rule: 43, jev: 200 }
+  ];
+  var root = document.getElementById("cards");
+  metrics.forEach(function (m) {
+    var max = Math.max(m.rule, m.jev) || 1;
+    var card = document.createElement("section");
+    card.className = "card";
+    card.setAttribute("aria-label", m.title + "：传统规则 " + m.rule + m.unit + "，规则加 Jev " + m.jev + m.unit);
+    card.innerHTML =
+      '<div class="head"><h2>' + m.title + '</h2><div class="effect">' + m.effect + '</div></div>' +
+      '<p class="what">' + m.what + '</p>' +
+      row("传统规则", "rule", m.rule, max, m.unit) +
+      row("规则 + Jev", "jev", m.jev, max, m.unit);
+    root.appendChild(card);
+  });
+  function row(label, cls, v, max, unit) {
+    var s = v.toLocaleString() + " " + unit;
+    return '<div class="row" title="' + label + '：' + s + '"><span>' + label + '</span>' +
+      '<div class="track"><div class="bar ' + cls + '" style="width:' + (100 * v / max) + '%"></div></div>' +
+      '<span class="num">' + s + '</span></div>';
+  }
+
+  var html = document.documentElement;
+  try { var saved = localStorage.getItem("jev-report-theme"); if (saved) html.setAttribute("data-theme", saved); } catch (e) {}
+  document.getElementById("theme").addEventListener("click", function () {
+    var t = html.getAttribute("data-theme"), dark = t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches);
+    html.setAttribute("data-theme", dark ? "light" : "dark");
+    try { localStorage.setItem("jev-report-theme", dark ? "light" : "dark"); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>

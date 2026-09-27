@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Server: nginx
+X-Powered-By: PHP/7.4.33
+Set-Cookie: q7Xz_2132_saltkey=Ab12Cd34; path=/; httponly
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html><head><meta charset="utf-8" /><title>钓鱼之家论坛 - Powered by Discuz!</title><meta name="generator" content="Discuz! X3.4" /><meta name="author" content="Discuz! Team and Comsenz UI Team" /><script src="data/cache/common.js?aBc" type="text/javascript"></script></head><body id="nv_forum" class="pg_index"><div id="hd"><h2>钓鱼之家论坛</h2></div><div id="ct"><h3>今日: 128 | 昨日: 342 | 帖子: 1203452 | 会员: 88321</h3><div class="fl">路亚交流区 · 台钓技术 · 渔具二手市场</div></div><div id="ft"><p>Powered by <strong><a href="https://www.discuz.vip" target="_blank">Discuz!</a></strong> <em>X3.4</em></p><p>&copy; 2001-2026 <a href="https://code.dz-x.net" target="_blank">Discuz! Team</a>.</p></div></body></html>

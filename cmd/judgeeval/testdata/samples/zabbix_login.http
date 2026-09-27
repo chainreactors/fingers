@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: nginx
+Set-Cookie: zbx_session=eyJzZXNzaW9; path=/; HttpOnly
+Content-Type: text/html; charset=UTF-8
+
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zabbix</title><link rel="icon" href="favicon.ico"><link rel="stylesheet" type="text/css" href="assets/styles/blue-theme.css?1695205254"><script src="js/browsers.js"></script></head><body><div class="wrapper"><main><div class="signin-container"><div class="signin-logo"></div><form method="post" action="index.php"><ul><li><label for="name">Username</label><input type="text" id="name" name="name" maxlength="255" autofocus></li><li><label for="password">Password</label><input type="password" id="password" name="password" maxlength="255"></li><li><input type="checkbox" id="autologin" name="autologin" value="1" checked><label for="autologin">Remember me for 30 days</label></li><li><button type="submit" id="enter" name="enter" value="Sign in">Sign in</button></li></ul></form></div><div class="signin-links"><a target="_blank" href="https://www.zabbix.com/documentation/6.0/">Help</a> &bull; <a target="_blank" href="https://www.zabbix.com/support">Support</a></div></main><footer role="contentinfo">&copy; 2001&ndash;2023, <a target="_blank" href="https://www.zabbix.com/">Zabbix SIA</a></footer></div></body></html>

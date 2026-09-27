@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+X-Jenkins: 2.401.3
+Set-Cookie: JSESSIONID.1a2b3c=node01; Path=/; HttpOnly
+Content-Type: text/html;charset=utf-8
+
+<!DOCTYPE html><html><head><title>Sign in [Jenkins]</title><script src="/static/abc123/scripts/prototype.js"></script></head><body><form method="post" name="login" action="j_spring_security_check"><h1>Welcome to Jenkins!</h1><input name="j_username" id="j_username" type="text"><input name="j_password" type="password"><input name="from" type="hidden" value="/"><button type="submit">Sign in</button></form></body></html>

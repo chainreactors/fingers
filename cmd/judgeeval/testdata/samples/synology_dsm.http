@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/html; charset="UTF-8"
+
+<!DOCTYPE html><html class="img-no-dragging"><head><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="description" content="DiskStation provides a full-featured network attached storage (NAS) solution to help you manage, backup and share data among Windows, Mac and Linux easily."><meta name="application-name" content="Synology DiskStation"><title>Synology DiskStation - NAS-HOME</title><link rel="stylesheet" type="text/css" href="scripts/ext-3/resources/css/ext-all.css?v=1693533333" /><link rel="stylesheet" type="text/css" href="synoSDSjslib/sds.css?v=1693533333" /><script type="text/javascript" src="webman/synodefs.cgi?v=1693533333"></script><script type="text/javascript" src="webapi/entry.cgi?api=SYNO.Core.Desktop.Defs&version=1&method=getjs&v=1693533333"></script></head><body><div id="sds-login-vue-inst"></div><script type="text/javascript" src="webman/login.js?v=1693533333"></script></body></html>

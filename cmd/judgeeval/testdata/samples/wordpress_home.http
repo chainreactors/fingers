@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: Apache/2.4.57
+Link: <https://example.com/wp-json/>; rel="https://api.w.org/"
+Content-Type: text/html; charset=UTF-8
+
+<!DOCTYPE html><html lang="en-US"><head><title>Acme Bakery &#8211; Fresh bread daily</title><meta name="generator" content="WordPress 6.4.2" /><script src="https://example.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1"></script></head><body class="home blog"><h1>Acme Bakery</h1><p>Fresh sourdough every morning. Visit our shop on Main Street.</p></body></html>

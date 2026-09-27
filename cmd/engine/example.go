@@ -35,6 +35,9 @@ var opts struct {
 	// 是否只检测favicon
 	FaviconOnly bool `short:"f" long:"favicon" description:"Only detect favicon"`
 
+	// 配置 Jev key 后, 引擎自动去除误报与重复并补全版本
+	JevKey string `long:"jev-key" description:"Jev API key: review rule results to drop false positives and fill versions"`
+
 	// 资源文件覆盖
 	GobyFile                  string `long:"goby" description:"Override goby.json.gz with custom file"`
 	FingerprintHubWebFile     string `long:"fingerprinthub-web" description:"Override fingerprinthub_web.json.gz with custom file"`
@@ -173,6 +176,12 @@ func main() {
 	if err != nil {
 		fmt.Printf("Failed to create engine: %v\n", err)
 		os.Exit(1)
+	}
+	if opts.JevKey != "" {
+		if err := engine.EnableJudge(opts.JevKey); err != nil {
+			fmt.Printf("Failed to enable Jev: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	if opts.Verbose {

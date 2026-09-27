@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: GitHub.com
+Content-Type: text/html; charset=utf-8
+X-GitHub-Request-Id: 9A2C:3B1F
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>How to tune the Tomcat 10.1 NIO connector | Sam's Ops Notes</title><meta name="generator" content="Jekyll v3.9.3"><link rel="stylesheet" href="/assets/css/style.css?v=4c9e1b"></head><body><main><h1>How to tune the Tomcat 10.1 NIO connector</h1><p>When we upgraded from Tomcat 9.0.80 to Tomcat 10.1.13, throughput dropped. Here is the server.xml we ended up with:</p><pre>&lt;Connector port="8080" protocol="org.apache.coyote.http11.Http11NioProtocol" maxThreads="400" /&gt;</pre><p>We run it behind nginx 1.24 and Spring Boot 3.1 apps.</p></main><footer>Hosted on GitHub Pages</footer></body></html>

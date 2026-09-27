@@ -27,6 +27,7 @@ type Framework = parsers.Framework
 type MatchDetail = parsers.MatchDetail
 type Frameworks = parsers.Frameworks
 type Attributes = parsers.Attributes
+type Judgement = parsers.Judgement
 
 var FrameFromMap = parsers.FrameFromMap
 

@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Server: uvicorn
+Content-Type: application/json
+
+{"service":"inventory-api","status":"ok","uptime_seconds":882133,"build":"2026.09.18-3","dependencies":{"postgres":"up","redis":"up"}}

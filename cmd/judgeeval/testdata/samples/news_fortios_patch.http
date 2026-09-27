@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: cloudflare
+CF-Cache-Status: HIT
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Fortinet ships FortiOS 7.2.5 update for SSL VPN bug | Network Weekly</title><meta name="generator" content="Ghost 5.71"><link rel="stylesheet" href="/assets/built/screen.css?v=8a1f2c3d4e"></head><body class="post-template"><article class="post"><h1>Fortinet ships FortiOS 7.2.5 update for SSL VPN bug</h1><p class="byline">By Dana Reyes · 12 Sep 2026</p><p>Fortinet has released FortiOS 7.2.5 and 7.0.12, fixing an issue in the FortiGate SSL VPN portal. Administrators running FortiGate appliances should upgrade through the FortiGuard update service. Older 6.4.x branches receive the fix in 6.4.14.</p><p>The vendor said FortiManager and FortiAnalyzer are not affected.</p></article><footer>© 2026 Network Weekly. Published with Ghost.</footer></body></html>

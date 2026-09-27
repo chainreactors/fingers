@@ -9,21 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  COMPAT_PKGS: >-
-    github.com/chainreactors/fingers
-    github.com/chainreactors/fingers/alias
-    github.com/chainreactors/fingers/common
-    github.com/chainreactors/fingers/ehole
-    github.com/chainreactors/fingers/favicon
-    github.com/chainreactors/fingers/fingerprinthub
-    github.com/chainreactors/fingers/fingers
-    github.com/chainreactors/fingers/goby
-    github.com/chainreactors/fingers/nmap
-    github.com/chainreactors/fingers/resources
-    github.com/chainreactors/fingers/wappalyzer
-    github.com/chainreactors/fingers/xray
-
 jobs:
   test:
     name: test
@@ -36,52 +21,70 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22.x'
+          go-version: 'stable'
           cache: true
 
+      # go.mod declares go 1.17: vet's stdversion check flags any newer
+      # standard library API, and tidy must not raise the go line.
+      - name: Tidy
+        run: |
+          go mod tidy -go=1.17 -compat=1.17
+          git diff --exit-code go.mod go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -short -timeout 300s -race -count=1 ./...
+
+  re2:
+    name: re2 module
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: re2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: true
 
       - name: Vet
         run: go vet -tags "re2_cgo re2_static" ./...
 
-      - name: Build
-        run: go build -tags "re2_cgo re2_static" ./...
-
       - name: Test
-        run: go test -tags "re2_cgo re2_static" -short -timeout 300s -race -count=1 ./...
+        run: go test -tags "re2_cgo re2_static" -count=1 ./...
 
-  go117-build:
-    name: Go 1.17 compatibility build
+  go117:
+    name: Go 1.17 module build and test
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go for vendoring
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22.x'
-          cache: true
-
-      - name: Prepare vendor tree
-        run: go mod vendor
-
       - name: Setup Go 1.17
         uses: actions/setup-go@v5
         with:
           go-version: '1.17.x'
 
-      - name: Build with Go 1.17
+      - name: Build
         env:
-          GO111MODULE: off
-          CGO_ENABLED: '0'
-        run: |
-          export GOPATH="${RUNNER_TEMP}/gopath"
-          src="${GOPATH}/src/github.com/chainreactors/fingers"
-          mkdir -p "$(dirname "${src}")"
-          cp -a . "${src}"
-          cd "${src}"
-          go build -tags="noembed goregexp" ${COMPAT_PKGS}
+          GOTOOLCHAIN: local
+        run: go build ./...
+
+      - name: Test
+        env:
+          GOTOOLCHAIN: local
+        run: go test -short -timeout 300s -count=1 ./...
 
   go111-build:
     name: Go 1.11 compatibility build

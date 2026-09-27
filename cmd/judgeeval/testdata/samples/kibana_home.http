@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+kbn-name: kibana-prod-01
+kbn-license-sig: 9c3b1f
+content-security-policy: script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Elastic</title><link rel="stylesheet" href="/74133/bundles/kbn-ui-shared-deps-src/kbn-ui-shared-deps-src.css"></head><body><kbn-csp data="{&quot;strictCsp&quot;:true}"></kbn-csp><kbn-injected-metadata data="{&quot;version&quot;:&quot;8.11.1&quot;,&quot;buildNumber&quot;:74133,&quot;branch&quot;:&quot;8.11&quot;,&quot;basePath&quot;:&quot;&quot;,&quot;env&quot;:{&quot;mode&quot;:{&quot;name&quot;:&quot;production&quot;}}}"></kbn-injected-metadata><div class="kbnWelcomeView" id="kbn_loading_message"><div class="kbnWelcomeText">Loading Elastic</div></div><script src="/74133/bundles/kbn-ui-shared-deps-npm/kbn-ui-shared-deps-npm.dll.js"></script><script src="/74133/bundles/core/core.entry.js"></script></body></html>

@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Cache-Control: no-store
+Content-Type: text/html; charset=UTF-8
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Acme Ops Monitoring</title><base href="/" /><link rel="icon" type="image/png" href="public/img/acme-fav.png"><link rel="stylesheet" href="public/build/acme.dark.3c1d5f.css"></head><body class="theme-dark"><div id="reactRoot"></div><script nonce="">window.bootData = {"user":{"isSignedIn":false},"settings":{"appSubUrl":"","buildInfo":{"hideVersion":false,"version":"9.5.2","edition":"Open Source"},"loginHint":"email or username","datasources":{},"panels":{"timeseries":{},"stat":{},"gauge":{}}}};</script><script src="public/build/runtime.7f2a.js"></script><script src="public/build/app.91be.js"></script></body></html>

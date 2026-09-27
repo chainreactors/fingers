@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+Server: cloudflare
+Set-Cookie: _shopify_y=8c1e; path=/; expires=Wed, 24 Sep 2027 11:00:00 GMT
+X-ShopId: 60123456789
+X-Shardid: 214
+Content-Type: text/html; charset=utf-8
+
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Handmade Ceramic Mugs – Clay &amp; Kiln Studio</title><link rel="stylesheet" href="//clayandkiln.example/cdn/shop/t/4/assets/base.css?v=101234567890"><script src="//clayandkiln.example/cdn/shop/t/4/assets/global.js?v=112233445566" defer="defer"></script><script>window.Shopify = window.Shopify || {};Shopify.shop = "clay-and-kiln.myshopify.com";Shopify.theme = {"name":"Dawn","id":1423,"schema_version":"12.0.0"};</script></head><body><h1>Handmade Ceramic Mugs</h1><p>Each mug is thrown by hand in our Portland studio. $38.00 USD</p><button>Add to cart</button></body></html>

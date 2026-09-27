@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Set-Cookie: ecology_JSessionid=aaaXYZ; path=/
+Content-Type: text/html; charset=UTF-8
+
+<html><head><title>泛微协同管理应用平台 e-cology</title><script src="/wui/common/jquery/jquery.min.js"></script><script src="/js/ecology8/lang/weaver_lang_7.js"></script></head><body><div class="login"><h2>欢迎登录 OA 系统</h2><input name="loginid" id="loginid" type="text" placeholder="用户名"><input name="userpassword" type="password" placeholder="密码"><button>登 录</button></div><div class="footer">版权所有 泛微网络科技股份有限公司</div></body></html>

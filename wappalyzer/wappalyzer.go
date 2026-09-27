@@ -11,6 +11,8 @@ import (
 // Wappalyze is a client for working with tech detection
 type Wappalyze struct {
 	fingerprints *CompiledFingerprints
+	// MatchDetailEnabled records on each hit the text its pattern matched.
+	MatchDetailEnabled bool
 }
 
 // NewWappalyzeEngine creates a new tech detection instance
@@ -56,6 +58,7 @@ func (engine *Wappalyze) loadFingerprints(data []byte) error {
 	for app, fingerprint := range fingerprintsStruct.Apps {
 		engine.fingerprints.Apps[app] = compileFingerprint(app, fingerprint)
 	}
+	engine.fingerprints.order()
 	return nil
 }
 
@@ -105,7 +108,7 @@ func (engine *Wappalyze) Fingerprint(headers map[string][]string, body []byte) c
 
 	// Check for stuff in the body finally
 	uniqueFingerprints.Merge(engine.checkBody(normalizedBody))
-	return uniqueFingerprints
+	return engine.withDetail(uniqueFingerprints)
 }
 
 // FingerprintWithTitle identifies technologies on a target,
@@ -137,9 +140,9 @@ func (engine *Wappalyze) FingerprintWithTitle(headers map[string][]string, body 
 		bodyTech := engine.checkBody(normalizedBody)
 		uniqueFingerprints.Merge(bodyTech)
 		title := engine.getTitle(body)
-		return uniqueFingerprints, title
+		return engine.withDetail(uniqueFingerprints), title
 	}
-	return uniqueFingerprints, ""
+	return engine.withDetail(uniqueFingerprints), ""
 }
 
 // FingerprintWithInfo identifies technologies on a target,
@@ -184,4 +187,14 @@ func (engine *Wappalyze) FingerprintWithCats(headers map[string][]string, body [
 	}
 
 	return result
+}
+
+// withDetail drops the matched text from hits unless MatchDetailEnabled.
+func (engine *Wappalyze) withDetail(frames common.Frameworks) common.Frameworks {
+	if !engine.MatchDetailEnabled {
+		for _, frame := range frames {
+			frame.MatchDetail = nil
+		}
+	}
+	return frames
 }

@@ -3,7 +3,12 @@ package fingers
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"net/http"
+	"sort"
+	"strings"
+
 	"github.com/chainreactors/fingers/alias"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/ehole"
@@ -11,14 +16,15 @@ import (
 	"github.com/chainreactors/fingers/fingerprinthub"
 	"github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/goby"
+	"github.com/chainreactors/fingers/judge"
 	gonmap "github.com/chainreactors/fingers/nmap"
 	"github.com/chainreactors/fingers/resources"
 	wappalyzer "github.com/chainreactors/fingers/wappalyzer"
 	xrayengine "github.com/chainreactors/fingers/xray"
+	"github.com/chainreactors/logs"
 	"github.com/chainreactors/utils/httputils"
+	"github.com/chainreactors/utils/jev"
 	"github.com/pkg/errors"
-	"net/http"
-	"strings"
 )
 
 const (
@@ -86,6 +92,10 @@ type Engine struct {
 	*alias.Aliases
 	Enabled      map[string]bool
 	Capabilities map[string]common.EngineCapability // 新增：记录各引擎能力
+	// Judge, when set, reviews every web match: false positives and duplicate
+	// spellings are dropped and versions filled. EnableJudge sets it up with
+	// Jev; assign your own for another provider or policy.
+	Judge *judge.Judge
 }
 
 func (engine *Engine) String() string {
@@ -204,6 +214,56 @@ func (engine *Engine) Disable(name string) {
 	engine.Enabled[name] = false
 }
 
+// EnableJudge makes every web match (WebMatch, Match, DetectContent,
+// DetectResponse, WebMatchWithEngines) review its rule results with Jev and
+// return only those the evidence supports: false positives and duplicate
+// spellings are dropped, versions filled. An empty apiKey reads
+// TYPESAFE_API_KEY. It sends a compact view of each matched response to
+// the Jev API; if a request fails, the rule results are returned as they are.
+func (engine *Engine) EnableJudge(apiKey string) error {
+	c, err := jev.NewClient(apiKey)
+	if err != nil {
+		return err
+	}
+	engine.EnableMatchDetail()
+	engine.Judge = judge.New(jev.Cached(c, jev.DefaultCacheSize))
+	return nil
+}
+
+// review applies Judge to the rule results of one response.
+func (engine *Engine) review(content []byte, frames common.Frameworks) common.Frameworks {
+	if engine.Judge == nil || len(frames) == 0 {
+		return frames
+	}
+	all, err := engine.Judge.Inspect(context.Background(), content, frames)
+	if err != nil {
+		logs.Log.Debugf("judge: %v; unjudged hits are kept", err)
+	}
+	return all.Accepted()
+}
+
+// EnableMatchDetail makes every engine that can record what a hit matched
+// (fingers, fingerprinthub, wappalyzer, ehole, goby) do so in
+// Framework.MatchDetail. Off by default: it costs fingers and fingerprinthub
+// their keyword fast paths.
+func (engine *Engine) EnableMatchDetail() {
+	if e := engine.Fingers(); e != nil {
+		e.EnableMatchDetail()
+	}
+	if e := engine.FingerPrintHub(); e != nil {
+		e.MatchDetailEnabled = true
+	}
+	if e := engine.Wappalyzer(); e != nil {
+		e.MatchDetailEnabled = true
+	}
+	if e := engine.EHole(); e != nil {
+		e.MatchDetailEnabled = true
+	}
+	if e := engine.Goby(); e != nil {
+		e.MatchDetailEnabled = true
+	}
+}
+
 func (engine *Engine) Fingers() *fingers.FingersEngine {
 	if impl, ok := engine.EnginesImpl[FingersEngine]; ok {
 		return impl.(*fingers.FingersEngine)
@@ -307,11 +367,7 @@ func (engine *Engine) WebMatch(resp *http.Response) common.Frameworks {
 	body, header, _ := httputils.SplitHttpRaw(lower)
 	combined := make(common.Frameworks)
 
-	for name, ok := range engine.Enabled {
-		if !ok {
-			continue
-		}
-
+	for _, name := range engine.enabledNames() {
 		// Check if engine supports web fingerprinting
 		if !engine.Capabilities[name].SupportWeb {
 			continue
@@ -346,7 +402,28 @@ func (engine *Engine) WebMatch(resp *http.Response) common.Frameworks {
 
 		combined = engine.MergeFrameworks(combined, fs)
 	}
-	return combined
+	return engine.review(content, combined)
+}
+
+// enabledNames lists the enabled engines in AllEngines order, then any others
+// by name. Merging keeps the first engine's details for a shared product, so
+// a fixed order makes results reproducible.
+func (engine *Engine) enabledNames() []string {
+	var names, extra []string
+	known := map[string]bool{}
+	for _, name := range AllEngines {
+		known[name] = true
+		if engine.Enabled[name] {
+			names = append(names, name)
+		}
+	}
+	for name, ok := range engine.Enabled {
+		if ok && !known[name] {
+			extra = append(extra, name)
+		}
+	}
+	sort.Strings(extra)
+	return append(names, extra...)
 }
 
 // ServiceMatch 专门用于Service指纹识别
@@ -374,7 +451,7 @@ func (engine *Engine) WebMatchWithEngines(content []byte, engines ...string) com
 			combined = engine.MergeFrameworks(combined, fs)
 		}
 	}
-	return combined
+	return engine.review(content, combined)
 }
 
 // MatchWithEngines (deprecated, use WebMatchWithEngines instead)
@@ -397,7 +474,9 @@ func (engine *Engine) MergeFrameworks(origin, other common.Frameworks) common.Fr
 		if aliasFrame != nil {
 			if ok {
 				frame.Name = aliasFrame.Name
-				frame.UpdateAttributes(aliasFrame.ToWFN())
+				// 复制一份: alias 的 Attributes 被所有页面共享, 直接引用会让一个页面写入的版本号泄漏到之后的页面
+				attrs := *aliasFrame.ToWFN()
+				frame.UpdateAttributes(&attrs)
 			}
 			if aliasFrame.IsBlocked(frame.From.String()) {
 				continue

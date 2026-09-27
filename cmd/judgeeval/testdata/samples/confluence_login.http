@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+X-Confluence-Request-Time: 1727170000123
+X-ASEN: SEN-L1234567
+Set-Cookie: JSESSIONID=8F2C; Path=/; HttpOnly
+Content-Type: text/html;charset=UTF-8
+
+<!DOCTYPE html><html><head><title>Log In - Confluence</title><meta name="ajs-version-number" content="7.19.8"><meta name="ajs-build-number" content="8804"><meta name="ajs-context-path" content=""><script src="/s/d41d8cd98f00b204e9800998ecf8427e-CDN/-1b3z5/8804/1/7.19.8/_/download/batch/com.atlassian.auiplugin:ajs/com.atlassian.auiplugin:ajs.js"></script></head><body id="com-atlassian-confluence" class="login"><form name="loginform" method="POST" action="/dologin.action"><h2>Log in to Confluence</h2><input type="text" name="os_username" id="os_username"><input type="password" name="os_password" id="os_password"><input type="submit" name="login" value="Log in"></form><div id="footer"><p>Powered by Atlassian Confluence 7.19.8</p></div></body></html>

@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: nginx
+Set-Cookie: zbx_session=eyJzZXNzaW9; path=/; HttpOnly
+Content-Type: text/html; charset=UTF-8
+
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>集团IT运维监控中心</title><link rel="stylesheet" type="text/css" href="assets/styles/blue-theme.css?1695205254"><script src="js/browsers.js"></script></head><body><div class="wrapper"><main><div class="signin-container"><div class="signin-logo"></div><form method="post" action="index.php"><ul><li><label for="name">用户名</label><input type="text" id="name" name="name" maxlength="255"></li><li><label for="password">密码</label><input type="password" id="password" name="password" maxlength="255"></li><li><input type="checkbox" id="autologin" name="autologin" value="1"><label for="autologin">30天内记住我</label></li><li><button type="submit" id="enter" name="enter" value="Sign in">登录</button></li></ul></form></div></main><footer role="contentinfo">集团信息中心 运维保障</footer></div></body></html>

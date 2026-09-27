@@ -37,6 +37,8 @@ func NewEHoleEngine(data []byte) (*EHoleEngine, error) {
 type EHoleEngine struct {
 	Fingerprints []*Fingerprint `json:"fingerprint"`
 	FaviconMap   map[string]string
+	// MatchDetailEnabled records on each hit the keyword or text it matched.
+	MatchDetailEnabled bool `json:"-"`
 }
 
 func (engine *EHoleEngine) Name() string {
@@ -106,6 +108,9 @@ func (engine *EHoleEngine) MatchWithHeaderAndBody(header, body string) common.Fr
 	for _, finger := range engine.Fingerprints {
 		frame := finger.Match(header, body)
 		if frame != nil {
+			if !engine.MatchDetailEnabled {
+				frame.MatchDetail = nil
+			}
 			frames.Add(frame)
 		}
 	}
@@ -122,17 +127,31 @@ type Fingerprint struct {
 }
 
 func (finger *Fingerprint) Match(header, body string) *common.Framework {
+	var content string
 	switch finger.Location {
 	case BodyLocation, TitleLocation:
-		if finger.MatchMethod(body) {
-			return common.NewFramework(finger.Cms, common.FrameFromEhole)
-		}
+		content = body
 	case HeaderLocation:
-		if finger.MatchMethod(header) {
-			return common.NewFramework(finger.Cms, common.FrameFromEhole)
-		}
+		content = header
 	default:
 		return nil
+	}
+	if !finger.MatchMethod(content) {
+		return nil
+	}
+	frame := common.NewFramework(finger.Cms, common.FrameFromEhole)
+	frame.MatchDetail = finger.matched(content)
+	return frame
+}
+
+// matched is what a matching fingerprint found in content: its first keyword,
+// or the text its first regexp matched.
+func (finger *Fingerprint) matched(content string) *common.MatchDetail {
+	switch {
+	case finger.Method == KeywordMethod && len(finger.LowerKeyword) > 0:
+		return &common.MatchDetail{MatcherType: "word", MatcherValue: finger.LowerKeyword[0]}
+	case finger.Method == RegularMethod && len(finger.compiledRegexp) > 0:
+		return &common.MatchDetail{MatcherType: "word", MatcherValue: finger.compiledRegexp[0].FindString(content)}
 	}
 	return nil
 }

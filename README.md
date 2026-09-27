@@ -38,6 +38,12 @@ fingers的拓展引擎, 有更全更大的指纹库.
 
 `go get github.com/chainreactors/fingers@master`
 
+支持 Go 1.17 及以上。规则正则默认使用标准库；在 Go 1.24 及以上可以换成更快的 RE2，只需额外引入一行：
+
+```golang
+import _ "github.com/chainreactors/fingers/re2" // go get github.com/chainreactors/fingers/re2
+```
+
 ### Example
 
 document: https://chainreactors.github.io/wiki/libs/fingers/
@@ -83,6 +89,33 @@ func TestFavicon(t *testing.T) {
 ```
 
 更多用法请见: https://chainreactors.github.io/wiki/libs/fingers/sdk/
+
+## 用 Jev 提升识别效果
+
+规则引擎召回能力强，但会有误报、多个引擎的同名重复，版本号也难以拿准。配置一个 [TypeSafe Jev](https://docs.typesafe.ai/api.md) key，引擎就会审查每一次 Web 匹配的规则结果，只返回证据支持的结果：去掉误报和重复，补全版本。调用方式不变。
+
+```golang
+engine, _ := fingers.NewEngine()
+engine.EnableJudge("")                 // 空字符串读取 TYPESAFE_API_KEY
+frames, _ := engine.DetectContent(raw) // WebMatch、Match、DetectResponse 同样生效
+```
+
+命令行：`engine -u https://example.com --jev-key <KEY>`。
+
+- **只审查，不识别**：Jev 只判断规则给出的结论是否成立，从不说出产品名，因此不会凭空多出结果。
+- **失败时退回规则结果**：请求失败或 key 无效时，返回的就是纯规则结果。
+- **每条结果都带依据**：保留下来的结果带有 `Framework.Judge`（选项、Outcome、置信度、证据），随现有输出一起序列化。
+- **代价**：每个有命中的页面约 1～2 个请求，相同页面命中缓存。
+
+漏报不在扫描时处理，因为 Jev 不说出产品名。维护者用 `judge/maintain` 离线发现规则漏掉的产品，交给人命名后用 `judge/gen` 生成规则，更新到指纹库后所有用户受益。
+
+需要自定义 Provider、阈值或查看被剔除条目及原因时，直接使用 `judge` 包，或给 `engine.Judge` 赋值，见 [judge/README.md](judge/README.md)。判定机制只有一个 Claim：代码提出断言并附上证据，Provider 选出证据支持的选项，选项的 Outcome（holds / refuted / insufficient）驱动固定动作。Claim 合约、缓存和 Jev 客户端在 [`github.com/chainreactors/utils/jev`](https://github.com/chainreactors/utils/tree/master/jev)。
+
+**数据外发**：判定时会把响应的精简视图发给 Provider，包括响应头（去掉 Date、Set-Cookie 值等无关头）、Cookie 名、标题、generator/description、脚本和样式路径、内联脚本开头、HTML 注释、表单字段名，以及正文前 1500 字。扫描授权范围内的目标前，请确认允许把这些内容发送给第三方服务。
+
+当前实现于 2026-09-27 在 69 份已标注的真实响应上复测（jev-1.13.0）：误报 24 → 0，真实命中误删 0，版本正确 36、错误 0；不加载新增规则时 Discover 找出全部 3 个漏报产品，加载后无误报警。见 [复测报告](docs/jev-claim-retest-20260927.md)。
+
+设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
 
 ## fingers 引擎
 

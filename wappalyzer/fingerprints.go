@@ -3,6 +3,7 @@ package wappalyzer
 import (
 	"github.com/chainreactors/fingers/common"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -34,6 +35,21 @@ type Fingerprint struct {
 type CompiledFingerprints struct {
 	// Apps is organized as <name, fingerprint>
 	Apps map[string]*CompiledFingerprint
+	// ordered holds Apps by name, so apps whose names differ only in case
+	// ("LiteSpeed Cache", "Litespeed Cache") merge the same way every run.
+	ordered []*CompiledFingerprint
+}
+
+func (f *CompiledFingerprints) order() {
+	names := make([]string, 0, len(f.Apps))
+	for name := range f.Apps {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	f.ordered = make([]*CompiledFingerprint, len(names))
+	for i, name := range names {
+		f.ordered[i] = f.Apps[name]
+	}
 }
 
 // CompiledFingerprint contains the compiled fingerprints from the tech json
@@ -63,6 +79,9 @@ type CompiledFingerprint struct {
 	meta map[string][]*versionRegex
 	// cpe contains the cpe for a fingerpritn
 	cpe string
+	// cookieKeys, headerKeys and metaKeys list the map keys in a fixed
+	// order, so the evidence recorded for a hit does not vary between runs.
+	cookieKeys, headerKeys, metaKeys []string
 }
 
 func (finger *CompiledFingerprint) NewFrame(version string) *common.Framework {
@@ -140,6 +159,17 @@ func (v *versionRegex) MatchString(value string) (bool, string) {
 		}
 	}
 	return true, version
+}
+
+// matchedText is the text a matching pattern found in value, or key when the
+// pattern only requires the key to be present.
+func (v *versionRegex) matchedText(value, key string) string {
+	if !v.skipRegex {
+		if text := v.regex.FindString(value); text != "" {
+			return text
+		}
+	}
+	return key
 }
 
 // part is the part of the fingerprint to match
@@ -236,14 +266,27 @@ func compileFingerprint(app string, fingerprint *Fingerprint) *CompiledFingerpri
 		}
 		compiled.meta[meta] = compiledList
 	}
+	for k := range compiled.cookies {
+		compiled.cookieKeys = append(compiled.cookieKeys, k)
+	}
+	for k := range compiled.headers {
+		compiled.headerKeys = append(compiled.headerKeys, k)
+	}
+	for k := range compiled.meta {
+		compiled.metaKeys = append(compiled.metaKeys, k)
+	}
+	sort.Strings(compiled.cookieKeys)
+	sort.Strings(compiled.headerKeys)
+	sort.Strings(compiled.metaKeys)
 	return compiled
 }
 
 // matchString matches a string for the fingerprints
 func (f *CompiledFingerprints) matchString(data string, part part) common.Frameworks {
 	var matched bool
+	var evidence string
 	technologies := make(common.Frameworks)
-	for _, fingerprint := range f.Apps {
+	for _, fingerprint := range f.ordered {
 		var version string
 
 		switch part {
@@ -251,6 +294,7 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 			for _, pattern := range fingerprint.js {
 				if valid, versionString := pattern.MatchString(data); valid {
 					matched = true
+					evidence = pattern.matchedText(data, "")
 					version = versionString
 				}
 			}
@@ -258,6 +302,7 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 			for _, pattern := range fingerprint.scriptSrc {
 				if valid, versionString := pattern.MatchString(data); valid {
 					matched = true
+					evidence = pattern.matchedText(data, "")
 					version = versionString
 				}
 			}
@@ -265,6 +310,7 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 			for _, pattern := range fingerprint.html {
 				if valid, versionString := pattern.MatchString(data); valid {
 					matched = true
+					evidence = pattern.matchedText(data, "")
 					version = versionString
 				}
 			}
@@ -278,8 +324,12 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 		}
 
 		frame := fingerprint.NewFrame(version)
+		if evidence != "" {
+			frame.MatchDetail = &common.MatchDetail{MatcherType: "word", MatcherValue: evidence}
+		}
 		technologies.Add(frame)
 		matched = false
+		evidence = ""
 	}
 	return technologies
 }
@@ -287,9 +337,10 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 // matchKeyValue matches a key-value store map for the fingerprints
 func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part) common.Frameworks {
 	var matched bool
+	var evidence string
 	var technologies = make(common.Frameworks)
 
-	for _, fingerprint := range f.Apps {
+	for _, fingerprint := range f.ordered {
 		var version string
 
 		switch part {
@@ -301,6 +352,7 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 
 				if valid, versionString := pattern.MatchString(value); valid {
 					matched = true
+					evidence = pattern.matchedText(value, key)
 					version = versionString
 					break
 				}
@@ -313,6 +365,7 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 
 				if valid, versionString := pattern.MatchString(value); valid {
 					matched = true
+					evidence = pattern.matchedText(value, key)
 					version = versionString
 					break
 				}
@@ -326,6 +379,7 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 				for _, pattern := range patterns {
 					if valid, versionString := pattern.MatchString(value); valid {
 						matched = true
+						evidence = pattern.matchedText(value, key)
 						version = versionString
 						break
 					}
@@ -338,8 +392,12 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 			continue
 		}
 		frame := fingerprint.NewFrame(version)
+		if evidence != "" {
+			frame.MatchDetail = &common.MatchDetail{MatcherType: "word", MatcherValue: evidence}
+		}
 		technologies.Add(frame)
 		matched = false
+		evidence = ""
 	}
 	return technologies
 }
@@ -347,29 +405,34 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 // matchMapString matches a key-value store map for the fingerprints
 func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part part) common.Frameworks {
 	var matched bool
+	var evidence string
 	technologies := make(common.Frameworks)
 
-	for _, fingerprint := range f.Apps {
+	for _, fingerprint := range f.ordered {
 		var version string
 
 		switch part {
 		case cookiesPart:
-			for data, pattern := range fingerprint.cookies {
+			for _, data := range fingerprint.cookieKeys {
+				pattern := fingerprint.cookies[data]
 				value, ok := keyValue[data]
 				if !ok {
 					continue
 				}
 				if pattern == nil {
 					matched = true
+					evidence = data
 				}
 				if valid, versionString := pattern.MatchString(value); valid {
 					matched = true
+					evidence = pattern.matchedText(value, data)
 					version = versionString
 					break
 				}
 			}
 		case headersPart:
-			for data, pattern := range fingerprint.headers {
+			for _, data := range fingerprint.headerKeys {
+				pattern := fingerprint.headers[data]
 				value, ok := keyValue[data]
 				if !ok {
 					continue
@@ -377,12 +440,14 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 
 				if valid, versionString := pattern.MatchString(value); valid {
 					matched = true
+					evidence = pattern.matchedText(value, data)
 					version = versionString
 					break
 				}
 			}
 		case metaPart:
-			for data, patterns := range fingerprint.meta {
+			for _, data := range fingerprint.metaKeys {
+				patterns := fingerprint.meta[data]
 				value, ok := keyValue[data]
 				if !ok {
 					continue
@@ -391,6 +456,7 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 				for _, pattern := range patterns {
 					if valid, versionString := pattern.MatchString(value); valid {
 						matched = true
+						evidence = pattern.matchedText(value, data)
 						version = versionString
 						break
 					}
@@ -406,8 +472,12 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 		// Append the technologies as well as implied ones
 
 		frame := fingerprint.NewFrame(version)
+		if evidence != "" {
+			frame.MatchDetail = &common.MatchDetail{MatcherType: "word", MatcherValue: evidence}
+		}
 		technologies.Add(frame)
 		matched = false
+		evidence = ""
 	}
 	return technologies
 }

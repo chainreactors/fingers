@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Server: SY8044
+Set-Cookie: JSESSIONID=A1B2C3; Path=/seeyon; HttpOnly
+Content-Type: text/html;charset=UTF-8
+
+<!DOCTYPE html><html><head><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>协同管理软件 V8.1SP2</title><link rel="stylesheet" href="/seeyon/common/all-min.css?V=V8_1SP2_230816_1234567"><script src="/seeyon/common/js/ui/seeyon.ui.core-debug.js?V=V8_1SP2_230816_1234567"></script><script src="/seeyon/main/login/default/login.js?V=V8_1SP2_230816_1234567"></script></head><body class="login_body"><div class="login_box"><h3>欢迎使用协同管理软件</h3><form id="login_form" method="post" action="/seeyon/main.do?method=login"><input id="login_username" name="login_username" type="text" placeholder="用户名"><input id="login_password1" name="login_password" type="password" placeholder="密码"><input id="login_button" type="button" value="登 录"></form></div><div class="login_footer">北京致远互联软件股份有限公司 版权所有 Copyright &copy; 2002-2023</div></body></html>

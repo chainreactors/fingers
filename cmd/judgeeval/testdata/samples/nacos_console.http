@@ -1,0 +1,5 @@
+HTTP/1.1 200 OK
+Content-Type: text/html;charset=UTF-8
+Vary: Origin
+
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nacos</title><link rel="shortcut icon" href="console-ui/public/img/nacos-logo.png" type="image/x-icon"><link rel="stylesheet" href="console-ui/public/css/console1412.css"><link rel="stylesheet" href="css/main.css?v=2.2.3"></head><body><div id="root" style="overflow:hidden"></div><div id="other"></div><script src="console-ui/public/js/vs/loader.js"></script><script src="console-ui/public/js/merge.js"></script><script src="js/main.js?v=2.2.3"></script></body></html>

@@ -3,6 +3,7 @@ package fingerprinthub
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/chainreactors/fingers/common"
@@ -22,6 +23,10 @@ type FingerPrintHubEngine struct {
 
 	// CaseInsensitive controls whether matching ignores case (default true).
 	CaseInsensitive bool
+
+	// MatchDetailEnabled records on each hit the snippet its matcher matched.
+	// Hits then skip the keyword-index fast path, which knows no snippet.
+	MatchDetailEnabled bool
 
 	// active holds full neutron templates for HTTPActiveMatch/ServiceMatch.
 	// Nil in passive_only builds.
@@ -197,18 +202,19 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 
 	mr := engine.webTemplateIndex.Match(lowerHeaderStr, lowerBodyStr)
 
-	if engine.CaseInsensitive {
-		for ti := range mr.Matched {
+	if engine.CaseInsensitive && !engine.MatchDetailEnabled {
+		for _, ti := range sortedIndices(mr.Matched) {
 			frames.Add(engine.newFramework(engine.webTemplates[ti]))
 		}
 	}
 
-	if !engine.CaseInsensitive {
+	if !engine.CaseInsensitive || engine.MatchDetailEnabled {
 		for ti := range mr.Matched {
 			mr.NeedsCheck[ti] = true
 		}
 	}
-	for ti := range mr.NeedsCheck {
+	// Templates run in index order: the first to hit a product keeps its details.
+	for _, ti := range sortedIndices(mr.NeedsCheck) {
 		tmpl := engine.webTemplates[ti]
 		if len(tmpl.requests) == 0 {
 			continue
@@ -218,8 +224,12 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 			if len(req.Matchers) == 0 {
 				continue
 			}
-			if matchPassiveRequest(req, event) {
-				frames.Add(engine.newFramework(tmpl))
+			if matched, detail := matchPassiveRequestDetail(req, event); matched {
+				frame := engine.newFramework(tmpl)
+				if engine.MatchDetailEnabled {
+					frame.MatchDetail = detail
+				}
+				frames.Add(frame)
 				break
 			}
 		}
@@ -257,4 +267,13 @@ func activeServiceLen(engine *FingerPrintHubEngine) int {
 // yamlMarshal is a convenience wrapper.
 func yamlMarshal(v interface{}) ([]byte, error) {
 	return yaml.Marshal(v)
+}
+
+func sortedIndices(set map[int]bool) []int {
+	out := make([]int, 0, len(set))
+	for i := range set {
+		out = append(out, i)
+	}
+	sort.Ints(out)
+	return out
 }
