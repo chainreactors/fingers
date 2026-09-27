@@ -13,7 +13,7 @@ import (
 	"github.com/chainreactors/utils/jev"
 )
 
-// names picks its product whenever it is offered as a choice.
+// names picks its product whenever it is offered as an option.
 type names string
 
 func (names) ID() string { return "names" }
@@ -21,13 +21,13 @@ func (names) ID() string { return "names" }
 func (n names) Judge(_ context.Context, _ interface{}, qs map[string]jev.Claim) (map[string]jev.Ruling, error) {
 	out := map[string]jev.Ruling{}
 	for key, q := range qs {
-		choice := jev.OptionInsufficient
+		picked := jev.OptionInsufficient
 		for option := range q.Options {
 			if strings.EqualFold(option, string(n)) {
-				choice = option
+				picked = option
 			}
 		}
-		out[key] = jev.Ruling{Option: choice, Confidence: 0.95}
+		out[key] = jev.Ruling{Option: picked, Confidence: 0.95}
 	}
 	return out, nil
 }

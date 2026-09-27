@@ -77,7 +77,7 @@ func (l *Ledger) Add(page string, inspected common.Frameworks) {
 				l.rules[key] = s
 			}
 			s.Outcomes[o]++
-			s.Options[f.Judge.Verdict]++
+			s.Options[f.Judge.Option]++
 			if len(s.Samples[o]) < maxSamples {
 				s.Samples[o] = append(s.Samples[o], page)
 			}

@@ -11,9 +11,9 @@ import (
 	"github.com/chainreactors/utils/jev"
 )
 
-func judged(name string, from common.From, verdict string, outcome jev.Outcome, detail *common.MatchDetail) *common.Framework {
+func judged(name string, from common.From, option string, outcome jev.Outcome, detail *common.MatchDetail) *common.Framework {
 	f := common.NewFramework(name, from)
-	f.Judge = &common.Judgement{Verdict: verdict, Outcome: outcome.String()}
+	f.Judge = &common.Judgement{Option: option, Outcome: outcome.String()}
 	f.MatchDetail = detail
 	return f
 }
@@ -25,11 +25,11 @@ func TestLedgerReportsJunkRules(t *testing.T) {
 		fs := common.Frameworks{}
 		fs.Add(judged("webp_server_go", common.FrameFromFingers, judge.OptionUnrelated, jev.Refuted, webp))
 		fs.Add(judged("nginx", common.FrameFromGoby, judge.OptionDeclared, jev.Holds, nil))
-		verdict, outcome := judge.OptionMentioned, jev.Refuted
+		option, outcome := judge.OptionMentioned, jev.Refuted
 		if i == 0 {
-			verdict, outcome = judge.OptionRunning, jev.Holds
+			option, outcome = judge.OptionRunning, jev.Holds
 		}
-		fs.Add(judged("git", common.FrameFromEhole, verdict, outcome, nil))
+		fs.Add(judged("git", common.FrameFromEhole, option, outcome, nil))
 		fs.Add(common.NewFramework("unjudged", common.FrameFromGoby))
 		l.Add(fmt.Sprintf("page%d", i), fs)
 	}
@@ -122,7 +122,7 @@ func TestLedgerReportIsDeepSnapshot(t *testing.T) {
 	}
 }
 
-func TestClusterSnapshotKeepsRawChoiceAndResolvedOutcome(t *testing.T) {
+func TestClusterSnapshotKeepsRawOptionAndResolvedOutcome(t *testing.T) {
 	raw := []byte("HTTP/1.1 200 OK\r\n\r\n<title>Orion Console</title>")
 	j := judge.New(coverer(CoverageMissing))
 	j.MinConfidence = 1
@@ -132,7 +132,7 @@ func TestClusterSnapshotKeepsRawChoiceAndResolvedOutcome(t *testing.T) {
 	}
 	c := clusters[0]
 	if c.Coverage.Option != CoverageMissing || c.Outcome != jev.Insufficient {
-		t.Fatalf("raw choice lost: %+v", c)
+		t.Fatalf("raw option lost: %+v", c)
 	}
 	data, err := json.Marshal(c)
 	if err != nil {

@@ -130,7 +130,7 @@ func summarizeReplay(m *replayManifest, rows []record, gen []generationResult, c
 		accepted := r.Judged.Accepted()
 		for _, f := range r.Judged {
 			if f != nil && f.Judge != nil && !f.Judge.Duplicate && f.Judge.Outcome != "" {
-				out.Options[f.Judge.Verdict]++
+				out.Options[f.Judge.Option]++
 				out.Outcomes[jev.Outcome(f.Judge.Outcome)]++
 			}
 		}

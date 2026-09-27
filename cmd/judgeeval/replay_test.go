@@ -112,11 +112,11 @@ type replayTestProvider struct {
 func (p *replayTestProvider) ID() string { return "test/replay/" + p.id }
 func (p *replayTestProvider) Judge(_ context.Context, _ interface{}, qs map[string]jev.Claim) (map[string]jev.Ruling, error) {
 	p.calls++
-	answers := map[string]jev.Ruling{}
+	rulings := map[string]jev.Ruling{}
 	for key := range qs {
-		answers[key] = jev.Ruling{Option: "yes", Confidence: 1}
+		rulings[key] = jev.Ruling{Option: "yes", Confidence: 1}
 	}
-	return answers, nil
+	return rulings, nil
 }
 
 func TestReplayOfflineNeverCallsProvider(t *testing.T) {
@@ -135,15 +135,15 @@ func TestReplayOfflineNeverCallsProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.offline = true
-	if answers, err := p.Judge(ctx, "page", qs); err != nil || answers["product"].Option != "yes" {
-		t.Fatalf("cached answer: %v %v", answers, err)
+	if rulings, err := p.Judge(ctx, "page", qs); err != nil || rulings["product"].Option != "yes" {
+		t.Fatalf("cached ruling: %v %v", rulings, err)
 	}
 	if _, err := p.Judge(ctx, "different page", qs); err == nil {
-		t.Fatal("different state reused cached answer")
+		t.Fatal("different state reused cached ruling")
 	}
 	provider.id = "different-endpoint"
 	if _, err := p.Judge(ctx, "page", qs); err == nil {
-		t.Fatal("different endpoint reused cached answer")
+		t.Fatal("different endpoint reused cached ruling")
 	}
 	if provider.calls != 1 || p.calls != 1 || p.hits != 1 {
 		t.Fatalf("calls=%d requests=%d hits=%d", provider.calls, p.calls, p.hits)
@@ -300,15 +300,18 @@ func TestDirectoryAndReplayShareRecordAndCache(t *testing.T) {
 	}
 }
 
-func TestLabelInputConvertsOnce(t *testing.T) {
+func TestLoadLabels(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "labels.json")
-	data := []byte(`{"old":{"keep":["nginx"],"drop":["wordpress"],"version":{"product":"nginx","value":"1.2.3"}},"new":[{"product":"Orion","aliases":["Orion-console"],"present":true}]}`)
+	data := []byte(`{"a":[{"product":"Orion","aliases":["Orion-console"],"present":true,"version":"1.2.3"}]}`)
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 	labels, err := loadLabels(path)
-	if err != nil || len(labels["old"]) != 2 || labels["old"][0].Version == nil || *labels["old"][0].Version != "1.2.3" || len(labels["new"][0].Aliases) != 1 {
+	if err != nil || len(labels["a"]) != 1 || *labels["a"][0].Version != "1.2.3" || len(labels["a"][0].Aliases) != 1 {
 		t.Fatalf("labels=%v error=%v", labels, err)
+	}
+	if _, err := loadLabels("testdata/labels.json"); err != nil {
+		t.Fatal(err)
 	}
 }
 

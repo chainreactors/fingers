@@ -41,8 +41,8 @@ func TestNewPage(t *testing.T) {
 	}
 }
 
-// mock is a Provider answering from a table keyed by question kind and the
-// product named in backticks; it records the question keys of each call.
+// mock is a Provider ruling from a table keyed by claim kind and the
+// product named in backticks; it records the claim keys of each call.
 type mock struct {
 	mu         sync.Mutex
 	delay      time.Duration
@@ -50,7 +50,7 @@ type mock struct {
 	requests   [][]string
 	fail       bool
 	confidence float64
-	verdicts   map[string]string // product -> presence verdict
+	presence   map[string]string // product -> presence option
 	versions   map[string]string // product -> version picked, if among the options
 	coverage   string
 	lastState  map[string]interface{}
@@ -59,7 +59,7 @@ type mock struct {
 func newMock() *mock {
 	return &mock{
 		confidence: 0.95,
-		verdicts:   map[string]string{"wordpress": OptionMentioned, "apache tomcat": OptionRunning, "prototype": OptionRunning},
+		presence:   map[string]string{"wordpress": OptionMentioned, "apache tomcat": OptionRunning, "prototype": OptionRunning},
 		versions:   map[string]string{"jenkins": "2.401.3", "nginx": "1.24.0"},
 	}
 }
@@ -77,7 +77,7 @@ func named(q jev.Claim) string {
 
 func (m *mock) ID() string { return "mock" }
 
-func (m *mock) Judge(ctx context.Context, state interface{}, questions map[string]jev.Claim) (map[string]jev.Ruling, error) {
+func (m *mock) Judge(ctx context.Context, state interface{}, claims map[string]jev.Claim) (map[string]jev.Ruling, error) {
 	atomic.AddInt64(&m.calls, 1)
 	time.Sleep(m.delay)
 	m.mu.Lock()
@@ -87,35 +87,35 @@ func (m *mock) Judge(ctx context.Context, state interface{}, questions map[strin
 	}
 	data, _ := json.Marshal(state)
 	_ = json.Unmarshal(data, &m.lastState)
-	answers := map[string]jev.Ruling{}
+	rulings := map[string]jev.Ruling{}
 	var keys []string
-	for k, q := range questions {
+	for k, q := range claims {
 		keys = append(keys, k)
 		name := strings.ToLower(named(q))
 		switch {
 		case strings.HasPrefix(k, "presence_"):
-			v := m.verdicts[name]
+			v := m.presence[name]
 			if v == "" {
 				v = jev.OptionInsufficient
 			}
-			answers[k] = jev.Ruling{Option: v, Confidence: m.confidence}
+			rulings[k] = jev.Ruling{Option: v, Confidence: m.confidence}
 		case strings.HasPrefix(k, "version_"):
-			choice := notStated
+			option := notStated
 			if v, ok := m.versions[name]; ok {
 				if _, offered := q.Options[v]; offered {
-					choice = v
+					option = v
 				}
 			}
-			answers[k] = jev.Ruling{Option: choice, Confidence: m.confidence}
+			rulings[k] = jev.Ruling{Option: option, Confidence: m.confidence}
 		case k == "coverage":
-			answers[k] = jev.Ruling{Option: m.coverage, Confidence: m.confidence}
+			rulings[k] = jev.Ruling{Option: m.coverage, Confidence: m.confidence}
 		default:
-			answers[k] = jev.Ruling{Option: jev.OptionInsufficient, Confidence: m.confidence}
+			rulings[k] = jev.Ruling{Option: jev.OptionInsufficient, Confidence: m.confidence}
 		}
 	}
 	sort.Strings(keys)
 	m.requests = append(m.requests, keys)
-	return answers, nil
+	return rulings, nil
 }
 
 func testFrames() common.Frameworks {
@@ -141,15 +141,15 @@ func TestInspect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if w := all["wordpress"].Judge; w == nil || !w.Rejected || w.Verdict != OptionMentioned || w.Outcome != "refuted" || len(w.Evidence) == 0 || !strings.Contains(w.Evidence[0], "WordPress") {
+	if w := all["wordpress"].Judge; w == nil || !w.Rejected || w.Option != OptionMentioned || w.Outcome != "refuted" || len(w.Evidence) == 0 || !strings.Contains(w.Evidence[0], "WordPress") {
 		t.Errorf("text-only wordpress not rejected on its evidence: %+v", w)
 	}
 	for _, name := range []string{"nginx", "jenkins"} {
-		if v := all[name].Judge; v.Rejected || v.Verdict != OptionDeclared || v.Outcome != "holds" {
+		if v := all[name].Judge; v.Rejected || v.Option != OptionDeclared || v.Outcome != "holds" {
 			t.Errorf("%s named in a header must be declared: %+v", name, v)
 		}
 	}
-	if h := all["hsts"].Judge; !h.Rejected || h.Verdict != OptionAbsent || h.Outcome != "refuted" {
+	if h := all["hsts"].Judge; !h.Rejected || h.Option != OptionAbsent || h.Outcome != "refuted" {
 		t.Errorf("hsts without the header must be absent: %+v", h)
 	}
 	if all["apache tomcat"].Judge.Duplicate == all["apache-tomcat"].Judge.Duplicate {
@@ -176,20 +176,20 @@ func TestInspect(t *testing.T) {
 	if accepted["jenkins"].Version != "2.401.3" || accepted["nginx"].Version != "1.24.0" {
 		t.Errorf("versions: jenkins %q nginx %q", accepted["jenkins"].Version, accepted["nginx"].Version)
 	}
-	// The verdicts come from the cache; tomcat is offered no version, since
+	// The presence come from the cache; tomcat is offered no version, since
 	// both strings are bound by name to other products.
 	if len(m.requests) != 1 {
-		t.Errorf("cached verdicts were asked again: %v", m.requests)
+		t.Errorf("cached presence were asked again: %v", m.requests)
 	}
 }
 
-// DropInsufficient decides what an undecided claim does; an answer below
+// DropInsufficient decides what an undecided claim does; a ruling below
 // MinConfidence is undecided whatever it chose.
 func TestInsufficient(t *testing.T) {
 	for _, c := range []struct {
 		on         bool
 		confidence float64
-		verdict    string
+		option     string
 		rejected   bool
 	}{
 		{false, 0.95, OptionRunning, false},
@@ -210,10 +210,10 @@ func TestInsufficient(t *testing.T) {
 			tomcat = all["apache-tomcat"].Judge
 		}
 		outcome := "holds"
-		if c.verdict == jev.OptionInsufficient {
+		if c.option == jev.OptionInsufficient {
 			outcome = "insufficient"
 		}
-		if tomcat.Verdict != OptionRunning || tomcat.Outcome != outcome || tomcat.Rejected != c.rejected {
+		if tomcat.Option != OptionRunning || tomcat.Outcome != outcome || tomcat.Rejected != c.rejected {
 			t.Errorf("%+v: tomcat %+v", c, tomcat)
 		}
 	}
@@ -223,7 +223,7 @@ func TestInsufficient(t *testing.T) {
 // removed like a mere mention, and the matched text reaches the provider.
 func TestUnrelatedIsRejected(t *testing.T) {
 	m := newMock()
-	m.verdicts["apache tomcat"] = OptionUnrelated
+	m.presence["apache tomcat"] = OptionUnrelated
 	frames := testFrames()
 	for _, f := range frames {
 		if f.Name == "apache tomcat" || f.Name == "apache-tomcat" {
@@ -238,7 +238,7 @@ func TestUnrelatedIsRejected(t *testing.T) {
 	if all["apache-tomcat"].Judge.Duplicate {
 		tomcat = all["apache-tomcat"].Judge
 	}
-	if tomcat.Verdict != OptionUnrelated || !tomcat.Rejected || len(tomcat.Evidence) == 0 || !strings.Contains(tomcat.Evidence[0], `matched "Jenkins"`) {
+	if tomcat.Option != OptionUnrelated || !tomcat.Rejected || len(tomcat.Evidence) == 0 || !strings.Contains(tomcat.Evidence[0], `matched "Jenkins"`) {
 		t.Fatalf("tomcat %+v", tomcat)
 	}
 }
@@ -247,7 +247,7 @@ func TestUnrelatedIsRejected(t *testing.T) {
 // products in one request, each from its own candidates.
 func TestInspectVersionsEveryProduct(t *testing.T) {
 	m := newMock()
-	m.verdicts["jenkins"] = OptionRunning
+	m.presence["jenkins"] = OptionRunning
 	accepted, err := New(m).Inspect(context.Background(), []byte(bodyRaw), testFrames())
 	accepted = accepted.Accepted()
 	if err != nil {
@@ -281,7 +281,7 @@ func TestDeclarations(t *testing.T) {
 
 func TestVersionNeedsConfidence(t *testing.T) {
 	m := newMock()
-	m.verdicts["jenkins"] = OptionRunning
+	m.presence["jenkins"] = OptionRunning
 	m.confidence = 0.2
 	accepted, err := New(m).Inspect(context.Background(), []byte(bodyRaw), testFrames())
 	accepted = accepted.Accepted()
@@ -311,14 +311,14 @@ func TestFailedProviderKeepsFacts(t *testing.T) {
 	}
 	// nginx, jenkins (declared), wordpress and one tomcat (unjudged); hsts absent, one tomcat a duplicate.
 	if len(accepted) != 4 || accepted["hsts"] != nil || accepted["wordpress"] == nil || accepted["wordpress"].Judge != nil ||
-		accepted["jenkins"].Judge.Verdict != OptionDeclared {
+		accepted["jenkins"].Judge.Option != OptionDeclared {
 		t.Fatalf("accepted on failure: %v", accepted)
 	}
 }
 
 func TestCache(t *testing.T) {
 	m := newMock()
-	m.verdicts["jenkins"] = OptionRunning
+	m.presence["jenkins"] = OptionRunning
 	j := New(jev.Cached(m, jev.DefaultCacheSize))
 	for i := 0; i < 2; i++ {
 		accepted, err := j.Inspect(context.Background(), []byte(bodyRaw), testFrames())
@@ -327,16 +327,12 @@ func TestCache(t *testing.T) {
 			t.Fatal(err)
 		}
 		if accepted["jenkins"].Version != "2.401.3" {
-			t.Fatalf("run %d: cached answers not applied", i)
+			t.Fatalf("run %d: cached rulings not applied", i)
 		}
 	}
 	if m.calls != 2 {
 		t.Fatalf("calls=%d", m.calls)
 	}
-}
-
-func testClaim(statement string) jev.Claim {
-	return jev.Claim{Statement: statement, Options: map[string]jev.Option{"yes": {Description: "", Outcome: jev.Holds}, "no": {Description: "", Outcome: jev.Refuted}, jev.OptionInsufficient: {Description: insufficientDescription, Outcome: jev.Insufficient}}}
 }
 
 func TestExtractVersionsPrefixes(t *testing.T) {
@@ -398,8 +394,8 @@ func TestNormalizeName(t *testing.T) {
 // Versions are ordered by their resolved outcome.
 func TestVersionOrder(t *testing.T) {
 	frames := common.Frameworks{}
-	for name, j := range map[string]*common.Judgement{"jquery": {Verdict: jev.OptionInsufficient}, "apache": {Verdict: OptionDeclared, Outcome: jev.Holds.String()},
-		"gitlab": {Verdict: OptionRunning, Outcome: jev.Holds.String()}, "unjudged": nil} {
+	for name, j := range map[string]*common.Judgement{"jquery": {Option: jev.OptionInsufficient}, "apache": {Option: OptionDeclared, Outcome: jev.Holds.String()},
+		"gitlab": {Option: OptionRunning, Outcome: jev.Holds.String()}, "unjudged": nil} {
 		f := common.NewFramework(name, common.FrameFromFingers)
 		f.Judge = j
 		frames.Add(f)

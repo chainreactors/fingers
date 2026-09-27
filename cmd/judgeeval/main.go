@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,13 +26,13 @@ import (
 func main() {
 	manifest := flag.String("manifest", "", "replay evidence manifest with labels and generation plans")
 	history := flag.String("history", "", "optional baseline.jsonl from a previous replay")
-	offline := flag.Bool("offline", false, "manifest replay using exact cached answers only; no provider requests")
+	offline := flag.Bool("offline", false, "manifest replay using exact cached rulings only; no provider requests")
 	maintain := flag.Bool("maintain", false, "audit novel products and validate a native additive fingerprint library")
 	library := flag.String("library", "", "existing local native YAML library to load before manifest replay")
 	samples := flag.String("samples", "testdata/samples", "directory of raw HTTP responses (*.http)")
 	labels := flag.String("labels", "", "optional ground truth (see testdata/labels.json)")
 	provider := flag.String("provider", "jev", "judge provider: jev")
-	cache := flag.String("cache", "judgecache", "directory caching answers")
+	cache := flag.String("cache", "judgecache", "directory caching rulings")
 	out := flag.String("out", "judgereport", "output directory")
 	rps := flag.Float64("rps", 15, "max provider requests per second")
 	flag.Float64Var(&minConfidence, "min-confidence", 0, "judge MinConfidence (0 = Jev default)")
@@ -201,8 +200,7 @@ func evaluatePage(ctx context.Context, engine *fingers.Engine, j *judge.Judge, p
 	return r, err
 }
 
-// loadLabels converts the old keep/drop/version input once at the boundary.
-// All scoring thereafter uses productLabel and exact names or explicit aliases.
+// loadLabels reads ground truth: sample file name -> product labels.
 func loadLabels(path string) (map[string][]productLabel, error) {
 	out := map[string][]productLabel{}
 	if path == "" {
@@ -212,46 +210,8 @@ func loadLabels(path string) (map[string][]productLabel, error) {
 	if err != nil {
 		return nil, err
 	}
-	var values map[string]json.RawMessage
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(data, &out); err != nil {
 		return nil, err
-	}
-	for id, raw := range values {
-		if strings.HasPrefix(strings.TrimSpace(string(raw)), "[") {
-			var labels []productLabel
-			if err := json.Unmarshal(raw, &labels); err != nil {
-				return nil, err
-			}
-			out[id] = labels
-			continue
-		}
-		var old struct {
-			Keep    []string
-			Drop    []string
-			Version *struct{ Product, Value string }
-		}
-		if err := json.Unmarshal(raw, &old); err != nil {
-			return nil, err
-		}
-		for _, name := range old.Keep {
-			out[id] = append(out[id], productLabel{Product: name, Present: true})
-		}
-		for _, name := range old.Drop {
-			out[id] = append(out[id], productLabel{Product: name})
-		}
-		if old.Version != nil {
-			found := false
-			for i := range out[id] {
-				if judge.NormalizeName(out[id][i].Product) == judge.NormalizeName(old.Version.Product) {
-					out[id][i].Version = &old.Version.Value
-					found = true
-					break
-				}
-			}
-			if !found {
-				out[id] = append(out[id], productLabel{Product: old.Version.Product, Present: true, Version: &old.Version.Value})
-			}
-		}
 	}
 	return out, nil
 }

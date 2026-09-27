@@ -228,14 +228,14 @@ func main() {
 			judged, err := j.Inspect(ctx, content, frames)
 			accepted := judged.Accepted()
 			if err != nil {
-				fmt.Printf("jev failed, code-established verdicts only: %v\n", err)
+				fmt.Printf("jev failed, code-established facts only: %v\n", err)
 			}
 			for _, frame := range accepted {
-				verdict := "unjudged"
+				option := "unjudged"
 				if frame.Judge != nil {
-					verdict = frame.Judge.Verdict
+					option = frame.Judge.Option
 				}
-				fmt.Printf("  %-40s %-10s %s\n", frame.Name, frame.Version, verdict)
+				fmt.Printf("  %-40s %-10s %s\n", frame.Name, frame.Version, option)
 			}
 			if err == nil {
 				fmt.Printf("accepted: %s\n", accepted.String())

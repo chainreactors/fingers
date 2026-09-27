@@ -38,7 +38,7 @@ Presence 用 `running` 表示产品参与生成响应，`mentioned` / `unrelated
 
 | 字段 | 含义 |
 |---|---|
-| Verdict | 原始选项；即使置信度不足也保留 |
+| Option | 原始选项；即使置信度不足也保留 |
 | Outcome | Resolve 后的 holds / refuted / insufficient；消费方按此统计 |
 | Confidence / Evidence | 置信度及规则命中原文；本地确定事实置信度为 1 |
 | Rejected | Refuted，或 Insufficient 且 DropInsufficient 为 true |
@@ -48,10 +48,10 @@ Presence 用 `running` 表示产品参与生成响应，`mentioned` / `unrelated
 
 ## 离线维护
 
-- `maintain.Ledger.Add(id, all)` 从既有 presence 注解汇总规则表现，不再请求 Provider。`Report` 返回深复制快照，记录 Outcomes、Options 和样本 ID；`Hits()` 与 `RefutedFraction()` 从 Outcomes 推导。Presence 选项常量统一为 `judge.OptionRunning` 等 `Option*`，原生 `Framework.Judge.Verdict` 输出字段继续保留。当前引擎聚合后的 MatchDetail 仍只保留首个匹配详情，未重设计完整规则来源。
+- `maintain.Ledger.Add(id, all)` 从既有 presence 注解汇总规则表现，不再请求 Provider。`Report` 返回深复制快照，记录 Outcomes、Options 和样本 ID；`Hits()` 与 `RefutedFraction()` 从 Outcomes 推导。Presence 选项常量统一为 `judge.OptionRunning` 等 `Option*`，原生 `Framework.Judge.Option` 输出字段继续保留。当前引擎聚合后的 MatchDetail 仍只保留首个匹配详情，未重设计完整规则来源。
 - `maintain.Discover` 按资源路径、表单、Cookie/自定义头名和页面文字等结构特征聚类。每个多主机簇提出 Coverage Claim：`explained` / `custom_site` → Holds，`missing` → Refuted，另有 insufficient。Cluster 直接可序列化，仅保存成员 ID、Coverage 原始 Ruling、解析的 Outcome、已报告产品和代码抽取的候选名。候选名供人命名，不作为 Provider 选项。
 - `gen.Generator` 为人指定的 Name 从正反样本生成规则。需要时调用 Version。Validate 运行规则引擎，不调用模型，不修改内置库。
 
-`cmd/judgeeval` 两种输入模式共用 `baseline` / `judged` 行记录。接受结果、拒绝项、版本差异和指标均从它们派生，聚类通过样本 ID 关联。生成评估同样保存原生 Framework，以 manifest 为唯一标签来源，分数和状态按需推导。报告 schema 为 3，统计使用 `claims/options`；旧 manifest、labels 和 baseline 输入仍可读取，旧缓存因命名空间隔离不会被复用。详见 [judgeeval](../cmd/judgeeval/README.md)。
+`cmd/judgeeval` 两种输入模式共用 `baseline` / `judged` 行记录。接受结果、拒绝项、版本差异和指标均从它们派生，聚类通过样本 ID 关联。生成评估同样保存原生 Framework，以 manifest 为唯一标签来源，分数和状态按需推导。报告 schema 为 3，统计使用 `claims/options`；旧缓存因命名空间隔离不会被复用。详见 [judgeeval](../cmd/judgeeval/README.md)。
 
 Provider 收到精简响应视图、规则命中上下文和版本候选上下文；完整原始响应仍仅在本地用于解析事实与提取证据。

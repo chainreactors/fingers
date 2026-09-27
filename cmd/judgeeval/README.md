@@ -45,7 +45,7 @@ go build -o bin/judgeeval.exe ./cmd/judgeeval
 - `metrics.json` / `report.md`：标注范围内的 TP/FP/FN/TN、误删、自然漏报恢复、版本正确/错误/缺失/无依据填值。失败和未标注输出单列。
 - `generation.json` / `fingerprints/*.yaml`：候选指纹、逐样本原生 Framework 结果及排除的样本。`training` / `holdout` 按样本 ID 索引，null 表示已评估且未命中，缺失 key 表示未评估。产品、标签、训练计划统一读取 manifest；状态与分数由报告推导，不再写入另一套逐样本 DTO。
 
-`Inspect` 一次完成存在性和版本判断；报告比较 Baseline 与 Judged.Accepted() 两个阶段。已有非空版本保留，错误由报告揭示。缓存按模型、endpoint、完整 state 和 Claim 精确复用，使用 `claim-report-v3` 命名空间隔离旧缓存，Ruling 保存为 `option/confidence`。metrics.json 的 schema 为 3，统计使用 `claims/options`；manifest、旧 labels 和 baseline 输入格式仍支持。
+`Inspect` 一次完成存在性和版本判断；报告比较 Baseline 与 Judged.Accepted() 两个阶段。已有非空版本保留，错误由报告揭示。缓存按模型、endpoint、完整 state 和 Claim 精确复用，使用 `claim-report-v3` 命名空间隔离旧缓存，Ruling 保存为 `option/confidence`。metrics.json 的 schema 为 3，统计使用 `claims/options`。
 
 新增版本按产品及显式别名合并计数，原基线任一别名已有版本即不算新增。漏报簇的候选名称单独统计，不能算作已补回漏报。生成器训练样本的自动版本保存在 `training` 内的 Framework；训练标签只在导出后打分。训练结果错误或缺失得到 `failed_training`，测试有错得到 `failed_holdout`，未完成全部测试或缺少独立正反例得到 `insufficient_holdout`。报告与维护收录共用这一评估逻辑。
 
@@ -92,6 +92,6 @@ TYPESAFE_API_KEY=... ./judgeeval -provider jev -samples cc/samples -cache judgec
 
 - 两种模式共用一个磁盘 Provider 包装器，保存完整批次的有效 Ruling、统计调用和缓存命中。缓存写入使用临时文件再重命名；失败与非法回答不落盘。
 - `rows.jsonl` 保存唯一的 Baseline/Judged 记录；`metrics.json` / `report.md` 从同一结果统计，未标注预测单列，不使用正文提及或 generator 代理真值。
-- 目录模式的 `-labels` 支持旧 keep/drop/version 对象，也支持每个样本的 productLabel 数组。旧格式只在输入边界转换；统一使用规范名和显式 aliases 打分。
+- 目录模式的 `-labels` 是样本文件名到 productLabel 数组的映射（格式同 manifest 的 `labels`），统一使用规范名和显式 aliases 打分。
 - `ledger.json` 保存规则审计快照；manifest 模式的 `discovery.json` 直接保存 maintain.Cluster，以样本 ID 关联，不在每行复制漏报候选。
 - 新 Provider 在 `main.go` 的 `newProvider` 注册，并实现 Claim/Ruling 合约。

@@ -10,26 +10,26 @@ import (
 	"github.com/chainreactors/utils/jev"
 )
 
-type answerProvider func(map[string]jev.Claim) map[string]jev.Ruling
+type rulingProvider func(map[string]jev.Claim) map[string]jev.Ruling
 
-func (answerProvider) ID() string { return "answer-provider" }
+func (rulingProvider) ID() string { return "ruling-provider" }
 
-func (p answerProvider) Judge(_ context.Context, _ interface{}, questions map[string]jev.Claim) (map[string]jev.Ruling, error) {
-	return p(questions), nil
+func (p rulingProvider) Judge(_ context.Context, _ interface{}, claims map[string]jev.Claim) (map[string]jev.Ruling, error) {
+	return p(claims), nil
 }
 
 type failVersionProvider struct{ *mock }
 
-func (p failVersionProvider) Judge(ctx context.Context, state interface{}, questions map[string]jev.Claim) (map[string]jev.Ruling, error) {
-	if _, ok := questions["version_jenkins"]; ok {
+func (p failVersionProvider) Judge(ctx context.Context, state interface{}, claims map[string]jev.Claim) (map[string]jev.Ruling, error) {
+	if _, ok := claims["version_jenkins"]; ok {
 		return nil, errors.New("version unavailable")
 	}
-	return p.mock.Judge(ctx, state, questions)
+	return p.mock.Judge(ctx, state, claims)
 }
 
 func TestPublicResultsDoNotMutateHits(t *testing.T) {
 	m := newMock()
-	m.verdicts["jenkins"] = OptionRunning
+	m.presence["jenkins"] = OptionRunning
 	j := New(m)
 	frames := testFrames()
 	before, _ := json.Marshal(frames)
@@ -37,14 +37,14 @@ func TestPublicResultsDoNotMutateHits(t *testing.T) {
 	if err != nil || !inspected["wordpress"].Judge.Rejected {
 		t.Fatalf("inspect = %v, %v", inspected, err)
 	}
-	refined, err := j.Inspect(context.Background(), []byte(bodyRaw), frames)
-	refined = refined.Accepted()
-	if err != nil || refined["wordpress"] != nil || refined["jenkins"].Version != "2.401.3" {
-		t.Fatalf("refine = %v, %v", refined, err)
+	accepted, err := j.Inspect(context.Background(), []byte(bodyRaw), frames)
+	accepted = accepted.Accepted()
+	if err != nil || accepted["wordpress"] != nil || accepted["jenkins"].Version != "2.401.3" {
+		t.Fatalf("accepted = %v, %v", accepted, err)
 	}
 	// The judgement is copied, not shared with the Inspect result.
-	refined["nginx"].Judge.Verdict = "changed"
-	if inspected["nginx"].Judge.Verdict == "changed" {
+	accepted["nginx"].Judge.Option = "changed"
+	if inspected["nginx"].Judge.Option == "changed" {
 		t.Fatal("Independent Inspect calls share a Judgement")
 	}
 	if after, _ := json.Marshal(frames); string(after) != string(before) {
@@ -56,11 +56,11 @@ func TestPublicResultsDoNotMutateHits(t *testing.T) {
 	}
 }
 
-// A failed version round keeps the verdicts and leaves the input untouched.
-func TestInspectVersionFailureKeepsVerdicts(t *testing.T) {
+// A failed version round keeps the presence and leaves the input untouched.
+func TestInspectVersionFailureKeepsPresence(t *testing.T) {
 	frames := testFrames()
 	m := newMock()
-	m.verdicts["jenkins"] = OptionRunning
+	m.presence["jenkins"] = OptionRunning
 	accepted, err := New(failVersionProvider{m}).Inspect(context.Background(), []byte(bodyRaw), frames)
 	accepted = accepted.Accepted()
 	if err == nil || accepted["wordpress"] != nil || accepted["jenkins"] == nil || accepted["jenkins"].Version != "" {
@@ -74,7 +74,7 @@ func TestInspectVersionFailureKeepsVerdicts(t *testing.T) {
 }
 
 func TestInspectInvalidBatchIsNotPartlyApplied(t *testing.T) {
-	j := New(answerProvider(func(cs map[string]jev.Claim) map[string]jev.Ruling {
+	j := New(rulingProvider(func(cs map[string]jev.Claim) map[string]jev.Ruling {
 		out := map[string]jev.Ruling{}
 		for id := range cs {
 			out[id] = jev.Ruling{Option: OptionRunning, Confidence: 1}
@@ -94,7 +94,7 @@ func TestInspectReevaluatesAndCopiesInputs(t *testing.T) {
 	frames := testFrames()
 	f := frames["wordpress"]
 	f.MatchDetail = &common.MatchDetail{MatcherValue: "WordPress"}
-	f.Judge = &common.Judgement{Verdict: OptionRunning, Outcome: jev.Holds.String(), Evidence: []string{"old"}}
+	f.Judge = &common.Judgement{Option: OptionRunning, Outcome: jev.Holds.String(), Evidence: []string{"old"}}
 	before, _ := json.Marshal(frames)
 	all, err := j.Inspect(context.Background(), []byte(jenkinsRaw), frames)
 	if err != nil || !all["wordpress"].Judge.Rejected {

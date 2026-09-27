@@ -9,7 +9,7 @@ import (
 	"github.com/chainreactors/utils/jev"
 )
 
-func TestRefineWithJudge(t *testing.T) {
+func TestInspectWithJudge(t *testing.T) {
 	engine, err := NewEngine(FingersEngine, WappalyzerEngine)
 	if err != nil {
 		t.Fatal(err)
@@ -23,7 +23,7 @@ func TestRefineWithJudge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nginx := accepted["nginx"]; nginx == nil || nginx.Judge == nil || nginx.Judge.Verdict != judge.OptionDeclared || frames["nginx"].Judge != nil {
+	if nginx := accepted["nginx"]; nginx == nil || nginx.Judge == nil || nginx.Judge.Option != judge.OptionDeclared || frames["nginx"].Judge != nil {
 		t.Fatalf("accepted %v, input %v", accepted["nginx"], frames["nginx"])
 	}
 }
@@ -33,17 +33,17 @@ type running struct{}
 
 func (running) ID() string { return "test" }
 
-func (running) Judge(ctx context.Context, state interface{}, questions map[string]jev.Claim) (map[string]jev.Ruling, error) {
-	answers := map[string]jev.Ruling{}
-	for k := range questions {
+func (running) Judge(ctx context.Context, state interface{}, claims map[string]jev.Claim) (map[string]jev.Ruling, error) {
+	rulings := map[string]jev.Ruling{}
+	for k := range claims {
 		switch {
 		case strings.HasPrefix(k, "presence_"):
-			answers[k] = jev.Ruling{Option: judge.OptionRunning, Confidence: 0.9}
+			rulings[k] = jev.Ruling{Option: judge.OptionRunning, Confidence: 0.9}
 		default:
-			answers[k] = jev.Ruling{Option: "not_stated", Confidence: 0.9}
+			rulings[k] = jev.Ruling{Option: "not_stated", Confidence: 0.9}
 		}
 	}
-	return answers, nil
+	return rulings, nil
 }
 
 // Every engine that can record what a hit matched does so once enabled, and

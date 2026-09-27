@@ -10,7 +10,7 @@ import (
 	"github.com/chainreactors/utils/jev"
 )
 
-// Presence options, as written to Framework.Judge.Verdict: the option a
+// Presence options, as written to Framework.Judge.Option: the option a
 // presence claim was ruled with. Declared and absent are rulings code makes
 // from the response head; the rest are the provider's.
 const (
@@ -121,7 +121,7 @@ func (j *Judge) applyPresence(frames []*common.Framework, evidence []matchExcerp
 		excerpts = append(excerpts, e.String())
 	}
 	for i, f := range frames {
-		f.Judge = &common.Judgement{Verdict: ruling.Option, Outcome: outcome.String(),
+		f.Judge = &common.Judgement{Option: ruling.Option, Outcome: outcome.String(),
 			Evidence: append([]string(nil), excerpts...), Confidence: ruling.Confidence,
 			Rejected: j.rejects(outcome), Duplicate: i > 0}
 	}

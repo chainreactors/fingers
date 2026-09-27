@@ -109,7 +109,7 @@ if err != nil {
 }
 for _, f := range accepted {
     if f.Judge != nil {                           // nil：未经判定（如超过每页 40 个产品的上限）
-        fmt.Println(f.Name, f.Version, f.Judge.Verdict, f.Judge.Outcome)
+        fmt.Println(f.Name, f.Version, f.Judge.Option, f.Judge.Outcome)
     }
 }
 ```

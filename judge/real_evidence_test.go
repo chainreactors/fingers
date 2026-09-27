@@ -64,14 +64,14 @@ func TestVersionCandidatesDoNotDiscardLateProductEvidence(t *testing.T) {
 }
 
 // Protocol features are facts of the response head: decided by code, never
-// asked, whatever a provider would answer.
+// asked, whatever a provider would rule.
 func TestProtocolHitRequiresResponseEvidence(t *testing.T) {
 	for _, tc := range []struct {
 		name, header string
 		want         bool
 	}{{"http基本认证", "", false}, {"hsts", "", false}, {"http基本认证", "WWW-Authenticate: Basic realm=\"test\"\r\n", true}, {"hsts", "Strict-Transport-Security: max-age=31536000\r\n", true}} {
 		asked := false
-		j := New(answerProvider(func(qs map[string]jev.Claim) map[string]jev.Ruling {
+		j := New(rulingProvider(func(qs map[string]jev.Claim) map[string]jev.Ruling {
 			asked = true
 			return nil
 		}))
