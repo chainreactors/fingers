@@ -113,7 +113,17 @@ func (l *Ledger) Report(minHits int, minRefuted float64) []*RuleStats {
 		if ra != rb {
 			return ra > rb
 		}
-		return out[a].Name < out[b].Name
+		ka, kb := out[a].RuleKey, out[b].RuleKey
+		if ka.Name != kb.Name {
+			return ka.Name < kb.Name
+		}
+		if ka.Engine != kb.Engine {
+			return ka.Engine < kb.Engine
+		}
+		if ka.Rule != kb.Rule {
+			return ka.Rule < kb.Rule
+		}
+		return ka.Matcher < kb.Matcher
 	})
 	return out
 }

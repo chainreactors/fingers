@@ -3,6 +3,7 @@ package fingerprinthub
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/chainreactors/fingers/common"
@@ -202,7 +203,7 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 	mr := engine.webTemplateIndex.Match(lowerHeaderStr, lowerBodyStr)
 
 	if engine.CaseInsensitive && !engine.MatchDetailEnabled {
-		for ti := range mr.Matched {
+		for _, ti := range sortedIndices(mr.Matched) {
 			frames.Add(engine.newFramework(engine.webTemplates[ti]))
 		}
 	}
@@ -212,7 +213,8 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 			mr.NeedsCheck[ti] = true
 		}
 	}
-	for ti := range mr.NeedsCheck {
+	// Templates run in index order: the first to hit a product keeps its details.
+	for _, ti := range sortedIndices(mr.NeedsCheck) {
 		tmpl := engine.webTemplates[ti]
 		if len(tmpl.requests) == 0 {
 			continue
@@ -265,4 +267,13 @@ func activeServiceLen(engine *FingerPrintHubEngine) int {
 // yamlMarshal is a convenience wrapper.
 func yamlMarshal(v interface{}) ([]byte, error) {
 	return yaml.Marshal(v)
+}
+
+func sortedIndices(set map[int]bool) []int {
+	out := make([]int, 0, len(set))
+	for i := range set {
+		out = append(out, i)
+	}
+	sort.Ints(out)
+	return out
 }

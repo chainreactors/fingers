@@ -58,6 +58,7 @@ func (engine *Wappalyze) loadFingerprints(data []byte) error {
 	for app, fingerprint := range fingerprintsStruct.Apps {
 		engine.fingerprints.Apps[app] = compileFingerprint(app, fingerprint)
 	}
+	engine.fingerprints.order()
 	return nil
 }
 

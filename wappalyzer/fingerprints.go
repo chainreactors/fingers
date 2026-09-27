@@ -3,6 +3,7 @@ package wappalyzer
 import (
 	"github.com/chainreactors/fingers/common"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -34,6 +35,21 @@ type Fingerprint struct {
 type CompiledFingerprints struct {
 	// Apps is organized as <name, fingerprint>
 	Apps map[string]*CompiledFingerprint
+	// ordered holds Apps by name, so apps whose names differ only in case
+	// ("LiteSpeed Cache", "Litespeed Cache") merge the same way every run.
+	ordered []*CompiledFingerprint
+}
+
+func (f *CompiledFingerprints) order() {
+	names := make([]string, 0, len(f.Apps))
+	for name := range f.Apps {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	f.ordered = make([]*CompiledFingerprint, len(names))
+	for i, name := range names {
+		f.ordered[i] = f.Apps[name]
+	}
 }
 
 // CompiledFingerprint contains the compiled fingerprints from the tech json
@@ -63,6 +79,9 @@ type CompiledFingerprint struct {
 	meta map[string][]*versionRegex
 	// cpe contains the cpe for a fingerpritn
 	cpe string
+	// cookieKeys, headerKeys and metaKeys list the map keys in a fixed
+	// order, so the evidence recorded for a hit does not vary between runs.
+	cookieKeys, headerKeys, metaKeys []string
 }
 
 func (finger *CompiledFingerprint) NewFrame(version string) *common.Framework {
@@ -247,6 +266,18 @@ func compileFingerprint(app string, fingerprint *Fingerprint) *CompiledFingerpri
 		}
 		compiled.meta[meta] = compiledList
 	}
+	for k := range compiled.cookies {
+		compiled.cookieKeys = append(compiled.cookieKeys, k)
+	}
+	for k := range compiled.headers {
+		compiled.headerKeys = append(compiled.headerKeys, k)
+	}
+	for k := range compiled.meta {
+		compiled.metaKeys = append(compiled.metaKeys, k)
+	}
+	sort.Strings(compiled.cookieKeys)
+	sort.Strings(compiled.headerKeys)
+	sort.Strings(compiled.metaKeys)
 	return compiled
 }
 
@@ -255,7 +286,7 @@ func (f *CompiledFingerprints) matchString(data string, part part) common.Framew
 	var matched bool
 	var evidence string
 	technologies := make(common.Frameworks)
-	for _, fingerprint := range f.Apps {
+	for _, fingerprint := range f.ordered {
 		var version string
 
 		switch part {
@@ -309,7 +340,7 @@ func (f *CompiledFingerprints) matchKeyValueString(key, value string, part part)
 	var evidence string
 	var technologies = make(common.Frameworks)
 
-	for _, fingerprint := range f.Apps {
+	for _, fingerprint := range f.ordered {
 		var version string
 
 		switch part {
@@ -377,12 +408,13 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 	var evidence string
 	technologies := make(common.Frameworks)
 
-	for _, fingerprint := range f.Apps {
+	for _, fingerprint := range f.ordered {
 		var version string
 
 		switch part {
 		case cookiesPart:
-			for data, pattern := range fingerprint.cookies {
+			for _, data := range fingerprint.cookieKeys {
+				pattern := fingerprint.cookies[data]
 				value, ok := keyValue[data]
 				if !ok {
 					continue
@@ -399,7 +431,8 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 				}
 			}
 		case headersPart:
-			for data, pattern := range fingerprint.headers {
+			for _, data := range fingerprint.headerKeys {
+				pattern := fingerprint.headers[data]
 				value, ok := keyValue[data]
 				if !ok {
 					continue
@@ -413,7 +446,8 @@ func (f *CompiledFingerprints) matchMapString(keyValue map[string]string, part p
 				}
 			}
 		case metaPart:
-			for data, patterns := range fingerprint.meta {
+			for _, data := range fingerprint.metaKeys {
+				patterns := fingerprint.meta[data]
 				value, ok := keyValue[data]
 				if !ok {
 					continue

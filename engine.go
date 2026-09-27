@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/chainreactors/fingers/alias"
@@ -331,11 +332,7 @@ func (engine *Engine) WebMatch(resp *http.Response) common.Frameworks {
 	body, header, _ := httputils.SplitHttpRaw(lower)
 	combined := make(common.Frameworks)
 
-	for name, ok := range engine.Enabled {
-		if !ok {
-			continue
-		}
-
+	for _, name := range engine.enabledNames() {
 		// Check if engine supports web fingerprinting
 		if !engine.Capabilities[name].SupportWeb {
 			continue
@@ -371,6 +368,27 @@ func (engine *Engine) WebMatch(resp *http.Response) common.Frameworks {
 		combined = engine.MergeFrameworks(combined, fs)
 	}
 	return combined
+}
+
+// enabledNames lists the enabled engines in AllEngines order, then any others
+// by name. Merging keeps the first engine's details for a shared product, so
+// a fixed order makes results reproducible.
+func (engine *Engine) enabledNames() []string {
+	var names, extra []string
+	known := map[string]bool{}
+	for _, name := range AllEngines {
+		known[name] = true
+		if engine.Enabled[name] {
+			names = append(names, name)
+		}
+	}
+	for name, ok := range engine.Enabled {
+		if ok && !known[name] {
+			extra = append(extra, name)
+		}
+	}
+	sort.Strings(extra)
+	return append(names, extra...)
 }
 
 // ServiceMatch 专门用于Service指纹识别

@@ -126,7 +126,6 @@ func run(providerName, samples, labelsPath, cacheDir, out, endpoint string, rps 
 			for i := range jobs {
 				r, err := evaluatePage(ctx, engine, j, files[i])
 				rows[i] = r
-				ledger.Add(r.ID, r.Judged)
 				var apiErr *jev.APIError
 				if errors.As(err, &apiErr) && apiErr.Status == 401 {
 					once.Do(func() { fatal = errors.New("unauthorized: check " + jev.EnvAPIKey); cancel() })
@@ -149,6 +148,9 @@ dispatch:
 	}
 	if err := writeRows(filepath.Join(out, "rows.jsonl"), rows); err != nil {
 		return err
+	}
+	for _, r := range rows { // in file order, so the ledger's samples are reproducible
+		ledger.Add(r.ID, r.Judged)
 	}
 	m := &replayManifest{}
 	for _, r := range rows {

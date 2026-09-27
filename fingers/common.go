@@ -2,6 +2,8 @@ package fingers
 
 import (
 	"bytes"
+	"sort"
+
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/iutils"
@@ -80,7 +82,14 @@ func (fs Fingers) ACPassiveMatch(input *Content, idx *KeywordIndex, stopAtFirst 
 	frames := make(common.Frameworks)
 	vulns := make(common.Vulns)
 	candidates := idx.MatchCandidates(input.Header, input.Body)
+	// Rule order, not map order: the first finger to hit a product keeps its
+	// details, and stopAtFirst returns the same finger every run.
+	order := make([]int, 0, len(candidates))
 	for fi := range candidates {
+		order = append(order, fi)
+	}
+	sort.Ints(order)
+	for _, fi := range order {
 		finger := fs[fi]
 
 		if idx.IsFastPath(fi) && !finger.EnableMatchDetail {
