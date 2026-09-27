@@ -1,8 +1,12 @@
 # Jev 新产品指纹维护验证：20260926 批次
 
+> 历史评估记录：文中的 Refine、SuggestNames、Classify 等机制已移除，数据保留当时含义。当前实现见 [Claim 合约](../judge/README.md) 和 [judgeeval 报告格式](../cmd/judgeeval/README.md)，本文指标未由当前实现重新验证。
+
 ## 结论
 
 本次扩大真实响应范围，核验了八种原目录没有的产品，生成八份候选；其中 **SearXNG、Wakapi、IT Tools 三种通过独立样本测试及原生库加载检查**，输出可直接加载的增量库。加载该库后再运行 Jev 清洗，也保留了全部标注真命中；重复维护识别为已有产品，不重复入库。
+
+补充[产品真实性复核](jev-product-authenticity-20260926.md)：三个都是已有真实开源项目，“新”指本次库内新增。**IT Tools 的标题被原版和衍生版共用，因此本文对它的正例及 FP/FN 仅代表产品家族识别，不代表已区分 CorentinTh 原版与其他分支。**
 
 这验证了有证据标注和评审的辅助维护流程。`IsUnknownProduct` 对 IT Tools 的三份真实界面仍返回 false；`SuggestNames` 均能提出正确名称。因此当前自动发现入口有漏检，不能依赖单个 unknown 布尔值决定所有新产品是否进入维护流程。
 

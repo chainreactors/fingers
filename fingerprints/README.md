@@ -18,6 +18,8 @@ if err := engine.Compile(); err != nil {
 hits, err := engine.DetectContent(rawHTTPResponse)
 ```
 
-生成规则维持原生 `Finger` / `Frameworks` 语义。SearXNG 和 Wakapi 包含版本提取；IT Tools 在当前真实样本没有明确版本证据时只识别产品。
+生成规则维持原生 `Finger` / `Frameworks` 语义。SearXNG 和 Wakapi 包含版本提取；IT Tools 当前按完整标题识别产品家族，覆盖原版与保留该标题的衍生版，不能区分具体分支，版本留空。
+
+三个项目均经官方仓库和源码复核；“新增”仅指本次已审计的指纹库范围，不是近期发布的新软件。身份依据和分支范围见[产品真实性复核](../docs/jev-product-authenticity-20260926.md)。
 
 扩展测试报告见 [Jev 指纹库维护验证](../docs/jev-maintenance-validation-20260926.md)，运行数据和完整响应保存在本地 `.judge-data/expansion-20260926/`。这些指纹的结论仅适用于报告中列出的版本、样本和标注范围。
