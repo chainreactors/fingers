@@ -23,6 +23,10 @@ type FingerPrintHubEngine struct {
 	// CaseInsensitive controls whether matching ignores case (default true).
 	CaseInsensitive bool
 
+	// MatchDetailEnabled records on each hit the snippet its matcher matched.
+	// Hits then skip the keyword-index fast path, which knows no snippet.
+	MatchDetailEnabled bool
+
 	// active holds full neutron templates for HTTPActiveMatch/ServiceMatch.
 	// Nil in passive_only builds.
 	active *activeState
@@ -197,13 +201,13 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 
 	mr := engine.webTemplateIndex.Match(lowerHeaderStr, lowerBodyStr)
 
-	if engine.CaseInsensitive {
+	if engine.CaseInsensitive && !engine.MatchDetailEnabled {
 		for ti := range mr.Matched {
 			frames.Add(engine.newFramework(engine.webTemplates[ti]))
 		}
 	}
 
-	if !engine.CaseInsensitive {
+	if !engine.CaseInsensitive || engine.MatchDetailEnabled {
 		for ti := range mr.Matched {
 			mr.NeedsCheck[ti] = true
 		}
@@ -218,8 +222,12 @@ func (engine *FingerPrintHubEngine) WebMatch(content []byte) common.Frameworks {
 			if len(req.Matchers) == 0 {
 				continue
 			}
-			if matchPassiveRequest(req, event) {
-				frames.Add(engine.newFramework(tmpl))
+			if matched, detail := matchPassiveRequestDetail(req, event); matched {
+				frame := engine.newFramework(tmpl)
+				if engine.MatchDetailEnabled {
+					frame.MatchDetail = detail
+				}
+				frames.Add(frame)
 				break
 			}
 		}

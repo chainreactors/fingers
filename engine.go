@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 
 	"github.com/chainreactors/fingers/alias"
@@ -97,20 +96,6 @@ func (engine *Engine) String() string {
 		s.WriteString(fmt.Sprintf(" %s:%d", name, impl.Len()))
 	}
 	return strings.TrimSpace(s.String())
-}
-
-// Names returns the canonical names of every fingerprint in the alias
-// table, sorted: what judge.NewRetriever takes to recall missed products.
-func (engine *Engine) Names() []string {
-	if engine.Aliases == nil {
-		return nil
-	}
-	names := make([]string, 0, len(engine.Aliases.Aliases))
-	for name := range engine.Aliases.Aliases {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
 
 func (engine *Engine) Compile() error {
@@ -219,6 +204,28 @@ func (engine *Engine) Enable(name string) {
 
 func (engine *Engine) Disable(name string) {
 	engine.Enabled[name] = false
+}
+
+// EnableMatchDetail makes every engine that can record what a hit matched
+// (fingers, fingerprinthub, wappalyzer, ehole, goby) do so in
+// Framework.MatchDetail. Off by default: it costs fingers and fingerprinthub
+// their keyword fast paths.
+func (engine *Engine) EnableMatchDetail() {
+	if e := engine.Fingers(); e != nil {
+		e.EnableMatchDetail()
+	}
+	if e := engine.FingerPrintHub(); e != nil {
+		e.MatchDetailEnabled = true
+	}
+	if e := engine.Wappalyzer(); e != nil {
+		e.MatchDetailEnabled = true
+	}
+	if e := engine.EHole(); e != nil {
+		e.MatchDetailEnabled = true
+	}
+	if e := engine.Goby(); e != nil {
+		e.MatchDetailEnabled = true
+	}
 }
 
 func (engine *Engine) Fingers() *fingers.FingersEngine {

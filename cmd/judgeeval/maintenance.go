@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/chainreactors/fingers/common"
 	fingerlib "github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/fingers/judge/maintain"
 	"github.com/chainreactors/fingers/resources"
 	"gopkg.in/yaml.v3"
 )
@@ -197,18 +199,17 @@ func catalogMatches(catalog []catalogSource, names []string) []string {
 }
 
 type maintenanceProduct struct {
-	Plan               string     `json:"plan"`
-	Product            string     `json:"product"`
-	Status             string     `json:"status"`
-	Existing           []string   `json:"existing_catalog_matches"`
-	PositiveSamples    int        `json:"positive_samples"`
-	SuggestedPositives int        `json:"suggested_positives"`
-	UnknownPositives   int        `json:"unknown_positives"`
-	PositiveHosts      int        `json:"holdout_positive_hosts"`
-	NegativeHosts      int        `json:"holdout_negative_hosts"`
-	Before             stageScore `json:"before"`
-	After              stageScore `json:"after"`
-	TestIDs            []string   `json:"test_ids"`
+	Plan                string     `json:"plan"`
+	Product             string     `json:"product"`
+	Status              string     `json:"status"`
+	Existing            []string   `json:"existing_catalog_matches"`
+	PositiveSamples     int        `json:"positive_samples"`
+	DiscoveredPositives int        `json:"discovered_positives"`
+	PositiveHosts       int        `json:"holdout_positive_hosts"`
+	NegativeHosts       int        `json:"holdout_negative_hosts"`
+	Before              stageScore `json:"before"`
+	After               stageScore `json:"after"`
+	TestIDs             []string   `json:"test_ids"`
 }
 
 type maintenanceReport struct {
@@ -222,12 +223,12 @@ type maintenanceReport struct {
 	IntegrationErrors []string             `json:"integration_errors"`
 }
 
-func maintenanceDecision(existing []string, g generationResult, positiveHosts, negativeHosts int) string {
+func maintenanceDecision(existing []string, generationStatus string, positiveHosts, negativeHosts int) string {
 	switch {
 	case len(existing) > 0:
 		return "already_catalogued"
-	case g.Status != "passed_holdout":
-		return g.Status
+	case generationStatus != "passed_holdout":
+		return generationStatus
 	case positiveHosts < 2 || negativeHosts < 5:
 		return "insufficient_independent_hosts"
 	default:
@@ -235,7 +236,7 @@ func maintenanceDecision(existing []string, g generationResult, positiveHosts, n
 	}
 }
 
-func maintainReplay(m *replayManifest, rows []replayRow, generated []generationResult, out string, engine *fingers.Engine) error {
+func maintainReplay(m *replayManifest, clusters []*maintain.Cluster, generated []generationResult, out string, engine *fingers.Engine) error {
 	catalog, err := embeddedCatalog()
 	if err != nil {
 		return err
@@ -249,10 +250,7 @@ func maintainReplay(m *replayManifest, rows []replayRow, generated []generationR
 		return err
 	}
 	report := maintenanceReport{CatalogFile: "catalog-before.json", MinPositiveHosts: 2, MinNegativeHosts: 5}
-	byID := map[string]replayRow{}
-	for _, row := range rows {
-		byID[row.ID] = row
-	}
+	missing := missingCandidates(clusters)
 	plans := map[string]generationPlan{}
 	for _, p := range m.Generation {
 		plans[p.Name] = p
@@ -262,7 +260,7 @@ func maintainReplay(m *replayManifest, rows []replayRow, generated []generationR
 	for _, g := range generated {
 		p := plans[g.Name]
 		r := maintenanceProduct{Plan: g.Name, Product: p.Product}
-		names := []string{p.Product, g.Product}
+		names := []string{p.Product}
 		for _, sample := range m.Samples {
 			l, ok := labelFor(sample, p.Product)
 			if !ok {
@@ -271,12 +269,8 @@ func maintainReplay(m *replayManifest, rows []replayRow, generated []generationR
 			names = append(names, l.Aliases...)
 			if l.Present {
 				r.PositiveSamples++
-				row := byID[sample.ID]
-				if containsProductName(row.Suggestions, l) {
-					r.SuggestedPositives++
-				}
-				if row.Unknown {
-					r.UnknownPositives++
+				if containsProductName(missing[sample.ID], l) {
+					r.DiscoveredPositives++
 				}
 			}
 		}
@@ -296,7 +290,8 @@ func maintainReplay(m *replayManifest, rows []replayRow, generated []generationR
 			r.TestIDs = append(r.TestIDs, sample.ID)
 		}
 		r.PositiveHosts, r.NegativeHosts = independentHostCount(pos), independentHostCount(neg)
-		r.Status = maintenanceDecision(r.Existing, g, r.PositiveHosts, r.NegativeHosts)
+		_, _, status := g.assess(m, p)
+		r.Status = maintenanceDecision(r.Existing, status, r.PositiveHosts, r.NegativeHosts)
 		if r.Status == "eligible" && p.Probe != "" {
 			r.Status = "active_integration_not_evaluated"
 		}
@@ -393,10 +388,7 @@ func maintainReplay(m *replayManifest, rows []replayRow, generated []generationR
 				frames common.Frameworks
 			}{{&r.Before, before[sample.ID]}, {&r.After, after[sample.ID]}} {
 				f := findLabel(stage.frames, l)
-				stage.score.Detection.add(l.Present, f != nil)
-				if l.Version != nil {
-					stage.score.Versions.add(f, *l.Version)
-				}
+				stage.score.add(l, f)
 			}
 		}
 		r.Status = "validated_library"
@@ -424,4 +416,12 @@ func maintainReplay(m *replayManifest, rows []replayRow, generated []generationR
 	}
 	fmt.Fprintf(os.Stderr, "validated %d novel fingerprints in %s\n", len(library), report.Library)
 	return nil
+}
+
+// copyFrames freezes the pre-load engine results for library validation.
+func copyFrames(frames common.Frameworks) common.Frameworks {
+	data, _ := json.Marshal(frames)
+	var out common.Frameworks
+	_ = json.Unmarshal(data, &out)
+	return out
 }

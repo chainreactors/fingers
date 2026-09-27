@@ -1,16 +1,18 @@
-// Package judge filters and completes rule-engine results with a judgement
-// provider. Code extracts candidates and decides; a Provider (such as
-// TypeSafe Jev in judge/jev) only answers typed questions about the evidence.
+// Package judge reviews fingerprint rule results with jev claims
+// (github.com/chainreactors/utils/jev): whether each hit's product produced
+// the response, and which version the response states. It never identifies
+// products itself. Deterministic facts use the same claims. Duplicate
+// grouping is bookkeeping.
 //
-//	j := judge.New(provider)
-//	j.Known = judge.NewRetriever(engine.Names())
-//	accepted, err := j.Refine(ctx, raw, hits) // what to report
-//	all, err := j.Inspect(ctx, raw, hits)     // why: rejected and duplicate hits too
-//	kind, generic, err := j.Classify(ctx, raw)
+//	j := judge.New(jev.Cached(client, jev.DefaultCacheSize))
+//	all, err := j.Inspect(ctx, raw, hits)
+//	accepted := all.Accepted()
 //
-// Verdicts are written to Framework.Judge. Hits passed in are never changed.
-// Answers are cached per question, and similar pages share them. Fingerprint
-// generation from labelled responses lives in judge/gen.
+// Inspect returns all annotated hits after at most two provider batches. Inputs
+// are copied; errors preserve established facts and leave untouched claims
+// unjudged. A low-confidence ruling resolves to Insufficient without
+// rewriting the selected option.
 //
-// See README.md in this directory.
+// Offline audit and clustering live in judge/maintain, fingerprint
+// generation in judge/gen.
 package judge

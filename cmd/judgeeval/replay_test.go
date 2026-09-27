@@ -2,13 +2,20 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+
+	"github.com/chainreactors/utils/jev"
 
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/fingers/judge/maintain"
 )
 
 func stringPtr(s string) *string { return &s }
@@ -23,9 +30,9 @@ func TestReplayCountsErrorsAndUnlabelledSeparately(t *testing.T) {
 	base := testFrames("nginx", "")
 	after := testFrames("apache http server", "2.4.38")
 	after.Add(common.NewFramework("unlabelled-library", common.FrameFromGUESS))
-	r := replayRow{ID: "a", Baseline: base, Refined: after, Filled: map[string]string{"apache http server": "2.4.38"}}
-	summary := summarizeReplay(m, []replayRow{r, {ID: "failed", Err: "network"}}, nil)
-	if summary.Errors != 1 || summary.LabelledPairs != 2 || summary.Baseline.Detection.FP != 1 || summary.Baseline.Detection.FN != 1 || summary.Refined.Detection.TP != 1 || summary.Refined.Detection.TN != 1 || summary.Refined.UnlabelledPredictions != 1 {
+	r := record{ID: "a", Baseline: base, Judged: after}
+	summary := summarizeReplay(m, []record{r, {ID: "failed", Err: "network"}}, nil, nil)
+	if summary.Errors != 1 || summary.LabelledPairs != 2 || summary.Baseline.Detection.FP != 1 || summary.Baseline.Detection.FN != 1 || summary.Accepted.Detection.TP != 1 || summary.Accepted.Detection.TN != 1 || summary.Accepted.UnlabelledPredictions != 1 {
 		t.Fatalf("metrics: %+v", summary)
 	}
 	if summary.NaturalMissesRecovered != 1 || summary.FalseHitsRemoved != 1 || summary.CorrectVersionFills != 1 {
@@ -97,22 +104,25 @@ func TestReplayConfinesResponsePaths(t *testing.T) {
 	}
 }
 
-type replayTestProvider struct{ calls int }
+type replayTestProvider struct {
+	calls int
+	id    string
+}
 
-func (*replayTestProvider) ID() string { return "test/replay" }
-func (p *replayTestProvider) Judge(_ context.Context, _ interface{}, qs map[string]judge.Question) (map[string]judge.Answer, error) {
+func (p *replayTestProvider) ID() string { return "test/replay/" + p.id }
+func (p *replayTestProvider) Judge(_ context.Context, _ interface{}, qs map[string]jev.Claim) (map[string]jev.Ruling, error) {
 	p.calls++
-	answers := map[string]judge.Answer{}
+	answers := map[string]jev.Ruling{}
 	for key := range qs {
-		answers[key] = judge.Answer{Yes: 1}
+		answers[key] = jev.Ruling{Option: "yes", Confidence: 1}
 	}
 	return answers, nil
 }
 
 func TestReplayOfflineNeverCallsProvider(t *testing.T) {
 	provider := &replayTestProvider{}
-	p := &replayProvider{Provider: provider, dir: t.TempDir(), offline: true}
-	qs := map[string]judge.Question{"product": judge.Binary("Is this nginx?")}
+	p := &recordingProvider{Provider: provider, dir: t.TempDir(), offline: true}
+	qs := map[string]jev.Claim{"product": {Statement: "Is this nginx?", Options: map[string]jev.Option{"yes": {Outcome: jev.Holds}, "no": {Outcome: jev.Refuted}, jev.OptionInsufficient: {Outcome: jev.Insufficient}}}}
 	ctx := context.Background()
 	if _, err := p.Judge(ctx, "page", qs); err == nil || !strings.Contains(err.Error(), "offline cache miss") {
 		t.Fatalf("expected offline cache miss: %v", err)
@@ -125,13 +135,13 @@ func TestReplayOfflineNeverCallsProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.offline = true
-	if answers, err := p.Judge(ctx, "page", qs); err != nil || answers["product"].Yes != 1 {
+	if answers, err := p.Judge(ctx, "page", qs); err != nil || answers["product"].Option != "yes" {
 		t.Fatalf("cached answer: %v %v", answers, err)
 	}
 	if _, err := p.Judge(ctx, "different page", qs); err == nil {
 		t.Fatal("different state reused cached answer")
 	}
-	p.namespace = "different-endpoint"
+	provider.id = "different-endpoint"
 	if _, err := p.Judge(ctx, "page", qs); err == nil {
 		t.Fatal("different endpoint reused cached answer")
 	}
@@ -145,23 +155,23 @@ func TestReplayVersionFillsDeduplicateAliases(t *testing.T) {
 	m := &replayManifest{Samples: []replaySample{{ID: "a", Labels: []productLabel{l}}}}
 	after := testFrames("PHP", "5.6.40")
 	after.Add(common.NewFrameworkWithVersion("php-runtime", common.FrameFromGUESS, "5.6.40"))
-	r := replayRow{ID: "a", Baseline: testFrames("PHP", "5.6.40"), Refined: after, Filled: map[string]string{"php-runtime": "5.6.40"}}
-	if s := summarizeReplay(m, []replayRow{r}, nil); s.VersionFills != 0 {
+	r := record{ID: "a", Baseline: testFrames("PHP", "5.6.40"), Judged: after}
+	if s := summarizeReplay(m, []record{r}, nil, nil); s.VersionFills != 0 {
 		t.Fatalf("existing alias version counted as new: %+v", s)
 	}
 	r.Baseline = testFrames("PHP", "")
-	r.Filled["PHP"] = "5.6.40"
-	if s := summarizeReplay(m, []replayRow{r}, nil); s.VersionFills != 1 || s.CorrectVersionFills != 1 {
+	if s := summarizeReplay(m, []record{r}, nil, nil); s.VersionFills != 1 || s.CorrectVersionFills != 1 {
 		t.Fatalf("alias fills counted twice: %+v", s)
 	}
 }
 
-func TestReplaySuggestionsDoNotRecoverDetections(t *testing.T) {
+func TestReplayDiscoveryDoesNotRecoverDetections(t *testing.T) {
 	m := &replayManifest{Samples: []replaySample{{ID: "a", Labels: []productLabel{{Product: "New API", Present: true}}}}}
-	r := replayRow{ID: "a", Suggestions: []string{"new-api", "New API"}}
-	s := summarizeReplay(m, []replayRow{r}, nil)
-	if s.MissedProductsSuggested != 1 || s.NaturalMissesRecovered != 0 || s.Refined.Detection.FN != 1 {
-		t.Fatalf("suggestions credited as detections: %+v", s)
+	r := record{ID: "a"}
+	clusters := []*maintain.Cluster{{Samples: []string{"a"}, Outcome: jev.Refuted, Candidates: []string{"Login", "New API"}}}
+	s := summarizeReplay(m, []record{r}, nil, clusters)
+	if s.MissedProductsDiscovered != 1 || s.NaturalMissesRecovered != 0 || s.Accepted.Detection.FN != 1 {
+		t.Fatalf("discovery credited as detections: %+v", s)
 	}
 }
 
@@ -194,5 +204,119 @@ func TestGenerationSplitRejectsSameHostnameAcrossGroups(t *testing.T) {
 	test, excluded, err := generationSplit(m, plan)
 	if err != nil || len(test) != 0 || len(excluded) != 1 || excluded[0] != "leak" {
 		t.Fatalf("hostname leakage: test=%v excluded=%v error=%v", test, excluded, err)
+	}
+}
+
+// Exercise both public CLI modes against one local Jev server, then replay
+// offline from the exact same cache. Reports must explain the same evaluation.
+func TestDirectoryAndReplayShareRecordAndCache(t *testing.T) {
+	var calls int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&calls, 1)
+		var req struct {
+			Questions map[string]struct{ Criteria map[string]interface{} }
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Error(err)
+			w.WriteHeader(400)
+			return
+		}
+		answers := map[string]map[string]interface{}{}
+		for id, q := range req.Questions {
+			option := jev.OptionInsufficient
+			if _, ok := q.Criteria[judge.OptionRunning]; ok {
+				option = judge.OptionRunning
+			}
+			answers[id] = map[string]interface{}{"choice": option, "confidence": 1}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"answers": answers})
+	}))
+	defer srv.Close()
+	t.Setenv(jev.EnvAPIKey, "local-test")
+	root := t.TempDir()
+	samples := filepath.Join(root, "samples")
+	if err := os.Mkdir(samples, 0700); err != nil {
+		t.Fatal(err)
+	}
+	raw := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<title>Jenkins</title><body>Jenkins <input name=\"j_username\"></body>")
+	if err := os.WriteFile(filepath.Join(samples, "a.http"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	cache := filepath.Join(root, "cache")
+	directory := filepath.Join(root, "directory")
+	if err := run("jev", samples, "", cache, directory, srv.URL, 100, 2, 0); err != nil {
+		t.Fatal(err)
+	}
+	readRow := func(dir string) record {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(dir, "rows.jsonl"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var r record
+		if err := json.Unmarshal(data, &r); err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]json.RawMessage
+		_ = json.Unmarshal(data, &fields)
+		for _, old := range []string{"refined", "filled_versions", "verdicts", "outcomes", "evidence", "rejected", "duplicates", "missing_candidates"} {
+			if _, ok := fields[old]; ok {
+				t.Fatalf("legacy field %s remains", old)
+			}
+		}
+		return r
+	}
+	first := readRow(directory)
+	if len(first.Judged) == 0 || atomic.LoadInt64(&calls) != 1 {
+		t.Fatalf("expected one presence batch: frames=%d calls=%d", len(first.Judged), calls)
+	}
+	m := replayManifest{Schema: 1, Samples: []replaySample{{ID: "a.http", URL: "http://example.test/", Group: "example.test", CapturedAt: "2026-09-26T00:00:00Z", Response: "samples/a.http", SHA256: digest(raw)}}}
+	manifest := filepath.Join(root, "manifest.json")
+	if err := writeJSON(manifest, m); err != nil {
+		t.Fatal(err)
+	}
+	replayDir := filepath.Join(root, "replay")
+	if err := replay(manifest, "", "jev", srv.URL, cache, replayDir, 100, true, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	second := readRow(replayDir)
+	a, _ := json.Marshal(first.Judged)
+	b, _ := json.Marshal(second.Judged)
+	if string(a) != string(b) || atomic.LoadInt64(&calls) != 1 {
+		t.Fatal("replay disagrees or invoked backend")
+	}
+	for _, dir := range []string{directory, replayDir} {
+		data, err := os.ReadFile(filepath.Join(dir, "metrics.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var summary replaySummary
+		if err := json.Unmarshal(data, &summary); err != nil {
+			t.Fatal(err)
+		}
+		if summary.Schema != 3 || summary.Errors != 0 {
+			t.Fatalf("summary %+v", summary)
+		}
+	}
+}
+
+func TestLabelInputConvertsOnce(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "labels.json")
+	data := []byte(`{"old":{"keep":["nginx"],"drop":["wordpress"],"version":{"product":"nginx","value":"1.2.3"}},"new":[{"product":"Orion","aliases":["Orion-console"],"present":true}]}`)
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	labels, err := loadLabels(path)
+	if err != nil || len(labels["old"]) != 2 || labels["old"][0].Version == nil || *labels["old"][0].Version != "1.2.3" || len(labels["new"][0].Aliases) != 1 {
+		t.Fatalf("labels=%v error=%v", labels, err)
+	}
+}
+
+func TestReplayHandlesBaselineWithoutAttributes(t *testing.T) {
+	frames := common.Frameworks{"nginx": {Name: "nginx"}}
+	m := &replayManifest{Samples: []replaySample{{ID: "a", Labels: []productLabel{{Product: "nginx", Present: true, Version: stringPtr("")}}}}}
+	summary := summarizeReplay(m, []record{{ID: "a", Baseline: frames, Judged: frames}}, nil, nil)
+	if summary.Accepted.Versions.CorrectAbstentions != 1 || summary.Baseline.Detection.TP != 1 {
+		t.Fatalf("summary %+v", summary)
 	}
 }

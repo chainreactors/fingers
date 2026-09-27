@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/utils/jev"
 )
 
 func TestRefineWithJudge(t *testing.T) {
@@ -13,44 +14,71 @@ func TestRefineWithJudge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	engine.EnableMatchDetail()
 	raw := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Welcome to nginx!</title>")
 	frames, _ := engine.DetectContent(raw)
-	j := judge.New(server{})
-	j.Known = judge.NewRetriever(engine.Names())
-	accepted, err := j.Refine(context.Background(), raw, frames)
+	j := judge.New(running{})
+	accepted, err := j.Inspect(context.Background(), raw, frames)
+	accepted = accepted.Accepted()
 	if err != nil {
 		t.Fatal(err)
 	}
-	kind, _, err := j.Classify(context.Background(), raw)
-	if err != nil || kind != judge.KindDefault {
-		t.Fatalf("kind %q, %v", kind, err)
-	}
-	if nginx := accepted["nginx"]; nginx == nil || nginx.Judge == nil || nginx.Judge.Layer != judge.LayerServer || frames["nginx"].Judge != nil {
+	if nginx := accepted["nginx"]; nginx == nil || nginx.Judge == nil || nginx.Judge.Verdict != judge.OptionDeclared || frames["nginx"].Judge != nil {
 		t.Fatalf("accepted %v, input %v", accepted["nginx"], frames["nginx"])
-	}
-	if len(engine.Names()) == 0 {
-		t.Fatal("engine has no names")
 	}
 }
 
-// server is a provider that judges every product present at the server layer.
-type server struct{}
+// running is a provider that judges every claim running and states no version.
+type running struct{}
 
-func (server) ID() string { return "test" }
+func (running) ID() string { return "test" }
 
-func (server) Judge(ctx context.Context, state interface{}, questions map[string]judge.Question) (map[string]judge.Answer, error) {
-	answers := map[string]judge.Answer{}
+func (running) Judge(ctx context.Context, state interface{}, questions map[string]jev.Claim) (map[string]jev.Ruling, error) {
+	answers := map[string]jev.Ruling{}
 	for k := range questions {
 		switch {
-		case strings.HasPrefix(k, "layer_"):
-			answers[k] = judge.Answer{Choice: string(judge.LayerServer)}
-		case k == "page_kind":
-			answers[k] = judge.Answer{Choice: string(judge.KindDefault)}
-		case k == "primary":
-			answers[k] = judge.Answer{Choice: "none_of_these"}
+		case strings.HasPrefix(k, "presence_"):
+			answers[k] = jev.Ruling{Option: judge.OptionRunning, Confidence: 0.9}
 		default:
-			answers[k] = judge.Answer{Yes: 0.9, Choice: "not_stated"}
+			answers[k] = jev.Ruling{Option: "not_stated", Confidence: 0.9}
 		}
 	}
 	return answers, nil
+}
+
+// Every engine that can record what a hit matched does so once enabled, and
+// quotes text the response contains; disabled, results carry no detail.
+func TestEnableMatchDetail(t *testing.T) {
+	raw := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\nX-Powered-By: PHP/7.4.3\r\nContent-Type: text/html\r\n\r\n" +
+		`<html><head><meta name="generator" content="WordPress 6.4"><title>Blog</title></head>` +
+		`<body><link rel="stylesheet" href="/wp-content/themes/a/style.css"><script src="/wp-includes/js/jquery/jquery.min.js"></script></body></html>`)
+	engines := []string{FingerPrintEngine, WappalyzerEngine, EHoleEngine, GobyEngine}
+	for _, enabled := range []bool{false, true} {
+		engine, err := NewEngine(engines...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if enabled {
+			engine.EnableMatchDetail()
+		}
+		frames, _ := engine.DetectContent(raw)
+		seen := map[string]bool{}
+		for _, f := range frames {
+			for from := range f.Froms {
+				name := from.String()
+				seen[name] = true
+				if !enabled && f.MatchDetail != nil {
+					t.Errorf("%s from %s: detail %+v while disabled", f.Name, name, f.MatchDetail)
+				}
+				if enabled && len(f.Froms) == 1 && (f.MatchDetail == nil || !strings.Contains(strings.ToLower(string(raw)), strings.ToLower(f.MatchDetail.MatcherValue))) {
+					t.Errorf("%s from %s: detail %+v is not in the response", f.Name, name, f.MatchDetail)
+				}
+			}
+		}
+		for _, name := range []string{"fingerprinthub", "wappalyzer", "goby"} {
+			if !seen[name] {
+				t.Errorf("no hit from %s", name)
+			}
+		}
+	}
 }

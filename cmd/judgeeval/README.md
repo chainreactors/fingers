@@ -2,7 +2,7 @@
 
 ## 可回放真实数据评估
 
-`-manifest` 模式覆盖保存结果清洗、逐产品补全版本、名称召回和原生指纹生成，结果写入独立目录。
+`-manifest` 模式覆盖保存结果清洗、逐产品补全版本、漏报聚类和原生指纹生成，结果写入独立目录。
 
 ```powershell
 # urls.txt 每行一个 URL；新采集用新目录。IP 证书不匹配时显式加 --insecure。
@@ -32,7 +32,7 @@ go build -o bin/judgeeval.exe ./cmd/judgeeval
 
 ### 生成与独立验证
 
-`generation` 每项填写 `name`（输出文件名）、`product`、`auto_name`、`positive`/`negative`（训练快照 ID）。其他有该产品标注的快照用于测试；排除训练主机、相同响应和重复测试响应。使用普通 `Positive` 自动推断版本，测试标签只打分。
+`generation` 每项填写 `name`（输出文件名）、`product`、`positive`/`negative`（训练快照 ID）。其他有该产品标注的快照用于测试；排除训练主机、相同响应和重复测试响应。使用普通 `Positive` 自动推断版本，测试标签只打分。
 
 主动规则另填 `probe`（请求字符串），各样本 `probes` 将请求映射到同主机已采集响应 ID。回放不发送网络请求。导出 YAML 后重新加载、编译并验证。结论为 `passed_holdout`、`failed_holdout`、`insufficient_holdout`；至少需要独立正反例且版本无错漏才能在本批次通过。单主机新产品仅能产生待验证草案。生成文件供审阅，不自动写入指纹库。
 
@@ -41,13 +41,13 @@ go build -o bin/judgeeval.exe ./cmd/judgeeval
 - `manifest.json` / `samples/*.http` / `build.json`：本次实际输入及 Go 构建信息，响应可独立加载；离线模型答案仍需同时保留 `-cache` 目录。
 - `baseline.jsonl`：原生 Frameworks，来源是当前规则或 `-history`。历史记录按 ID、SHA256 严格对齐，缺失即报错。
 - `cleaned.jsonl`：成功清洗并补版本的原生 Frameworks。
-- `rows.jsonl`：基线、Refine 及拒绝/合并/新增/补版本/错误。
+- `rows.jsonl`：`id/url/sha256/baseline/judged/error/rule_ms/judge_ms`，两种输入模式相同；派生状态不重复存储。
 - `metrics.json` / `report.md`：标注范围内的 TP/FP/FN/TN、误删、自然漏报恢复、版本正确/错误/缺失/无依据填值。失败和未标注输出单列。
-- `generation.json` / `fingerprints/*.yaml`：候选指纹、独立验证结果及排除的样本。
+- `generation.json` / `fingerprints/*.yaml`：候选指纹、逐样本原生 Framework 结果及排除的样本。`training` / `holdout` 按样本 ID 索引，null 表示已评估且未命中，缺失 key 表示未评估。产品、标签、训练计划统一读取 manifest；状态与分数由报告推导，不再写入另一套逐样本 DTO。
 
-`Refine` 给每个保留产品补版本；报告比较原结果和 Refine 两个阶段。已有非空版本保留，错误由报告揭示。缓存按模型、endpoint、完整 state 和问题精确复用，评估不使用近似页面缓存。
+`Inspect` 一次完成存在性和版本判断；报告比较 Baseline 与 Judged.Accepted() 两个阶段。已有非空版本保留，错误由报告揭示。缓存按模型、endpoint、完整 state 和 Claim 精确复用，使用 `claim-report-v3` 命名空间隔离旧缓存，Ruling 保存为 `option/confidence`。metrics.json 的 schema 为 3，统计使用 `claims/options`；manifest、旧 labels 和 baseline 输入格式仍支持。
 
-新增版本按产品及显式别名合并计数，原基线任一别名已有版本即不算新增。名称建议单独统计，不能算作已补回漏报。生成器训练样本的自动版本结果在 `training_versions` / `training_cases` 单列，错误时标记 `failed_training`；训练标签只在导出后打分。
+新增版本按产品及显式别名合并计数，原基线任一别名已有版本即不算新增。漏报簇的候选名称单独统计，不能算作已补回漏报。生成器训练样本的自动版本保存在 `training` 内的 Framework；训练标签只在导出后打分。训练结果错误或缺失得到 `failed_training`，测试有错得到 `failed_holdout`，未完成全部测试或缺少独立正反例得到 `insufficient_holdout`。报告与维护收录共用这一评估逻辑。
 
 新采集快照的历史回放验证的是清洗机制，不代表已验证生产历史分布。样本量、同主机依赖和标签覆盖范围必须随指标报告。
 
@@ -67,7 +67,7 @@ go build -o bin/judgeeval.exe ./cmd/judgeeval
 新增被动指纹的收录条件：
 
 1. 在五个内置 HTTP 引擎目录、别名表和实际加载的 fingers 运行时目录中均无同名产品。按规范名及显式别名审计，记录各目录 SHA256；并非覆盖所有外部指纹源。
-2. 普通 `Positive` 自动推断名称和版本，通过训练集、独立正反例、版本验证；不把标签版本传给生成器。
+2. 普通 `Positive` 为指定名称自动确认版本，通过训练集、独立正反例、版本验证；不把标签版本传给生成器。
 3. 至少两个独立正例主机组、五个独立反例主机组。相同主机名或同属一个 `group` 的样本合并计数，且排除训练主机和重复内容。
 4. 调用 `engine.Fingers().LoadFromYAML(...)` 和 `engine.Compile()` 后重放全部样本。新增产品的标注识别/版本必须全部正确，已有命中和非空版本必须保留。
 
@@ -78,7 +78,7 @@ go build -o bin/judgeeval.exe ./cmd/judgeeval
 
 ## 目录模式
 
-在一批原始 HTTP 响应上，用和 SDK 调用方完全相同的路径（`engine.DetectContent` → `j.Refine`）跑一遍，逐项对比纯规则结果和经过判定之后的结果。它也用来校准新的 Provider。
+在一批原始 HTTP 响应上，用和 SDK 调用方完全相同的路径（`engine.DetectContent` → `j.Inspect` → `all.Accepted()`）跑一遍，逐项对比纯规则结果和经过判定之后的结果。它也用来校准新的 Provider。
 
 ```bash
 go build -buildvcs=false -o judgeeval ./cmd/judgeeval
@@ -90,14 +90,8 @@ TYPESAFE_API_KEY=... ./judgeeval -provider jev -samples testdata/samples -labels
 TYPESAFE_API_KEY=... ./judgeeval -provider jev -samples cc/samples -cache judgecache -out judgereport -rps 15
 ```
 
-- 答案缓存在 `-cache` 目录，重跑不花钱，中断后可以接着跑。这个目录用的是精确缓存，另外会模拟相似度缓存：按签名距离分档，统计每一档能复用多少答案、与真实答案的一致率，用来确定 `Judge.SimilarDistance` 的取值。
-- `report.md`：对比表，另附页面类型分布、各引擎的否决率、否决率最高的规则（需要修复），以及新指纹候选。
-- `rows.jsonl`：每页一行，用于人工复核。
-- 给了 `-labels` 时，额外按真值统计误报剔除、真实命中保留、页面类型、通用页面和版本号的正确率。
-- 新 Provider：在 `main.go` 的 `newProvider` 里注册。
-
-没有真值的数据集用两个代理指标：
-- **仅正文出现的命中**：代码判断出的疑似误报；
-- **版本号**：以页面上的 generator meta 作为参考答案。
-
-真实网站的页面属于第三方内容，不要提交进仓库。
+- 两种模式共用一个磁盘 Provider 包装器，保存完整批次的有效 Ruling、统计调用和缓存命中。缓存写入使用临时文件再重命名；失败与非法回答不落盘。
+- `rows.jsonl` 保存唯一的 Baseline/Judged 记录；`metrics.json` / `report.md` 从同一结果统计，未标注预测单列，不使用正文提及或 generator 代理真值。
+- 目录模式的 `-labels` 支持旧 keep/drop/version 对象，也支持每个样本的 productLabel 数组。旧格式只在输入边界转换；统一使用规范名和显式 aliases 打分。
+- `ledger.json` 保存规则审计快照；manifest 模式的 `discovery.json` 直接保存 maintain.Cluster，以样本 ID 关联，不在每行复制漏报候选。
+- 新 Provider 在 `main.go` 的 `newProvider` 注册，并实现 Claim/Ruling 合约。

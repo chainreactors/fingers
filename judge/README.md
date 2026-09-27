@@ -1,74 +1,57 @@
-# judge：规则结果的判定层
+# judge：以 Claim 审查规则结果
 
-`fingers.Engine` 只做规则检测。`judge.Judge` 接收规则命中和原始 HTTP 响应，由代码抽取候选、由 Provider（当前是 `judge/jev`）回答判断题，最后由代码做决定。输入的规则命中从不被修改。
+规则引擎负责检测；judge 在线只审查产品是否参与生成响应，以及响应能否确认版本。Provider 从有限选项中选择，不生成产品名或版本字符串。离线审计、聚类与生成分别放在 `judge/maintain` 和 `judge/gen`，复用同一 Claim 合约。
+
+Claim 合约（Claim / Option / Outcome / Ruling / Provider）、校验、缓存和 Jev 客户端都在 [`github.com/chainreactors/utils/jev`](https://github.com/chainreactors/utils/tree/master/jev)。本包只定义指纹相关的断言：presence、version 和离线的 coverage，以及代码确定的事实如何表达成 Ruling。
+
+## 代码确定的事实
+
+代码确定的产品、协议和版本事实也构建合法 Claim/Ruling（置信度 1），经相同的 `Resolve` 和应用函数执行。重复写法的归并是 bookkeeping，不是 Claim。
+
+## 在线入口
 
 ```go
 engine, _ := fingers.NewEngine()
-j, err := jev.NewJudge("")                   // 读取 TYPESAFE_API_KEY；一个扫描任务共用一个 Judge
+engine.EnableMatchDetail()
+c, err := jev.NewClient("") // TYPESAFE_API_KEY
 if err != nil { return err }
-j.Known = judge.NewRetriever(engine.Names()) // 可选：召回规则漏掉、但名字出现在页面里的产品
+j := judge.New(jev.Cached(c, jev.DefaultCacheSize)) // 一个扫描任务共用
 
-hits, _ := engine.DetectContent(raw)
-accepted, err := j.Refine(ctx, raw, hits)
-if err != nil { accepted = hits }            // 判定失败时退回纯规则结果
+hits, err := engine.DetectContent(raw)
+if err != nil { return err }
+all, err := j.Inspect(ctx, raw, hits)
+accepted := all.Accepted()
+// all 同时保存接受、拒绝、重复及未判定条目；出错时保留已完成的结果。
 ```
 
-## 三个入口
+`Inspect` 完成 presence 和 version，最多两个 Provider 批次。报告直接读这份结果，不再执行第二次判断。输入会复制，重新评估会清除旧 presence 注解。解析错误返回复制的基线和错误；Provider 失败时保留已确定事实和去重信息，尚未判断的条目没有 Outcome。输入中已有非空版本保持原值。
 
-| 方法 | 用途 |
+| 入口 | 用途 |
 |---|---|
-| `j.Refine(ctx, raw, hits)` | **要上报的结果**：去掉误报和重复写法，加入召回的产品，给每个保留的产品补版本 |
-| `j.Inspect(ctx, raw, hits)` | **为什么**：全部命中及判定结论，包括被拒绝和重复的；不补版本 |
-| `j.Classify(ctx, raw)` | **这是什么页面**：`Kind`（登录、错误、默认页……）和是否为产品标准页；Refine 之后命中缓存 |
+| `Inspect(ctx, raw, hits)` | 所有命中及 presence 注解，保留产品的版本补全 |
+| `all.Accepted()` | 排除 Rejected / Duplicate 的结果视图，不调用 Provider |
+| `Version(ctx, raw, f)` | 为生成工具单独确认版本，不修改 f |
 
-其余能力：`j.Version(ctx, raw, f)` 单独给一个产品选版本；`j.IsUnknownProduct(ctx, raw, accepted)` 判断是否为尚无指纹的产品标准页；`j.SuggestNames(ctx, raw)` 从页面证据中提出产品名；`j.Yes/Choose/Score` 用来问自定义问题，state 可以是任意可 JSON 编码的值，比如 `judge.NewPage(raw)`。
+Presence 用 `running` 表示产品参与生成响应，`mentioned` / `unrelated` 表示误报。协议事实从完整响应头读取；产品确定事实限于明确的软件声明和产品专属头，Location、Cookie 中的名称只作为待审证据。版本从响应中抽取，每个产品只有一个多选 Claim：候选版本、`not_stated`、`insufficient`。按名字声明的版本走本地 Ruling；其他版本由 Provider 选择。每页最多向 Provider 提交 40 个 presence Claim，最多为 8 个产品确认版本，每个产品最多展示 15 个候选。
 
-## 判定结论
-
-结论写在 `Framework.Judge`（定义在 `utils/parsers`）上，随现有输出一起序列化：
+`Framework.Judge` 是输出注解，沿用现有 common 类型：
 
 | 字段 | 含义 |
 |---|---|
-| `Layer` | 在技术栈中的层级：`judge.LayerCDN`、`LayerServer`、`LayerApplication` …… |
-| `Confidence` | Provider 给出的"该产品确实参与生成此响应"的概率 |
-| `Rejected` | 误报：只在页面文字中出现，或不存在。响应头或 Cookie 中出现的产品不会被拒绝 |
-| `Duplicate` | 另一个引擎对已保留产品的不同写法 |
-| `Primary` | 页面所属的主应用 |
-| `Recalled` | 规则没报、由 `j.Known` 在页面中找到并经确认 |
+| Verdict | 原始选项；即使置信度不足也保留 |
+| Outcome | Resolve 后的 holds / refuted / insufficient；消费方按此统计 |
+| Confidence / Evidence | 置信度及规则命中原文；本地确定事实置信度为 1 |
+| Rejected | Refuted，或 Insufficient 且 DropInsufficient 为 true |
+| Duplicate | 同一产品的其他写法；即使尚未判定也可标记 |
 
-`Judge == nil` 表示未经判定（每页超过 40 个产品时，多出的部分不判定），`frames.Accepted()` 会保留它们。
+`judge.New(p)` 默认 `MinConfidence=jev.DefaultMinConfidence`（0.3）、`DropInsufficient=false`。策略和 Provider 配置应在并发扫描前确定。Version 在证据不足时不填值。
 
-## 版本号
+## 离线维护
 
-版本字符串一律由代码从原始响应中抽取，Provider 只做选择，不生成字符串：
+- `maintain.Ledger.Add(id, all)` 从既有 presence 注解汇总规则表现，不再请求 Provider。`Report` 返回深复制快照，记录 Outcomes、Options 和样本 ID；`Hits()` 与 `RefutedFraction()` 从 Outcomes 推导。Presence 选项常量统一为 `judge.OptionRunning` 等 `Option*`，原生 `Framework.Judge.Verdict` 输出字段继续保留。当前引擎聚合后的 MatchDetail 仍只保留首个匹配详情，未重设计完整规则来源。
+- `maintain.Discover` 按资源路径、表单、Cookie/自定义头名和页面文字等结构特征聚类。每个多主机簇提出 Coverage Claim：`explained` / `custom_site` → Holds，`missing` → Refuted，另有 insufficient。Cluster 直接可序列化，仅保存成员 ID、Coverage 原始 Ruling、解析的 Outcome、已报告产品和代码抽取的候选名。候选名供人命名，不作为 Provider 选项。
+- `gen.Generator` 为人指定的 Name 从正反样本生成规则。需要时调用 Version。Validate 运行规则引擎，不调用模型，不修改内置库。
 
-1. 响应**按名字绑定**的版本直接采用，不提问：`Server: nginx/1.24.0`、`X-Jenkins: 2.401.3`、`X-Gitea-Version: 1.21.4`、`<meta name="generator" content="WordPress 7.0.3">`。名字按末尾词匹配，所以 `Apache Tomcat/9.0` 属于 Tomcat 而不是 Apache。
-2. 其余产品在同一个请求里各问一题。候选按与产品名的接近程度排序（上下文提到产品名，紧挨版本前更好），插件、主题、第三方库路径降权；已按名字绑定给别的产品、且只出现一次的版本不会提供给它。
-3. 只出现一次的版本字符串只归一个产品：上下文更贴近的优先，其次置信度更高的。置信度低于 `VersionConfidence` 的选择不采用。
+`cmd/judgeeval` 两种输入模式共用 `baseline` / `judged` 行记录。接受结果、拒绝项、版本差异和指标均从它们派生，聚类通过样本 ID 关联。生成评估同样保存原生 Framework，以 manifest 为唯一标签来源，分数和状态按需推导。报告 schema 为 3，统计使用 `claims/options`；旧 manifest、labels 和 baseline 输入仍可读取，旧缓存因命名空间隔离不会被复用。详见 [judgeeval](../cmd/judgeeval/README.md)。
 
-## 缓存与成本
-
-答案按问题缓存，同一问题不会重复发送，无论它被放进哪次请求。标题相同、签名相差不超过 `j.SimilarDistance` 位（默认 1）的页面共享答案，同一产品在不同主机上的登录页只问一次；并发的相同请求会合并。`j.Cache` 默认是内存 LRU，实现 `judge.Cache` 即可换成共享存储。`j.Requests`、`j.CacheHits` 用于成本监控。
-
-## 自定义 Provider
-
-实现 `ID() string` 和 `Judge(ctx, state, map[string]judge.Question) (map[string]judge.Answer, error)` 即可，可选实现 `Calibration() (threshold, versionConfidence float64)`。问题分三类：`TypeBinary`（是的概率）、`TypeChoice`（从选项中选一个）、`TypeScore`（有序等级上的分数）。缓存、并发合并和阈值决策都在 `Judge` 中完成，因此不同 Provider 的行为一致。新 Provider 需在 `cmd/judgeeval` 的 `newProvider` 注册并跑一遍评估来校准阈值。
-
-## 数据外发
-
-发给 Provider 的是响应的精简视图：响应头（去掉 Date、Set-Cookie 等无关或易变的头）、Cookie 名、标题、generator/description、脚本和样式路径、内联脚本开头、HTML 注释、表单字段名，以及正文前 1500 字。扫描前请确认允许把这些内容发送给第三方服务。
-
-## 生成指纹
-
-`judge/gen` 用正反样本生成原生 `*fingers.Finger`：
-
-```go
-g := gen.New(j).
-    PositiveVersion(jenkinsA, "2.401.3").
-    PositiveVersion(jenkinsB, "2.402.1").
-    Negative(otherProduct)
-finger, err := g.Generate(ctx) // 可直接用于现有规则引擎
-err = g.Validate(finger)       // 编辑规则后，再按全部正反样本验证
-```
-
-至少需要一个正样本和一个反样本。不给 `Name` 时，由 `SuggestNames` 从正样本中选名字；`Probe`/`ProbeWith` 记录主动探测的请求和响应。`Validate` 只运行规则引擎、不调用模型，也不会写入模板仓库。
+Provider 收到精简响应视图、规则命中上下文和版本候选上下文；完整原始响应仍仅在本地用于解析事实与提取证据。

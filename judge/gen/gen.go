@@ -1,6 +1,7 @@
-// Package gen builds native fingerprints from labelled HTTP responses. It
-// uses a judge.Judge only to pick a product name and versions; rules are
-// derived and validated by code against the rule engine.
+// Package gen builds native fingerprints from labelled HTTP responses for a
+// product a person names. It uses a judge.Judge only for versions the
+// positives do not carry; rules are derived and validated by code against
+// the rule engine.
 package gen
 
 import (
@@ -36,13 +37,11 @@ type generatorSample struct {
 	probes  map[string][]byte
 }
 
-// New creates a fingerprint generator using j for name and version
-// selection. j may be nil when Name is given and every positive carries its
-// version (PositiveVersion).
+// New creates a fingerprint generator using j for version selection. j may
+// be nil when every positive carries its version (PositiveVersion).
 func New(j *judge.Judge) *Generator { return &Generator{judge: j} }
 
-// Name supplies a known product name. Without it Generate selects a name
-// from the positive responses.
+// Name sets the product the rules detect; Generate requires it.
 func (g *Generator) Name(name string) *Generator {
 	g.name = strings.TrimSpace(name)
 	return g
@@ -115,43 +114,7 @@ func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
 	}
 	name := g.name
 	if name == "" {
-		if g.judge == nil {
-			return nil, fmt.Errorf("gen: a Judge or Name is required to select a product name")
-		}
-		counts := map[string]int{}
-		ranks := map[string]int{}
-		labels := map[string]string{}
-		for _, sample := range g.positive {
-			names, err := g.judge.SuggestNames(ctx, sample.raw)
-			if err != nil {
-				return nil, err
-			}
-			for rank, candidate := range names {
-				key := evidence.NormalizeName(candidate)
-				counts[key]++
-				ranks[key] += len(names) - rank
-				if labels[key] == "" {
-					labels[key] = candidate
-				}
-			}
-		}
-		var keys []string
-		for key := range counts {
-			keys = append(keys, key)
-		}
-		sort.Slice(keys, func(a, b int) bool {
-			if counts[keys[a]] != counts[keys[b]] {
-				return counts[keys[a]] > counts[keys[b]]
-			}
-			if ranks[keys[a]] != ranks[keys[b]] {
-				return ranks[keys[a]] > ranks[keys[b]]
-			}
-			return keys[a] < keys[b]
-		})
-		if len(keys) == 0 || counts[keys[0]] != len(g.positive) {
-			return nil, fmt.Errorf("gen: no product name supported by every positive sample; provide Name")
-		}
-		name = labels[keys[0]]
+		return nil, fmt.Errorf("gen: Name is required: a person names the product, the provider never does")
 	}
 
 	versions := make([]string, len(g.positive))
@@ -248,14 +211,14 @@ func (g *Generator) Validate(f *fingerlib.Finger) error {
 
 func (g *Generator) validateSamples() error {
 	for _, sample := range append(append([]generatorSample(nil), g.positive...), g.negative...) {
-		if _, err := judge.NewPage(sample.raw); err != nil {
+		if _, err := evidence.NewPage(sample.raw); err != nil {
 			return fmt.Errorf("gen: invalid sample: %w", err)
 		}
 		for request, response := range sample.probes {
 			if request == "" {
 				return fmt.Errorf("gen: probe has empty send_data")
 			}
-			if _, err := judge.NewPage(response); err != nil {
+			if _, err := evidence.NewPage(response); err != nil {
 				return fmt.Errorf("gen: invalid probe response: %w", err)
 			}
 		}
@@ -292,7 +255,7 @@ type ruleCandidate struct {
 }
 
 func candidates(raw []byte) []ruleCandidate {
-	p, err := judge.NewPage(raw)
+	p, err := evidence.NewPage(raw)
 	if err != nil {
 		return nil
 	}

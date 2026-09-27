@@ -92,32 +92,35 @@ func TestFavicon(t *testing.T) {
 
 ## 判定层 judge
 
-规则引擎召回能力强，但会有误报、多个引擎的同名重复，也分不清主应用和底层组件，版本号更是难以拿准。`judge` 包在规则结果之上加了一层判定：规则和代码负责召回与抽取，Provider（模型）只对证据做判断，最终决策由代码做出。它不是新的引擎，`WebMatch` 和 `DetectContent` 的行为保持不变。Provider 可以替换，目前内置 [TypeSafe Jev](https://docs.typesafe.ai/api.md)（`judge/jev`）。
+规则引擎召回能力强，但会有误报、多个引擎的同名重复，也会漏掉规则库里没有的产品，版本号更是难以拿准。`judge` 包在规则结果之上加了一层审查：**它只审查规则给出的结论，不做指纹识别，模型从不说出产品名。** 它不是新的引擎，`WebMatch` 和 `DetectContent` 的行为保持不变。Claim 合约、缓存和 [TypeSafe Jev](https://docs.typesafe.ai/api.md) 客户端在 [`github.com/chainreactors/utils/jev`](https://github.com/chainreactors/utils/tree/master/jev)，fingers 只保留指纹相关的断言。
+
+判定层只有一个机制，即 Claim：代码提出断言并附上证据，Provider 选出证据支持的选项，选项的 Outcome（holds / refuted / insufficient）驱动固定动作。去误报（Presence）、找漏报（Coverage）、确认版本（Version）都是 Claim；与指纹无关的自定义 Claim 直接用 `jev.Judge`。
 
 ```golang
-j, _ := jev.NewJudge("")                          // 读取 TYPESAFE_API_KEY；一个扫描任务共用一个 Judge
-j.Known = judge.NewRetriever(engine.Names())      // 召回规则漏掉、但页面里出现的已知产品
+engine.EnableMatchDetail()                        // 让 Claim 能引用规则命中的原文
+c, _ := jev.NewClient("")                         // 读取 TYPESAFE_API_KEY
+j := judge.New(jev.Cached(c, jev.DefaultCacheSize)) // 一个扫描任务共用一个 Judge
 
 hits, _ := engine.DetectContent(raw)              // 同步，纯规则
-accepted, err := j.Refine(ctx, raw, hits)         // 去误报、去重复、召回，并给每个产品补版本
+all, err := j.Inspect(ctx, raw, hits)             // 一次完成 presence 与 version，保留全部注解
+accepted := all.Accepted()                       // 上报视图：排除拒绝和重复条目
 if err != nil {
     accepted = hits                               // 判定失败时退回纯规则结果；hits 从不被修改
 }
 for _, f := range accepted {
     if f.Judge != nil {                           // nil：未经判定（如超过每页 40 个产品的上限）
-        fmt.Println(f.Name, f.Version, f.Judge.Layer, f.Judge.Primary)
+        fmt.Println(f.Name, f.Version, f.Judge.Verdict, f.Judge.Outcome)
     }
 }
-kind, generic, _ := j.Classify(ctx, raw)          // 页面类型；Refine 之后命中缓存，不再请求
 ```
 
-判定结论是 `Framework.Judge` 字段（层级、置信度、误报、重复、主应用、召回），随现有输出一起序列化；下游不 import judge 也能用 `frames.Accepted()` / `frames.Primary()` 读取。需要看被剔除的条目和原因时用 `j.Inspect`。
+判定结论是 `Framework.Judge` 字段（选项、Outcome、置信度、证据、是否剔除、是否重复），随现有输出一起序列化；下游不 import judge 也能用 `frames.Accepted()` 读取。被剔除的条目和原因已经包含在 `all` 中，无须再次请求 Provider。漏报在离线维护中处理：`judge/maintain.Discover` 把多个主机上的同一页面聚成簇，逐簇提出 Coverage Claim，判为 missing 的簇连同候选名交给人命名，再用 `judge/gen` 生成规则。
 
 **数据外发**：判定时会把响应的精简视图发给 Provider，包括响应头（去掉 Date、Set-Cookie 值等无关头）、Cookie 名、标题、generator/description、脚本和样式路径、内联脚本开头、HTML 注释、表单字段名，以及正文前 1500 字。扫描授权范围内的目标前，请确认允许把这些内容发送给第三方服务。
 
-2026-09-25 在一批已标注的真实响应上：误报 24 → 0，真实命中误删 0，正确版本 3 → 23、错误 0，见 [验证报告](docs/jev-real-validation-20260925.md)。这些数字是本次版本算法调整之前测得的，新算法需要用 `cmd/judgeeval` 重新验证。
+历史 Claim 实现于 2026-09-26 在 69 份已标注的真实响应上：误报 24 → 0，真实命中误删 0，版本正确 36、错误 0，见 [历史验收报告](docs/jev-claim-acceptance-20260926.md)。这些指标尚未用本次简化实现重新请求 Jev 验证。
 
-完整的能力、缓存和 Provider 接口见 [judge/README.md](judge/README.md)；用正反样本生成原生指纹见 `judge/gen`；设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
+指纹判定的完整能力见 [judge/README.md](judge/README.md)；用正反样本生成原生指纹见 `judge/gen`；设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
 
 ## fingers 引擎
 

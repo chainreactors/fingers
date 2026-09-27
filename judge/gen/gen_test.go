@@ -10,21 +10,24 @@ import (
 
 	fingerlib "github.com/chainreactors/fingers/fingers"
 	"github.com/chainreactors/fingers/judge"
+	"github.com/chainreactors/utils/jev"
 )
 
-// names answers yes for the product named in backticks, no otherwise.
+// names picks its product whenever it is offered as a choice.
 type names string
 
 func (names) ID() string { return "names" }
 
-func (n names) Judge(_ context.Context, _ interface{}, qs map[string]judge.Question) (map[string]judge.Answer, error) {
-	out := map[string]judge.Answer{}
+func (n names) Judge(_ context.Context, _ interface{}, qs map[string]jev.Claim) (map[string]jev.Ruling, error) {
+	out := map[string]jev.Ruling{}
 	for key, q := range qs {
-		if strings.Contains(q.Instructions, "`"+string(n)+"`") {
-			out[key] = judge.Answer{Yes: 0.95}
-		} else {
-			out[key] = judge.Answer{Yes: 0.05}
+		choice := jev.OptionInsufficient
+		for option := range q.Options {
+			if strings.EqualFold(option, string(n)) {
+				choice = option
+			}
 		}
+		out[key] = jev.Ruling{Option: choice, Confidence: 0.95}
 	}
 	return out, nil
 }
@@ -92,13 +95,14 @@ func TestGeneratorActiveAndProbeWith(t *testing.T) {
 	}
 }
 
-func TestGeneratorSelectsNameByDefault(t *testing.T) {
+// A person names the product: without Name, Generate fails rather than ask
+// the provider for one.
+func TestGeneratorRequiresName(t *testing.T) {
 	positive := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Orion</title><p>Orion console</p>")
 	negative := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Other</title>")
 	j := judge.New(names("Orion"))
-	f, err := New(j).Positive(positive).Negative(negative).Generate(context.Background())
-	if err != nil || f.Name != "Orion" {
-		t.Fatalf("auto name = %+v, %v", f, err)
+	if f, err := New(j).Positive(positive).Negative(negative).Generate(context.Background()); err == nil {
+		t.Fatalf("generated %+v without a name", f)
 	}
 }
 

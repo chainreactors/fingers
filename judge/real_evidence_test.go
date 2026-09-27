@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/chainreactors/fingers/common"
+	"github.com/chainreactors/fingers/judge/internal/evidence"
+	"github.com/chainreactors/utils/jev"
 )
 
 // Minimal public evidence retained from the 2026-09-25 corpus, not full pages.
@@ -15,11 +17,11 @@ func TestStaticApplicationDescriptionIsPreservedAsEvidence(t *testing.T) {
 		`<meta name="description" content="` + description + `">`,
 		`<meta content="` + description + `" name="description">`,
 	} {
-		p, err := NewPage([]byte("HTTP/1.1 200 OK\r\n\r\n<title>IT Tools - Handy online tools for developers</title>" + meta))
-		if err != nil || p.Description != description || !strings.Contains(p.haystack(), strings.ToLower(description)) {
+		p, err := evidence.NewPage([]byte("HTTP/1.1 200 OK\r\n\r\n<title>IT Tools - Handy online tools for developers</title>" + meta))
+		if err != nil || p.Description != description {
 			t.Fatalf("description evidence missing: %+v err=%v", p, err)
 		}
-		if strings.Contains(strings.Join(p.where("it tools"), ","), "header") {
+		if declares(p, "it tools") {
 			t.Fatal("description incorrectly treated as deterministic header evidence")
 		}
 	}
@@ -60,49 +62,37 @@ func TestVersionCandidatesDoNotDiscardLateProductEvidence(t *testing.T) {
 		t.Fatal("early numeric noise evicted late library version")
 	}
 }
+
+// Protocol features are facts of the response head: decided by code, never
+// asked, whatever a provider would answer.
 func TestProtocolHitRequiresResponseEvidence(t *testing.T) {
 	for _, tc := range []struct {
 		name, header string
-		yes          bool
 		want         bool
-	}{{"http基本认证", "", true, false}, {"hsts", "", true, false}, {"http基本认证", "WWW-Authenticate: Basic realm=\"test\"\r\n", false, true}, {"hsts", "Strict-Transport-Security: max-age=31536000\r\n", false, true}} {
-		j := New(answerProvider(func(qs map[string]Question) map[string]Answer {
-			out := map[string]Answer{}
-			for k, q := range qs {
-				if q.Type == TypeBinary {
-					v := .01
-					if tc.yes {
-						v = .99
-					}
-					out[k] = Answer{Yes: v}
-				} else if k == "page_kind" {
-					out[k] = Answer{Choice: string(KindLogin)}
-				} else if k == "primary" {
-					out[k] = Answer{Choice: noneOfThem}
-				} else {
-					out[k] = Answer{Choice: string(LayerNotPresent)}
-				}
-			}
-			return out
+	}{{"http基本认证", "", false}, {"hsts", "", false}, {"http基本认证", "WWW-Authenticate: Basic realm=\"test\"\r\n", true}, {"hsts", "Strict-Transport-Security: max-age=31536000\r\n", true}} {
+		asked := false
+		j := New(answerProvider(func(qs map[string]jev.Claim) map[string]jev.Ruling {
+			asked = true
+			return nil
 		}))
 		hits := common.Frameworks{}
 		hits.Add(common.NewFramework(tc.name, common.FrameFromGUESS))
 		all, err := j.Inspect(context.Background(), []byte("HTTP/1.1 200 OK\r\n"+tc.header+"\r\n<script>Basic authentication documentation</script>"), hits)
 		got := all.Accepted()
-		if err != nil || (len(got) > 0) != tc.want {
-			t.Errorf("%s evidence=%q got=%v err=%v", tc.name, tc.header, got, err)
+		if err != nil || asked || (len(got) > 0) != tc.want {
+			t.Errorf("%s evidence=%q got=%v asked=%v err=%v", tc.name, tc.header, got, asked, err)
 		}
 	}
 }
 
 func TestCalendarVersionAndGeneratorName(t *testing.T) {
 	raw := []byte("HTTP/1.1 200 OK\r\n\r\n<title>Custom Search</title><meta name=\"generator\" content=\"searxng/2026.9.23+3cd69d30e\">")
-	p, err := NewPage(raw)
+	p, err := evidence.NewPage(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
 	foundName, foundVersion := false, false
-	for _, name := range pageNames(p) {
+	for _, name := range evidence.Names(p.Generator, p.Title, p.Text, p.Headers, p.Scripts) {
 		foundName = foundName || NormalizeName(name) == "searxng"
 	}
 	for _, v := range extractVersions(raw, 40) {
@@ -110,5 +100,32 @@ func TestCalendarVersionAndGeneratorName(t *testing.T) {
 	}
 	if !foundName || !foundVersion {
 		t.Fatalf("name=%t version=%t", foundName, foundVersion)
+	}
+}
+
+func TestBasicChallengeUsesFullHeaderAndQuotedRealms(t *testing.T) {
+	for _, tc := range []struct {
+		header string
+		want   bool
+	}{
+		{"WWW-Authenticate: Digest realm=\"" + strings.Repeat("x", 200) + "\", Basic realm=\"private\"\r\n", true},
+		{"WWW-Authenticate: Digest realm=\"x, Basic fake\"\r\n", false},
+		{"WWW-Authenticate: Digest realm=\"private\"\r\nWWW-Authenticate: Basic realm=\"private\"\r\n", true},
+	} {
+		p, err := evidence.NewPage([]byte("HTTP/1.1 401 Unauthorized\r\n" + tc.header + "\r\n"))
+		if err != nil || protocolPresent(p, "http基本认证") != tc.want {
+			t.Fatalf("header %q: %v", tc.header, err)
+		}
+	}
+}
+
+func TestIncidentalHeaderNamesAreNotDeclarations(t *testing.T) {
+	raw := []byte("HTTP/1.1 302 Found\r\nLocation: https://docs.test/jenkins/2.401.3\r\nSet-Cookie: jenkins=x\r\nX-Github-Request-Id: jenkins\r\n\r\n")
+	p, err := evidence.NewPage(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if declares(p, "jenkins") || declaredVersion(declarations(raw), "jenkins") != "" {
+		t.Fatal("incidental URL/cookie text became a fact")
 	}
 }

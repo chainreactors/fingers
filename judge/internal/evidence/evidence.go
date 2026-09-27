@@ -4,8 +4,10 @@
 package evidence
 
 import (
+	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -65,14 +67,30 @@ func UsableKey(k string) bool {
 }
 
 // GenericName reports whether a normalized name is a generic interface word
-// ("login", "控制台") rather than a product.
+// ("login", "控制台") or an HTTP status ("404notfound") rather than a product.
 func GenericName(key string) bool {
 	switch key {
 	case "login", "signin", "welcome", "dashboard", "admin", "console", "home", "index", "server", "error", "notfound", "password", "username", "management", "system", "登录", "首页", "管理", "用户", "密码", "控制台":
 		return true
 	}
-	return false
+	if len(key) > 3 {
+		if _, err := strconv.Atoi(key[:3]); err == nil {
+			key = key[3:]
+		}
+	}
+	return statusTexts[key]
 }
+
+// statusTexts are the normalized HTTP reason phrases ("notfound").
+var statusTexts = func() map[string]bool {
+	m := map[string]bool{}
+	for code := 100; code < 600; code++ {
+		if text := http.StatusText(code); text != "" {
+			m[NormalizeName(text)] = true
+		}
+	}
+	return m
+}()
 
 // Names returns up to 20 product name candidates found in a response, most
 // telling source first: generator meta, product headers, title parts, asset

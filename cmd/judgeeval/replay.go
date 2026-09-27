@@ -14,14 +14,14 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/judge"
-	"github.com/chainreactors/fingers/judge/jev"
+	"github.com/chainreactors/fingers/judge/maintain"
+	"github.com/chainreactors/utils/jev"
 )
 
 // Labels are evidence for evaluation only; they are never passed to Judge.
@@ -48,7 +48,6 @@ type replaySample struct {
 type generationPlan struct {
 	Name     string   `json:"name"`
 	Product  string   `json:"product"`
-	AutoName bool     `json:"auto_name"`
 	Positive []string `json:"positive"`
 	Negative []string `json:"negative"`
 	Probe    string   `json:"probe,omitempty"`
@@ -64,21 +63,17 @@ type baselineRecord struct {
 	SHA256 string            `json:"sha256"`
 	Frames common.Frameworks `json:"frames"`
 }
-type replayRow struct {
-	ID          string            `json:"id"`
-	URL         string            `json:"url"`
-	SHA256      string            `json:"sha256"`
-	Baseline    common.Frameworks `json:"baseline"`
-	Refined     common.Frameworks `json:"refined,omitempty"`
-	Rejected    []string          `json:"rejected,omitempty"`
-	Duplicates  []string          `json:"duplicates,omitempty"`
-	Added       []string          `json:"added,omitempty"`
-	Filled      map[string]string `json:"filled_versions,omitempty"`
-	Kind        judge.Kind        `json:"kind,omitempty"`
-	Generic     bool              `json:"generic"`
-	Unknown     bool              `json:"unknown"`
-	Suggestions []string          `json:"suggestions,omitempty"`
-	Err         string            `json:"error,omitempty"`
+
+// record stores source results once; accepted products and all metrics are derived.
+type record struct {
+	ID       string            `json:"id"`
+	URL      string            `json:"url"`
+	SHA256   string            `json:"sha256"`
+	Baseline common.Frameworks `json:"baseline"`
+	Judged   common.Frameworks `json:"judged"`
+	Err      string            `json:"error,omitempty"`
+	RuleMs   float64           `json:"rule_ms"`
+	JudgeMs  float64           `json:"judge_ms"`
 }
 
 func digest(b []byte) string { return fmt.Sprintf("%x", sha256.Sum256(b)) }
@@ -179,44 +174,6 @@ func loadReplay(path string) (*replayManifest, error) {
 	return &m, nil
 }
 
-// Cache the full provider input, not a near-page signature, for evaluation.
-type replayProvider struct {
-	judge.Provider
-	dir         string
-	namespace   string
-	offline     bool
-	calls, hits int
-}
-
-func (p *replayProvider) Calibration() (float64, float64) {
-	if c, ok := p.Provider.(judge.Calibrated); ok {
-		return c.Calibration()
-	}
-	return .5, .9
-}
-func (p *replayProvider) Judge(ctx context.Context, state interface{}, qs map[string]judge.Question) (map[string]judge.Answer, error) {
-	data, err := json.Marshal([]interface{}{p.ID(), p.namespace, state, qs})
-	if err != nil {
-		return nil, err
-	}
-	path := filepath.Join(p.dir, digest(data)+".json")
-	var answers map[string]judge.Answer
-	if cached, err := os.ReadFile(path); err == nil && json.Unmarshal(cached, &answers) == nil {
-		p.hits++
-		return answers, nil
-	}
-	if p.offline {
-		return nil, fmt.Errorf("offline cache miss: %s", filepath.Base(path))
-	}
-	p.calls++
-	answers, err = p.Provider.Judge(ctx, state, qs)
-	if err == nil {
-		if e := writeJSON(path, answers); e != nil {
-			return nil, e
-		}
-	}
-	return answers, err
-}
 func loadHistory(path string) (map[string]baselineRecord, error) {
 	out := map[string]baselineRecord{}
 	if path == "" {
@@ -241,11 +198,11 @@ func loadHistory(path string) (map[string]baselineRecord, error) {
 	}
 	return out, scan.Err()
 }
-func copyFrames(frames common.Frameworks) common.Frameworks {
-	data, _ := json.Marshal(frames)
-	var out common.Frameworks
-	_ = json.Unmarshal(data, &out)
-	return out
+func versionOf(f *common.Framework) string {
+	if f == nil || f.Attributes == nil {
+		return ""
+	}
+	return f.Version
 }
 func findLabel(frames common.Frameworks, l productLabel) *common.Framework {
 	names := append([]string{l.Product}, l.Aliases...)
@@ -253,7 +210,7 @@ func findLabel(frames common.Frameworks, l productLabel) *common.Framework {
 	for _, name := range names {
 		for _, f := range frames {
 			if f != nil && judge.NormalizeName(f.Name) == judge.NormalizeName(name) {
-				if found == nil || (found.Version == "" && f.Version != "") || (found.Version == f.Version && f.Name < found.Name) {
+				if found == nil || (versionOf(found) == "" && versionOf(f) != "") || (versionOf(found) == versionOf(f) && f.Name < found.Name) {
 					found = f
 				}
 			}
@@ -273,7 +230,7 @@ func labelFor(s replaySample, name string) (productLabel, bool) {
 	return productLabel{}, false
 }
 
-func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out string, rps float64, offline, maintain bool, libraryPath string) error {
+func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out string, rps float64, offline, audit bool, libraryPath string) error {
 	if rps <= 0 || rps > 100 || math.IsNaN(rps) {
 		return fmt.Errorf("rps must be in (0,100]")
 	}
@@ -306,23 +263,27 @@ func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out str
 	}
 	ticker := time.NewTicker(time.Duration(float64(time.Second) / rps))
 	defer ticker.Stop()
-	var provider judge.Provider
+	var provider jev.Provider
 	tokens := func() int64 { return 0 }
 	if offline {
 		if providerName != "jev" {
 			return fmt.Errorf("unknown provider %q", providerName)
 		}
-		// Only ID and calibration are used; cache misses never invoke this provider.
-		provider, err = jev.New("offline-cache-only")
+		// Cache misses never invoke this provider.
+		p, e := jev.NewClient("offline-cache-only")
+		err = e
+		if p != nil && endpoint != "" {
+			p.Endpoint = endpoint
+		}
+		provider = p
 	} else {
 		provider, tokens, err = newProvider(providerName, endpoint, &limited{tick: ticker.C})
 	}
 	if err != nil {
 		return err
 	}
-	cached := &replayProvider{Provider: provider, dir: cacheDir, namespace: endpoint, offline: offline}
-	j := judge.New(cached)
-	j.Cache = nil
+	cached := &recordingProvider{Provider: provider, dir: cacheDir, offline: offline}
+	j := newJudge(cached)
 	engine, err := fingers.NewEngine(fingers.FingersEngine, fingers.FingerPrintEngine, fingers.EHoleEngine, fingers.GobyEngine, fingers.WappalyzerEngine)
 	if err != nil {
 		return err
@@ -332,7 +293,9 @@ func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out str
 			return err
 		}
 	}
-	j.Known = judge.NewRetriever(engine.Names())
+	if engine.Fingers() != nil {
+		engine.EnableMatchDetail() // claims quote what each rule matched
+	}
 	baselineFile, err := os.Create(filepath.Join(out, "baseline.jsonl"))
 	if err != nil {
 		return err
@@ -343,49 +306,55 @@ func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out str
 		return err
 	}
 	defer cleanedFile.Close()
-	rowFile, err := os.Create(filepath.Join(out, "rows.jsonl"))
-	if err != nil {
-		return err
-	}
-	defer rowFile.Close()
-	be, ce, re := json.NewEncoder(baselineFile), json.NewEncoder(cleanedFile), json.NewEncoder(rowFile)
-	rows := make([]replayRow, 0, len(m.Samples))
+	be, ce := json.NewEncoder(baselineFile), json.NewEncoder(cleanedFile)
+	ledger := maintain.NewLedger()
+	rows := make([]record, 0, len(m.Samples))
 	started := time.Now()
 	for _, s := range m.Samples {
-		r := replayRow{ID: s.ID, URL: s.URL, SHA256: s.SHA256}
+		r := record{ID: s.ID, URL: s.URL, SHA256: s.SHA256}
+		ruleStart := time.Now()
 		if historyPath != "" {
-			r.Baseline = copyFrames(history[s.ID].Frames)
+			r.Baseline = history[s.ID].Frames
 		} else {
 			r.Baseline, err = engine.DetectContent(s.raw)
 			if err != nil {
 				return err
 			}
 		}
+		r.RuleMs = ms(time.Since(ruleStart))
 		if err := be.Encode(baselineRecord{s.ID, s.SHA256, r.Baseline}); err != nil {
 			return err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		err = cleanReplay(ctx, j, s, &r)
+		err = judgeRecord(ctx, j, s.raw, &r)
 		cancel()
 		if err != nil {
 			r.Err = err.Error()
-		} else if err := ce.Encode(baselineRecord{s.ID, s.SHA256, r.Refined}); err != nil {
+		} else if err := ce.Encode(baselineRecord{s.ID, s.SHA256, r.Judged.Accepted()}); err != nil {
 			return err
 		}
-		if err := re.Encode(r); err != nil {
-			return err
-		}
+		ledger.Add(s.ID, r.Judged)
 		rows = append(rows, r)
-		fmt.Fprintf(os.Stderr, "replay %d/%d %s: baseline=%d refined=%d error=%t\n", len(rows), len(m.Samples), s.ID, len(r.Baseline), len(r.Refined), r.Err != "")
+		fmt.Fprintf(os.Stderr, "replay %d/%d %s: baseline=%d accepted=%d error=%t\n", len(rows), len(m.Samples), s.ID, len(r.Baseline), len(r.Judged.Accepted()), r.Err != "")
+	}
+	if err := writeRows(filepath.Join(out, "rows.jsonl"), rows); err != nil {
+		return err
+	}
+	clusters, err := discoverReplay(m, j, rows, out)
+	if err != nil {
+		return err
 	}
 	generated, err := generateReplay(m, j, out)
 	if err != nil {
 		return err
 	}
-	summary := summarizeReplay(m, rows, generated)
+	summary := summarizeReplay(m, rows, generated, clusters)
+	summary.Requests, summary.CacheHits, summary.Claims = cached.stats()
+	summary.JunkRules = ledger.Report(3, 0.5)
+	if err := writeJSON(filepath.Join(out, "ledger.json"), ledger.Report(1, 0)); err != nil {
+		return err
+	}
 	summary.Model = provider.ID()
-	summary.Requests = cached.calls
-	summary.CacheHits = cached.hits
 	summary.InputTokens = tokens()
 	summary.Seconds = time.Since(started).Seconds()
 	summary.BaselineSource = "current_rules_on_saved_responses"
@@ -395,15 +364,15 @@ func replay(manifestPath, historyPath, providerName, endpoint, cacheDir, out str
 	if err := writeJSON(filepath.Join(out, "metrics.json"), summary); err != nil {
 		return err
 	}
-	if err := writeReplayReport(filepath.Join(out, "report.md"), summary); err != nil {
+	if err := writeReplayReport(filepath.Join(out, "report.md"), summary, m); err != nil {
 		return err
 	}
 	fmt.Printf("saved %s\n", filepath.Join(out, "report.md"))
 	if summary.Errors > 0 {
 		return fmt.Errorf("%d failed rows; see rows.jsonl", summary.Errors)
 	}
-	if maintain {
-		return maintainReplay(m, rows, generated, out, engine)
+	if audit {
+		return maintainReplay(m, clusters, generated, out, engine)
 	}
 	return nil
 }
@@ -429,44 +398,75 @@ func saveReplaySnapshot(out string, m *replayManifest) error {
 	}
 	return writeJSON(filepath.Join(out, "manifest.json"), copy)
 }
-func cleanReplay(ctx context.Context, j *judge.Judge, s replaySample, r *replayRow) error {
+func judgeRecord(ctx context.Context, j *judge.Judge, raw []byte, r *record) error {
+	started := time.Now()
 	var err error
-	r.Refined, err = j.Refine(ctx, s.raw, r.Baseline)
+	r.Judged, err = j.Inspect(ctx, raw, r.Baseline)
+	r.JudgeMs = ms(time.Since(started))
 	if err != nil {
-		return err
+		r.Err = err.Error()
 	}
-	if r.Kind, r.Generic, err = j.Classify(ctx, s.raw); err != nil {
-		return err
-	}
-	inspected, err := j.Inspect(ctx, s.raw, r.Baseline)
-	if err != nil {
-		return err
-	}
-	for _, f := range inspected {
-		if f.Judge != nil && f.Judge.Rejected {
-			r.Rejected = append(r.Rejected, f.Name)
-		}
-		if f.Judge != nil && f.Judge.Duplicate {
-			r.Duplicates = append(r.Duplicates, f.Name)
-		}
-	}
-	r.Filled = map[string]string{}
-	for _, f := range r.Refined {
-		before := findLabel(r.Baseline, productLabel{Product: f.Name})
-		if before == nil {
-			r.Added = append(r.Added, f.Name)
-		}
-		if f.Version != "" && (before == nil || before.Version == "") {
-			r.Filled[f.Name] = f.Version
-		}
-	}
-	r.Unknown, err = j.IsUnknownProduct(ctx, s.raw, r.Refined)
-	if err != nil {
-		return err
-	}
-	r.Suggestions, err = j.SuggestNames(ctx, s.raw)
-	sort.Strings(r.Rejected)
-	sort.Strings(r.Duplicates)
-	sort.Strings(r.Added)
 	return err
+}
+
+func discoverReplay(m *replayManifest, j *judge.Judge, rows []record, out string) ([]*maintain.Cluster, error) {
+	byID := map[string]record{}
+	for _, r := range rows {
+		byID[r.ID] = r
+	}
+	var samples []maintain.Sample
+	for _, s := range m.Samples {
+		r, ok := byID[s.ID]
+		if !ok || r.Err != "" {
+			continue
+		}
+		samples = append(samples, maintain.Sample{ID: s.ID, Host: sampleHost(s), Raw: s.raw, Accepted: r.Judged.Accepted()})
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	clusters, err := maintain.Discover(ctx, j, samples, 2)
+	if err != nil {
+		return nil, err
+	}
+	return clusters, writeJSON(filepath.Join(out, "discovery.json"), clusters)
+}
+
+// Clusters carry sample IDs; rows do not duplicate cluster state.
+func missingCandidates(clusters []*maintain.Cluster) map[string][]string {
+	out := map[string][]string{}
+	for _, c := range clusters {
+		if c.Outcome == jev.Refuted {
+			for _, id := range c.Samples {
+				out[id] = c.Candidates
+			}
+		}
+	}
+	return out
+}
+
+// sampleHost is the host a sample was captured from: its group joins
+// several addresses of one operator.
+func sampleHost(s replaySample) string {
+	if s.Group != "" {
+		return s.Group
+	}
+	if u, err := url.Parse(s.URL); err == nil {
+		return strings.ToLower(u.Hostname())
+	}
+	return s.URL
+}
+
+func writeRows(path string, rows []record) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	for _, r := range rows {
+		if err := enc.Encode(r); err != nil {
+			return err
+		}
+	}
+	return nil
 }

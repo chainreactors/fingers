@@ -16,26 +16,57 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type generationCase struct {
-	ID              string  `json:"id"`
-	Present         bool    `json:"present"`
-	Matched         bool    `json:"matched"`
-	Version         string  `json:"version,omitempty"`
-	ExpectedVersion *string `json:"expected_version,omitempty"`
-}
+// generationResult records observations only. The manifest owns the product,
+// training split and truth labels; scores and status are derived from them.
 type generationResult struct {
-	Name              string           `json:"name"`
-	Product           string           `json:"product"`
-	Status            string           `json:"status"`
-	File              string           `json:"file,omitempty"`
-	Detection         detectionScore   `json:"detection"`
-	Versions          versionScore     `json:"versions"`
-	TrainingDetection detectionScore   `json:"training_detection"`
-	TrainingVersions  versionScore     `json:"training_versions"`
-	TrainingCases     []generationCase `json:"training_cases"`
-	Cases             []generationCase `json:"cases"`
-	Excluded          []string         `json:"excluded"`
-	Error             string           `json:"error,omitempty"`
+	Name     string                       `json:"name"`
+	File     string                       `json:"file,omitempty"`
+	Training map[string]*common.Framework `json:"training"`
+	Holdout  map[string]*common.Framework `json:"holdout"`
+	Excluded []string                     `json:"excluded"`
+	Error    string                       `json:"error,omitempty"`
+}
+
+func (r generationResult) assess(m *replayManifest, p generationPlan) (training, holdout stageScore, status string) {
+	test, _, err := generationSplit(m, p)
+	if err != nil || r.Error != "" {
+		return training, holdout, "failed"
+	}
+	trainingComplete := len(r.Training) == len(p.Positive)+len(p.Negative)
+	for _, ids := range [][]string{p.Positive, p.Negative} {
+		for _, id := range ids {
+			_, evaluated := r.Training[id]
+			trainingComplete = trainingComplete && evaluated
+		}
+	}
+	holdoutComplete := len(r.Holdout) == len(test)
+	for _, sample := range test {
+		_, evaluated := r.Holdout[sample.ID]
+		holdoutComplete = holdoutComplete && evaluated
+	}
+	for _, s := range m.Samples {
+		label, labelled := labelFor(s, p.Product)
+		if !labelled {
+			continue
+		}
+		if frame, evaluated := r.Training[s.ID]; evaluated {
+			training.add(label, frame)
+		}
+		if frame, evaluated := r.Holdout[s.ID]; evaluated {
+			holdout.add(label, frame)
+		}
+	}
+	switch {
+	case training.failed() || !trainingComplete:
+		status = "failed_training"
+	case holdout.failed():
+		status = "failed_holdout"
+	case !holdoutComplete || holdout.Detection.TP == 0 || holdout.Detection.TN == 0:
+		status = "insufficient_holdout"
+	default:
+		status = "passed_holdout"
+	}
+	return
 }
 
 func generationSplit(m *replayManifest, p generationPlan) ([]replaySample, []string, error) {
@@ -119,16 +150,13 @@ func generateReplay(m *replayManifest, j *judge.Judge, out string) ([]generation
 			return nil, fmt.Errorf("duplicate generation plan %s", p.Name)
 		}
 		plans[p.Name] = true
-		r := generationResult{Name: p.Name, Product: p.Product, Status: "failed"}
+		r := generationResult{Name: p.Name, Training: map[string]*common.Framework{}, Holdout: map[string]*common.Framework{}}
 		test, excluded, err := generationSplit(m, p)
 		if err != nil {
 			return nil, err
 		}
 		r.Excluded = excluded
-		g := gen.New(j)
-		if !p.AutoName {
-			g.Name(p.Product)
-		}
+		g := gen.New(j).Name(p.Product)
 		for _, id := range p.Positive {
 			s := samples[id]
 			g.Positive(s.raw)
@@ -148,12 +176,6 @@ func generateReplay(m *replayManifest, j *judge.Judge, out string) ([]generation
 		cancel()
 		if err != nil {
 			r.Error = err.Error()
-			results = append(results, r)
-			continue
-		}
-		r.Product = f.Name
-		if judge.NormalizeName(f.Name) != judge.NormalizeName(p.Product) {
-			r.Error = "automatic name differs from labelled product"
 			results = append(results, r)
 			continue
 		}
@@ -182,35 +204,15 @@ func generateReplay(m *replayManifest, j *judge.Judge, out string) ([]generation
 			results = append(results, r)
 			continue
 		}
-		// Score inferred training versions only after generation and export.
-		// Positive deliberately receives no labelled version or other truth.
+		// Preserve native detections, including nil for a tested non-match.
+		// Truth remains in the manifest and never enters generation.
 		for _, ids := range [][]string{p.Positive, p.Negative} {
 			for _, id := range ids {
-				c, frame := evaluateGenerated(&loaded, p, samples[id], samples)
-				r.TrainingCases = append(r.TrainingCases, c)
-				r.TrainingDetection.add(c.Present, c.Matched)
-				if c.ExpectedVersion != nil {
-					r.TrainingVersions.add(frame, *c.ExpectedVersion)
-				}
+				r.Training[id] = evaluateGenerated(&loaded, p, samples[id], samples)
 			}
 		}
-		for _, s := range test {
-			c, frame := evaluateGenerated(&loaded, p, s, samples)
-			r.Cases = append(r.Cases, c)
-			r.Detection.add(c.Present, c.Matched)
-			if c.ExpectedVersion != nil {
-				r.Versions.add(frame, *c.ExpectedVersion)
-			}
-		}
-		switch {
-		case r.TrainingDetection.FP > 0 || r.TrainingDetection.FN > 0 || r.TrainingVersions.Wrong > 0 || r.TrainingVersions.Missing > 0 || r.TrainingVersions.Unsupported > 0:
-			r.Status = "failed_training"
-		case r.Detection.FP > 0 || r.Detection.FN > 0 || r.Versions.Wrong > 0 || r.Versions.Missing > 0 || r.Versions.Unsupported > 0:
-			r.Status = "failed_holdout"
-		case r.Detection.TP == 0 || r.Detection.TN == 0:
-			r.Status = "insufficient_holdout"
-		default:
-			r.Status = "passed_holdout"
+		for _, sample := range test {
+			r.Holdout[sample.ID] = evaluateGenerated(&loaded, p, sample, samples)
 		}
 		results = append(results, r)
 	}
@@ -220,8 +222,7 @@ func generateReplay(m *replayManifest, j *judge.Judge, out string) ([]generation
 	return results, nil
 }
 
-func evaluateGenerated(f *fingerlib.Finger, p generationPlan, s replaySample, samples map[string]replaySample) (generationCase, *common.Framework) {
-	l, _ := labelFor(s, p.Product)
+func evaluateGenerated(f *fingerlib.Finger, p generationPlan, s replaySample, samples map[string]replaySample) *common.Framework {
 	var frame *common.Framework
 	var matched bool
 	if p.Probe == "" {
@@ -232,9 +233,8 @@ func evaluateGenerated(f *fingerlib.Finger, p generationPlan, s replaySample, sa
 			return samples[id].raw, ok
 		})
 	}
-	c := generationCase{ID: s.ID, Present: l.Present, Matched: matched, ExpectedVersion: l.Version}
-	if matched && frame != nil {
-		c.Version = frame.Version
+	if !matched {
+		return nil
 	}
-	return c, frame
+	return frame
 }

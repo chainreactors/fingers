@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/neutron/operators"
 	"github.com/chainreactors/neutron/protocols"
 	"github.com/chainreactors/utils/encode"
@@ -146,8 +147,15 @@ func parseRawHTTPEvent(content []byte, caseInsensitive bool) (protocols.Internal
 }
 
 func matchPassiveRequest(req *passiveRequest, event protocols.InternalEvent) bool {
+	matched, _ := matchPassiveRequestDetail(req, event)
+	return matched
+}
+
+// matchPassiveRequestDetail also returns the first snippet a positive matcher
+// matched.
+func matchPassiveRequestDetail(req *passiveRequest, event protocols.InternalEvent) (bool, *common.MatchDetail) {
 	if len(req.Matchers) == 0 {
-		return false
+		return false, nil
 	}
 
 	matchersCondition := req.MatchersCondition
@@ -156,23 +164,29 @@ func matchPassiveRequest(req *passiveRequest, event protocols.InternalEvent) boo
 	}
 
 	matchedCount := 0
-	for _, matcher := range req.Matchers {
-		matched, _ := protocols.HTTPMatch(event, matcher)
+	var detail *common.MatchDetail
+	for i, matcher := range req.Matchers {
+		matched, hits := protocols.HTTPMatch(event, matcher)
 		if matched {
 			matchedCount++
+			for _, hit := range hits {
+				if detail == nil && hit.Value != "" {
+					detail = &common.MatchDetail{MatcherType: matcher.Type, MatcherIndex: i, MatcherValue: hit.Value}
+				}
+			}
 			if matchersCondition == "or" {
-				return true
+				return true, detail
 			}
 		} else {
 			if matchersCondition == "and" {
-				return false
+				return false, nil
 			}
 		}
 	}
 
-	if matchersCondition == "and" {
-		return matchedCount == len(req.Matchers)
+	if matchersCondition == "and" && matchedCount == len(req.Matchers) {
+		return true, detail
 	}
 
-	return false
+	return false, nil
 }

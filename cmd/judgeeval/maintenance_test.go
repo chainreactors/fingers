@@ -44,7 +44,7 @@ func TestMaintenanceRecognizesPreviouslyLoadedLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 	existing := catalogMatches([]catalogSource{catalog}, []string{"replay-maintenance-test-app"})
-	if got := maintenanceDecision(existing, generationResult{Status: "passed_holdout"}, 2, 5); got != "already_catalogued" {
+	if got := maintenanceDecision(existing, "passed_holdout", 2, 5); got != "already_catalogued" {
 		t.Fatalf("would re-add existing library fingerprint: %s", got)
 	}
 }
@@ -71,7 +71,7 @@ func TestCatalogAuditCoversEveryEmbeddedSource(t *testing.T) {
 }
 
 func TestMaintenanceRequiresNoveltyAndIndependentHosts(t *testing.T) {
-	g := generationResult{Status: "passed_holdout"}
+	g := "passed_holdout"
 	for _, tc := range []struct {
 		existing           []string
 		positive, negative int
@@ -86,7 +86,7 @@ func TestMaintenanceRequiresNoveltyAndIndependentHosts(t *testing.T) {
 			t.Fatalf("got %s want %s", got, tc.want)
 		}
 	}
-	g.Status = "failed_holdout"
+	g = "failed_holdout"
 	if got := maintenanceDecision(nil, g, 3, 20); got != "failed_holdout" {
 		t.Fatalf("failed candidate admitted: %s", got)
 	}

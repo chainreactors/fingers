@@ -15,10 +15,10 @@ import (
 	"github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/judge"
-	"github.com/chainreactors/fingers/judge/jev"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/utils/encode"
 	"github.com/chainreactors/utils/httputils"
+	"github.com/chainreactors/utils/jev"
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/yaml.v3"
 )
@@ -181,6 +181,9 @@ func main() {
 		fmt.Printf("Failed to create engine: %v\n", err)
 		os.Exit(1)
 	}
+	if opts.Judge != "" && engine.Fingers() != nil {
+		engine.EnableMatchDetail() // the judge quotes what each rule matched
+	}
 
 	if opts.Verbose {
 		fmt.Printf("Loaded engines: %s\n", engine.String())
@@ -204,7 +207,7 @@ func main() {
 		}
 	} else {
 		var content []byte
-		if opts.Judge != "" { // Refine needs the raw response; put the body back for Match
+		if opts.Judge != "" { // Inspect needs the raw response; put the body back for Match
 			content = httputils.ReadRaw(resp)
 			body, _, _ := httputils.SplitHttpRaw(content)
 			resp.Body = ioutil.NopCloser(bytes.NewReader(body))
@@ -215,38 +218,26 @@ func main() {
 				fmt.Printf("unknown judge provider %q\n", opts.Judge)
 				os.Exit(1)
 			}
-			j, err := jev.NewJudge("")
+			c, err := jev.NewClient("")
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			j.Known = judge.NewRetriever(engine.Names())
+			j := judge.New(jev.Cached(c, jev.DefaultCacheSize))
 			ctx := context.Background()
-			accepted, err := j.Refine(ctx, content, frames)
-			if err == nil {
-				var kind judge.Kind
-				var generic bool
-				if kind, generic, err = j.Classify(ctx, content); err == nil {
-					fmt.Printf("page: %s, generic: %v\n", kind, generic)
-				}
-			}
+			judged, err := j.Inspect(ctx, content, frames)
+			accepted := judged.Accepted()
 			if err != nil {
-				fmt.Printf("jev failed, showing the rule result: %v\n", err)
-			} else {
-				for _, frame := range accepted {
-					verdict := "accepted"
-					if frame.Judge != nil && frame.Judge.Primary {
-						verdict += ",primary"
-					}
-					if frame.Judge != nil && frame.Judge.Recalled {
-						verdict += ",recalled"
-					}
-					layer := ""
-					if frame.Judge != nil {
-						layer = frame.Judge.Layer
-					}
-					fmt.Printf("  %-40s %-10s %-18s %s\n", frame.Name, frame.Version, layer, verdict)
+				fmt.Printf("jev failed, code-established verdicts only: %v\n", err)
+			}
+			for _, frame := range accepted {
+				verdict := "unjudged"
+				if frame.Judge != nil {
+					verdict = frame.Judge.Verdict
 				}
+				fmt.Printf("  %-40s %-10s %s\n", frame.Name, frame.Version, verdict)
+			}
+			if err == nil {
 				fmt.Printf("accepted: %s\n", accepted.String())
 				return
 			}

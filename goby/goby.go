@@ -26,6 +26,8 @@ func NewGobyEngine(data []byte) (*GobyEngine, error) {
 
 type GobyEngine struct {
 	Fingers []*GobyFinger
+	// MatchDetailEnabled records on each hit the feature it matched.
+	MatchDetailEnabled bool
 }
 
 func (engine *GobyEngine) Name() string {
@@ -69,6 +71,9 @@ func (engine *GobyEngine) MatchRaw(raw string) common.Frameworks {
 	for _, finger := range engine.Fingers {
 		frame := finger.Match(raw)
 		if frame != nil {
+			if !engine.MatchDetailEnabled {
+				frame.MatchDetail = nil
+			}
 			frames.Add(frame)
 		}
 	}
@@ -101,15 +106,21 @@ func (finger *GobyFinger) Compile() error {
 
 func (finger *GobyFinger) Match(raw string) *common.Framework {
 	env := make(map[string]bool)
-	for _, r := range finger.Rule {
+	var detail *common.MatchDetail
+	for i, r := range finger.Rule {
 		match := strings.Contains(raw, r.Feature)
 		env[r.Label] = match == r.IsEquel
+		if match && r.IsEquel && detail == nil {
+			detail = &common.MatchDetail{MatcherType: "word", MatcherIndex: i, MatcherValue: r.Feature}
+		}
 	}
 
 	matched := logic.EvalLogic(finger.logicExpr, env)
 
 	if matched {
-		return common.NewFramework(finger.Name, common.FrameFromGoby)
+		frame := common.NewFramework(finger.Name, common.FrameFromGoby)
+		frame.MatchDetail = detail
+		return frame
 	}
 	return nil
 }
