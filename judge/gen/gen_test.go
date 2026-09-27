@@ -3,7 +3,6 @@ package gen
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -36,7 +35,7 @@ func TestGeneratorPassiveVersionAndValidation(t *testing.T) {
 	positive1 := []byte("HTTP/1.1 200 OK\r\nServer: nginx/2.401.3\r\nX-Jenkins: 2.401.3\r\n\r\n<title>Jenkins</title>")
 	positive2 := []byte("HTTP/1.1 200 OK\r\nServer: nginx/2.402.1\r\nX-Jenkins: 2.402.1\r\n\r\n<title>Jenkins</title>")
 	negative := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Blog</title><p>X-Jenkins: 9.9.9 release notes</p>")
-	g := New(nil).Name("Jenkins").PositiveVersion(positive1, "2.401.3").PositiveVersion(positive2, "2.402.1").Negative(negative)
+	g := New(nil, "Jenkins").PositiveVersion(positive1, "2.401.3").PositiveVersion(positive2, "2.402.1").Negative(negative)
 	f, err := g.Generate(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -62,21 +61,12 @@ func TestGeneratorPassiveVersionAndValidation(t *testing.T) {
 	}
 }
 
-func TestGeneratorActiveAndProbeWith(t *testing.T) {
+func TestGeneratorActive(t *testing.T) {
 	base := []byte("HTTP/1.1 200 OK\r\n\r\n<title>Login</title>")
 	request := []byte("/admin")
 	positive := []byte("HTTP/1.1 200 OK\r\nX-Orion: console\r\n\r\nOrion console")
 	negative := []byte("HTTP/1.1 404 Not Found\r\n\r\nmissing")
-	g := New(nil).Name("Orion").Positive(base)
-	if err := g.ProbeWith(context.Background(), request, func(_ context.Context, got []byte) ([]byte, error) {
-		if !bytes.Equal(got, request) {
-			return nil, errors.New("wrong request")
-		}
-		return positive, nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	g.Negative(base).Probe(request, negative)
+	g := New(nil, "Orion").Positive(base).Probe(request, positive).Negative(base).Probe(request, negative)
 	f, err := g.Generate(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -90,18 +80,18 @@ func TestGeneratorActiveAndProbeWith(t *testing.T) {
 	if len(f.Rules[0].Regexps.CompliedRegexp) != 0 {
 		t.Fatal("Validate changed compiled rules")
 	}
-	if _, err := New(nil).Name("Orion").Positive(base).Probe(request, positive).Negative(base).Generate(context.Background()); err == nil {
+	if _, err := New(nil, "Orion").Positive(base).Probe(request, positive).Negative(base).Generate(context.Background()); err == nil {
 		t.Fatal("generated active rule without a negative probe")
 	}
 }
 
-// A person names the product: without Name, Generate fails rather than ask
+// A person names the product: without a name, Generate fails rather than ask
 // the provider for one.
 func TestGeneratorRequiresName(t *testing.T) {
 	positive := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Orion</title><p>Orion console</p>")
 	negative := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Other</title>")
 	j := judge.New(names("Orion"))
-	if f, err := New(j).Positive(positive).Negative(negative).Generate(context.Background()); err == nil {
+	if f, err := New(j, "").Positive(positive).Negative(negative).Generate(context.Background()); err == nil {
 		t.Fatalf("generated %+v without a name", f)
 	}
 }
@@ -111,7 +101,7 @@ func TestGeneratorActiveVersion(t *testing.T) {
 	request := []byte("/version")
 	positive := []byte("HTTP/1.1 200 OK\r\nX-Orion: 3.1.2\r\n\r\nversion")
 	negative := []byte("HTTP/1.1 200 OK\r\n\r\nnot installed")
-	g := New(nil).Name("Orion").PositiveVersion(base, "3.1.2").Probe(request, positive).Negative(base).Probe(request, negative)
+	g := New(nil, "Orion").PositiveVersion(base, "3.1.2").Probe(request, positive).Negative(base).Probe(request, negative)
 	f, err := g.Generate(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +117,7 @@ func TestGeneratorCoversDifferentPositiveVariants(t *testing.T) {
 	first := []byte(fmt.Sprintf(base, "X-Orion-Instance: ready\r\n"))
 	second := []byte(fmt.Sprintf(base, "X-Orion-Service: yes\r\n"))
 	other := []byte(fmt.Sprintf(base, "Server: nginx\r\n"))
-	g := New(nil).Name("Orion").Positive(first).Positive(second).Negative(other)
+	g := New(nil, "Orion").Positive(first).Positive(second).Negative(other)
 	f, err := g.Generate(context.Background())
 	if err != nil || len(f.Rules) != 2 {
 		t.Fatalf("variant rules = %+v, %v", f, err)
@@ -139,7 +129,7 @@ func TestGeneratedVersionHandlesHyphenatedHeaderAndReleaseSuffix(t *testing.T) {
 		return []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\nX-New-Api-Version: v" + v + "\r\n\r\n<title>New API</title>")
 	}
 	neg := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Welcome</title>")
-	g := New(nil).Name("New API").PositiveVersion(raw("1.0.0-rc.35"), "1.0.0-rc.35").Negative(neg)
+	g := New(nil, "New API").PositiveVersion(raw("1.0.0-rc.35"), "1.0.0-rc.35").Negative(neg)
 	f, err := g.Generate(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -157,7 +147,7 @@ func TestGeneratedMetaRuleSurvivesTitleAndCalendarVersionChanges(t *testing.T) {
 		return []byte("HTTP/1.1 200 OK\r\n\r\n<title>" + title + "</title><meta name=\"generator\" content=\"searxng/" + version + "\">")
 	}
 	negative := []byte("HTTP/1.1 200 OK\r\n\r\n<title>SearXNG Documentation</title><p>Install SearXNG</p>")
-	f, err := New(nil).Name("SearXNG").PositiveVersion(page("Search One", "2026.9.23+3cd69d30e"), "2026.9.23+3cd69d30e").Negative(negative).Generate(context.Background())
+	f, err := New(nil, "SearXNG").PositiveVersion(page("Search One", "2026.9.23+3cd69d30e"), "2026.9.23+3cd69d30e").Negative(negative).Generate(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +165,7 @@ func TestGeneratedFooterVersionRequiresProductDeclaration(t *testing.T) {
 		return []byte("HTTP/1.1 200 OK\r\n\r\n<title>" + title + "</title><main>Log in</main><footer><div class=\"text-xs font-mono font-semibold\">\n v" + version + " @ mysql\n</div></footer>")
 	}
 	negative := page("Different Application", "2.18.0-be6aeb4")
-	f, err := New(nil).Name("Wakapi").PositiveVersion(page("Wakapi – Coding Statistics", "2.18.0-be6aeb4"), "2.18.0-be6aeb4").Negative(negative).Generate(context.Background())
+	f, err := New(nil, "Wakapi").PositiveVersion(page("Wakapi – Coding Statistics", "2.18.0-be6aeb4"), "2.18.0-be6aeb4").Negative(negative).Generate(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +182,7 @@ func TestGeneratedApplicationDoesNotLearnSharedInfrastructure(t *testing.T) {
 	for _, name := range []string{"IT Tools", "Docmost"} {
 		positive := []byte("HTTP/1.1 200 OK\r\nServer: cloudflare\r\nX-Frame-Options: SAMEORIGIN\r\n\r\n<title>" + name + "</title>")
 		negative := []byte("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<title>Different Application</title>")
-		f, err := New(nil).Name(name).Positive(positive).Negative(negative).Generate(context.Background())
+		f, err := New(nil, name).Positive(positive).Negative(negative).Generate(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}

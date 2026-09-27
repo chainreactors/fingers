@@ -2,7 +2,6 @@ package judge
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	"github.com/chainreactors/fingers/common"
@@ -21,11 +20,8 @@ func (j *Judge) Inspect(ctx context.Context, raw []byte, hits common.Frameworks)
 			f.Judge = nil
 		}
 	}
-	if err := ctx.Err(); err != nil {
+	if err := j.ready(ctx); err != nil {
 		return working, err
-	}
-	if !probability(j.MinConfidence) {
-		return working, fmt.Errorf("invalid minimum confidence")
 	}
 	p, err := evidence.NewPage(raw)
 	if err != nil {
@@ -42,11 +38,8 @@ func (j *Judge) Version(ctx context.Context, raw []byte, f *common.Framework) (s
 	if f == nil {
 		return "", nil
 	}
-	if err := ctx.Err(); err != nil {
+	if err := j.ready(ctx); err != nil {
 		return "", err
-	}
-	if !probability(j.MinConfidence) {
-		return "", fmt.Errorf("invalid minimum confidence")
 	}
 	if f.Attributes != nil && f.Version != "" {
 		return f.Version, nil

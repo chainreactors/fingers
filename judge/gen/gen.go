@@ -37,14 +37,11 @@ type generatorSample struct {
 	probes  map[string][]byte
 }
 
-// New creates a fingerprint generator using j for version selection. j may
-// be nil when every positive carries its version (PositiveVersion).
-func New(j *judge.Judge) *Generator { return &Generator{judge: j} }
-
-// Name sets the product the rules detect; Generate requires it.
-func (g *Generator) Name(name string) *Generator {
-	g.name = strings.TrimSpace(name)
-	return g
+// New creates a generator for the product a person names, using j for
+// versions the positives do not carry. j may be nil when every positive
+// carries its version (PositiveVersion).
+func New(j *judge.Judge, name string) *Generator {
+	return &Generator{judge: j, name: strings.TrimSpace(name)}
 }
 
 // Positive adds an HTTP response known to belong to the product.
@@ -83,23 +80,6 @@ func (g *Generator) Probe(request, response []byte) *Generator {
 	return g
 }
 
-// ProbeWith sends request and records the response for the last sample. The
-// caller controls network behavior through send.
-func (g *Generator) ProbeWith(ctx context.Context, request []byte, send func(context.Context, []byte) ([]byte, error)) error {
-	if g.current == nil {
-		return fmt.Errorf("gen: ProbeWith requires a preceding Positive or Negative")
-	}
-	if send == nil || len(request) == 0 {
-		return fmt.Errorf("gen: ProbeWith requires a sender and non-empty send_data")
-	}
-	response, err := send(ctx, request)
-	if err != nil {
-		return err
-	}
-	g.Probe(request, response)
-	return nil
-}
-
 // Generate returns one compiled, rule-validated fingerprint. It never writes
 // a templates repository. At least one positive and one negative are required.
 func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
@@ -114,7 +94,7 @@ func (g *Generator) Generate(ctx context.Context) (*fingerlib.Finger, error) {
 	}
 	name := g.name
 	if name == "" {
-		return nil, fmt.Errorf("gen: Name is required: a person names the product, the provider never does")
+		return nil, fmt.Errorf("gen: a person names the product; the provider never does")
 	}
 
 	versions := make([]string, len(g.positive))

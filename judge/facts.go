@@ -69,23 +69,19 @@ func declares(p *evidence.Page, name string) bool {
 			continue
 		}
 		for _, value := range values {
+			// "Apache/2.4 (Debian)", "nginx, Varnish": a token names the product...
 			for _, token := range strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ';' || r == '(' || r == ')' }) {
-				token = strings.TrimSpace(token)
 				if i := strings.IndexByte(token, '/'); i >= 0 {
-					token = strings.TrimSpace(token[:i])
+					token = token[:i]
 				}
-				if NormalizeName(token) == key {
+				if NormalizeName(strings.TrimSpace(token)) == key {
 					return true
 				}
-				// A header can list several products separated by spaces.
-				for _, part := range strings.Fields(value) {
-					if !strings.Contains(part, "/") {
-						continue
-					}
-					part = strings.SplitN(part, "/", 2)[0]
-					if NormalizeName(part) == key {
-						return true
-					}
+			}
+			// ...or one of several space-separated "name/version" products does.
+			for _, part := range strings.Fields(value) {
+				if i := strings.IndexByte(part, '/'); i > 0 && NormalizeName(part[:i]) == key {
+					return true
 				}
 			}
 		}
@@ -225,10 +221,8 @@ func excerpt(text string, start, end int) matchExcerpt {
 	return matchExcerpt{Where: where, Text: evidence.Truncate(evidence.Clean(strings.ToValidUTF8(text[lo:hi], "")), maxExcerpt)}
 }
 
-// containsWord matches ASCII keys on word boundaries ("acti" must not match
+// indexWord finds ASCII keys on word boundaries ("acti" must not match
 // "action"); CJK keys have no word boundaries and match as substrings.
-func containsWord(haystack, key string) bool { return indexWord(haystack, key) >= 0 }
-
 func indexWord(haystack, key string) int {
 	if key == "" {
 		return -1

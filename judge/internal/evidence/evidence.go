@@ -57,8 +57,8 @@ func NormalizeName(name string) string {
 	return key
 }
 
-// UsableKey drops keys too short to be meaningful evidence ("oa", "cms").
-func UsableKey(k string) bool {
+// usableKey drops keys too short to be meaningful evidence ("oa", "cms").
+func usableKey(k string) bool {
 	n := utf8.RuneCountInString(k)
 	if n == len(k) { // ascii
 		return n >= 4
@@ -103,7 +103,7 @@ func Names(generator, title, text string, headers map[string]string, assets []st
 	byKey := map[string]candidate{}
 	add := func(text string, weight int) {
 		text = strings.Trim(strings.TrimSpace(NameVersion.ReplaceAllString(Clean(text), "")), "-:|/ ")
-		if text == "" || utf8.RuneCountInString(text) > 40 || !UsableKey(strings.ToLower(text)) {
+		if text == "" || utf8.RuneCountInString(text) > 40 || !usableKey(strings.ToLower(text)) {
 			return
 		}
 		key := NormalizeName(text)

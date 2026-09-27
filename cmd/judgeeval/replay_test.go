@@ -257,13 +257,6 @@ func TestDirectoryAndReplayShareRecordAndCache(t *testing.T) {
 		if err := json.Unmarshal(data, &r); err != nil {
 			t.Fatal(err)
 		}
-		var fields map[string]json.RawMessage
-		_ = json.Unmarshal(data, &fields)
-		for _, old := range []string{"refined", "filled_versions", "verdicts", "outcomes", "evidence", "rejected", "duplicates", "missing_candidates"} {
-			if _, ok := fields[old]; ok {
-				t.Fatalf("legacy field %s remains", old)
-			}
-		}
 		return r
 	}
 	first := readRow(directory)

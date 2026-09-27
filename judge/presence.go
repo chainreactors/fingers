@@ -36,6 +36,14 @@ func (e matchExcerpt) String() string {
 	return e.Where + ": " + e.Text
 }
 
+// factClaim carries presence facts code establishes from the response head:
+// explicit product declarations and protocol features.
+var factClaim = jev.Claim{Statement: "The response head establishes the product or protocol feature.", Options: map[string]jev.Option{
+	OptionDeclared:         {Description: "Explicit product declaration or protocol feature", Outcome: jev.Holds},
+	OptionAbsent:           {Description: "The protocol feature is absent", Outcome: jev.Refuted},
+	jev.OptionInsufficient: {Description: insufficientDescription, Outcome: jev.Insufficient},
+}}
+
 // presenceClaim is a rule's claim that name is part of the software stack
 // that produced the response; state.matches[id] quotes where it matched.
 func presenceClaim(id, name string) jev.Claim {
@@ -78,14 +86,7 @@ func (j *Judge) presence(ctx context.Context, p *evidence.Page, frames common.Fr
 			option = OptionDeclared
 		}
 		if option != "" {
-			claim := jev.Claim{Statement: "The response declares " + name, Options: map[string]jev.Option{
-				OptionDeclared:         {Description: "Explicit product declaration or protocol feature", Outcome: jev.Holds},
-				OptionAbsent:           {Description: "The protocol feature is absent", Outcome: jev.Refuted},
-				jev.OptionInsufficient: {Description: insufficientDescription, Outcome: jev.Insufficient},
-			}}
-			if err := j.applyPresence(group, excerpts, claim, jev.Ruling{Option: option, Confidence: 1}); err != nil {
-				return err
-			}
+			j.applyPresence(group, excerpts, factClaim, jev.Ruling{Option: option, Confidence: 1})
 			continue
 		}
 		if len(claims) >= maxClaims {
@@ -99,9 +100,7 @@ func (j *Judge) presence(ctx context.Context, p *evidence.Page, frames common.Fr
 		return err
 	}
 	for id, ruling := range rulings {
-		if err := j.applyPresence(targets[id], matches[id], claims[id], ruling); err != nil {
-			return err
-		}
+		j.applyPresence(targets[id], matches[id], claims[id], ruling)
 	}
 	return nil
 }
@@ -110,11 +109,9 @@ func (j *Judge) rejects(o jev.Outcome) bool {
 	return o == jev.Refuted || (o == jev.Insufficient && j.DropInsufficient)
 }
 
-// applyPresence is shared by deterministic and provider presence rulings.
-func (j *Judge) applyPresence(frames []*common.Framework, evidence []matchExcerpt, claim jev.Claim, ruling jev.Ruling) error {
-	if err := validRuling(claim, ruling); err != nil {
-		return err
-	}
+// applyPresence annotates a product's spellings with a ruling, whether code
+// or the provider made it; spellings after the first are duplicates.
+func (j *Judge) applyPresence(frames []*common.Framework, evidence []matchExcerpt, claim jev.Claim, ruling jev.Ruling) {
 	outcome := claim.Resolve(ruling, j.MinConfidence)
 	var excerpts []string
 	for _, e := range evidence {
@@ -125,5 +122,4 @@ func (j *Judge) applyPresence(frames []*common.Framework, evidence []matchExcerp
 			Evidence: append([]string(nil), excerpts...), Confidence: ruling.Confidence,
 			Rejected: j.rejects(outcome), Duplicate: i > 0}
 	}
-	return nil
 }

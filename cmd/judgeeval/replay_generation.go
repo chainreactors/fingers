@@ -156,7 +156,7 @@ func generateReplay(m *replayManifest, j *judge.Judge, out string) ([]generation
 			return nil, err
 		}
 		r.Excluded = excluded
-		g := gen.New(j).Name(p.Product)
+		g := gen.New(j, p.Product)
 		for _, id := range p.Positive {
 			s := samples[id]
 			g.Positive(s.raw)

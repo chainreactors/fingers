@@ -21,7 +21,25 @@ var (
 	// What precedes numbers reVersion catches that are never versions: the
 	// viewport's "initial-scale=1.0".
 	reNotVersion = regexp.MustCompile(`(?i)(?:initial|minimum|maximum)-scale\s*=\s*$`)
+	// A Via header entry starts with the HTTP version it was received with
+	// ("Via: 1.1 varnish", "1.0 fred, 1.1 p.example.net"), never a product's.
+	reViaProtocol = regexp.MustCompile(`(?i)^via:\s*(?:[^,\r\n]*,\s*)*(?:HTTP/)?$`)
+	// The format version of an SVG or XML declaration: <svg version="1.1">.
+	reMarkupVersion = regexp.MustCompile(`(?i)^<(?:svg|\?xml)\b[^>]*\bversion\s*=\s*["']?$`)
 )
+
+// formatVersion reports whether the number at i in text is a protocol or
+// markup format version rather than a product version.
+func formatVersion(text string, i int) bool {
+	line := text[strings.LastIndexByte(text[:i], '\n')+1 : i]
+	if reViaProtocol.MatchString(line) {
+		return true
+	}
+	if tag := strings.LastIndexByte(text[:i], '<'); tag >= 0 && !strings.Contains(text[tag:i], ">") {
+		return reMarkupVersion.MatchString(text[tag:i])
+	}
+	return false
+}
 
 const (
 	notStated = "not_stated"
@@ -54,9 +72,7 @@ func (j *Judge) versions(ctx context.Context, p *evidence.Page, frames ...*commo
 		}}
 		if v := declaredVersion(decls, f.Name); v != "" {
 			claim.Options[v] = jev.Option{Description: "The response explicitly binds this version to " + f.Name, Outcome: jev.Holds}
-			if err := j.applyVersion(f, claim, jev.Ruling{Option: v, Confidence: 1}); err != nil {
-				return err
-			}
+			j.applyVersion(f, claim, jev.Ruling{Option: v, Confidence: 1})
 			continue
 		}
 		key := NormalizeName(f.Name)
@@ -86,24 +102,19 @@ func (j *Judge) versions(ctx context.Context, p *evidence.Page, frames ...*commo
 		return err
 	}
 	for id, ruling := range rulings {
-		if err := j.applyVersion(targets[id], claims[id], ruling); err != nil {
-			return err
-		}
+		j.applyVersion(targets[id], claims[id], ruling)
 	}
 	return nil
 }
 
-func (j *Judge) applyVersion(f *common.Framework, claim jev.Claim, ruling jev.Ruling) error {
-	if err := validRuling(claim, ruling); err != nil {
-		return err
-	}
+// applyVersion writes the picked version when the ruling holds.
+func (j *Judge) applyVersion(f *common.Framework, claim jev.Claim, ruling jev.Ruling) {
 	if claim.Resolve(ruling, j.MinConfidence) == jev.Holds {
 		if f.Attributes == nil {
 			f.Attributes = common.NewAttributesWithAny()
 		}
 		f.Version = ruling.Option
 	}
-	return nil
 }
 
 // declaration is a version the response binds to a product name.
@@ -227,7 +238,7 @@ func extractVersions(raw []byte, max int) []versionString {
 		if before < 0 {
 			before = 0
 		}
-		if looksLikeIPv4(v) || strings.Trim(v, "0.") == "" || reNotVersion.MatchString(text[before:loc[2]]) {
+		if looksLikeIPv4(v) || strings.Trim(v, "0.") == "" || reNotVersion.MatchString(text[before:loc[2]]) || formatVersion(text, loc[2]) {
 			continue
 		}
 		start, end := loc[0]-60, loc[1]+30

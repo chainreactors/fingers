@@ -118,7 +118,7 @@ for _, f := range accepted {
 
 **数据外发**：判定时会把响应的精简视图发给 Provider，包括响应头（去掉 Date、Set-Cookie 值等无关头）、Cookie 名、标题、generator/description、脚本和样式路径、内联脚本开头、HTML 注释、表单字段名，以及正文前 1500 字。扫描授权范围内的目标前，请确认允许把这些内容发送给第三方服务。
 
-历史 Claim 实现于 2026-09-26 在 69 份已标注的真实响应上：误报 24 → 0，真实命中误删 0，版本正确 36、错误 0，见 [历史验收报告](docs/jev-claim-acceptance-20260926.md)。这些指标尚未用本次简化实现重新请求 Jev 验证。
+当前实现于 2026-09-27 在 69 份已标注的真实响应上复测（jev-1.13.0）：误报 24 → 0，真实命中误删 0，版本正确 36、错误 0；不加载新增规则时 Discover 找出全部 3 个漏报产品，加载后无误报警。见 [复测报告](docs/jev-claim-retest-20260927.md)。
 
 指纹判定的完整能力见 [judge/README.md](judge/README.md)；用正反样本生成原生指纹见 `judge/gen`；设计讨论见 [#34](https://github.com/chainreactors/fingers/issues/34)。
 
