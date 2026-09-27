@@ -12,7 +12,8 @@ require (
 	github.com/chainreactors/logs v0.0.0-20260508055944-c678762ed15c // indirect
 	github.com/chainreactors/neutron v0.1.1-0.20260714062907-716c6b167cb6 // indirect
 	github.com/chainreactors/utils v0.0.0-20260629043228-93bdd2142c9a // indirect
-	github.com/chainreactors/utils/parsers v0.0.4-0.20260925164932-39c659c84c64 // indirect
+	github.com/chainreactors/utils/jev v0.0.0-20260927031300-6bf027367a50 // indirect
+	github.com/chainreactors/utils/parsers v0.0.4-0.20260927032755-fd113e94d6c0 // indirect
 	github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/facebookincubator/nvdtools v0.1.5 // indirect

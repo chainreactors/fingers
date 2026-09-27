@@ -81,8 +81,10 @@ github.com/chainreactors/neutron v0.1.1-0.20260714062907-716c6b167cb6 h1:apEDnJe
 github.com/chainreactors/neutron v0.1.1-0.20260714062907-716c6b167cb6/go.mod h1:zok/CDxut71iw8NQTHKPvy0f+1G5639zr9GgDsXGnOs=
 github.com/chainreactors/utils v0.0.0-20260629043228-93bdd2142c9a h1:4rLTKr+VlG7yGbw2ym7nhNvFglvZ4acdphxKEozF7CI=
 github.com/chainreactors/utils v0.0.0-20260629043228-93bdd2142c9a/go.mod h1:xwbUlFoSSxLHujyb8D48o1s2DqmEAxUNfxIy0DVUmcg=
-github.com/chainreactors/utils/parsers v0.0.4-0.20260925164932-39c659c84c64 h1:MgEJ0vr7png0bKb5nYL1pK5lTUMDBRbigYt74K+UwYw=
-github.com/chainreactors/utils/parsers v0.0.4-0.20260925164932-39c659c84c64/go.mod h1:bE/znJWt08n9QOORWsWu0ggB8GWfOg3+dfUMMITmwV4=
+github.com/chainreactors/utils/jev v0.0.0-20260927031300-6bf027367a50 h1:XnGpBYIS4u1BUNL3KtlrrXde/vSmDon34X5AEV7WOi8=
+github.com/chainreactors/utils/jev v0.0.0-20260927031300-6bf027367a50/go.mod h1:9w5fvcKrpQVIHWlKuvpVARpZUd+OKsYSIii2JR1ZRB8=
+github.com/chainreactors/utils/parsers v0.0.4-0.20260927032755-fd113e94d6c0 h1:rfhEDw1QfbIgUAhGWRbovR3ur7Ug3V7j5WxqstwlnW0=
+github.com/chainreactors/utils/parsers v0.0.4-0.20260927032755-fd113e94d6c0/go.mod h1:bE/znJWt08n9QOORWsWu0ggB8GWfOg3+dfUMMITmwV4=
 github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4 h1:lvnDYEkatmZFHP5i321qQXK9L4vKRfso/uUfr5tOeC8=
 github.com/chainreactors/words v0.0.0-20260520145736-270600e60fb4/go.mod h1:zfz367PUmyaX6oAqV9SktVqyRXKlEh0sel9Wsq9dd2c=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
